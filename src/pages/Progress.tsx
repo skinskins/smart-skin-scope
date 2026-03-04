@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { TrendingUp } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
+import { TrendingUp, Users, Zap } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, BarChart, Bar } from "recharts";
 import { useState } from "react";
 
 const weeklyData = [
@@ -20,111 +20,160 @@ const metrics = [
   { key: "texture", label: "Texture", color: "hsl(280, 30%, 55%)" },
 ];
 
-const skinLog = [
-  { date: "Today", score: 74, note: "Good day, applied sunscreen", emoji: "😊" },
-  { date: "Yesterday", score: 71, note: "Slight dryness on cheeks", emoji: "😐" },
-  { date: "2 days ago", score: 68, note: "Breakout on chin area", emoji: "😔" },
-  { date: "3 days ago", score: 73, note: "Used new hydrating mask", emoji: "😊" },
-  { date: "4 days ago", score: 76, note: "Skin felt amazing today", emoji: "✨" },
+const cohortData = [
+  { metric: "Hydration", you: 72, avg: 65 },
+  { metric: "Glow", you: 65, avg: 60 },
+  { metric: "Redness", you: 28, avg: 35 },
+  { metric: "Texture", you: 80, avg: 70 },
+  { metric: "Oiliness", you: 45, avg: 50 },
 ];
+
+const predictionData = [
+  { day: "Today", score: 74 },
+  { day: "+1", score: 73 },
+  { day: "+2", score: 76 },
+  { day: "+3", score: 72 },
+  { day: "+4", score: 78 },
+  { day: "+5", score: 75 },
+  { day: "+6", score: 79 },
+  { day: "+7", score: 80 },
+];
+
+const predictionFactors = [
+  { factor: "Weather", impact: "UV ↑ → slight redness risk" },
+  { factor: "Cycle", impact: "Follicular → better glow" },
+  { factor: "Sleep", impact: "Avg 7.2h → good recovery" },
+];
+
+type Tab = "trends" | "compare" | "predict";
 
 const Progress = () => {
   const [activeMetrics, setActiveMetrics] = useState<string[]>(["hydration", "texture"]);
+  const [tab, setTab] = useState<Tab>("trends");
 
   const toggleMetric = (key: string) => {
-    setActiveMetrics((prev) =>
-      prev.includes(key) ? prev.filter((m) => m !== key) : [...prev, key]
-    );
+    setActiveMetrics(prev => prev.includes(key) ? prev.filter(m => m !== key) : [...prev, key]);
   };
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1">
           <TrendingUp size={20} className="text-primary" />
           <h1 className="text-2xl font-display font-semibold text-foreground">Progress</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">Track your skin journey over time</p>
+        <p className="text-sm text-muted-foreground mb-4">Track, compare & predict</p>
       </motion.div>
 
-      {/* Chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-card rounded-2xl p-5 shadow-card mb-4"
-      >
-        <h3 className="font-display font-semibold text-foreground mb-4">Weekly Trends</h3>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {metrics.map((m) => (
-            <button
-              key={m.key}
-              onClick={() => toggleMetric(m.key)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                activeMetrics.includes(m.key)
-                  ? "border-transparent text-primary-foreground"
-                  : "border-border text-muted-foreground bg-transparent"
-              }`}
-              style={activeMetrics.includes(m.key) ? { backgroundColor: m.color } : {}}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        <div className="h-52">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
-              <YAxis tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                }}
-              />
-              {metrics
-                .filter((m) => activeMetrics.includes(m.key))
-                .map((m) => (
-                  <Line
-                    key={m.key}
-                    type="monotone"
-                    dataKey={m.key}
-                    stroke={m.color}
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: m.color }}
-                    activeDot={{ r: 5 }}
-                  />
-                ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </motion.div>
-
-      {/* Skin Log */}
-      <h3 className="font-display font-semibold text-foreground mb-3 mt-6">Skin Journal</h3>
-      <div className="space-y-2">
-        {skinLog.map((entry, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 + i * 0.08 }}
-            className="bg-card rounded-xl p-4 shadow-card flex items-center gap-3"
-          >
-            <span className="text-2xl">{entry.emoji}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{entry.date}</span>
-                <span className="text-sm font-semibold text-primary">{entry.score}</span>
-              </div>
-              <p className="text-sm text-foreground truncate">{entry.note}</p>
-            </div>
-          </motion.div>
+      {/* Tabs */}
+      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-5">
+        {([["trends", "Trends", TrendingUp], ["compare", "Cohort", Users], ["predict", "Predict", Zap]] as const).map(([key, label, Icon]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+              tab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}>
+            <Icon size={14} />{label}
+          </button>
         ))}
       </div>
+
+      {tab === "trends" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+            <h3 className="font-display font-semibold text-foreground mb-3">Weekly Trends</h3>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {metrics.map(m => (
+                <button key={m.key} onClick={() => toggleMetric(m.key)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
+                    activeMetrics.includes(m.key) ? "border-transparent text-primary-foreground" : "border-border text-muted-foreground bg-transparent"
+                  }`} style={activeMetrics.includes(m.key) ? { backgroundColor: m.color } : {}}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weeklyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
+                  {metrics.filter(m => activeMetrics.includes(m.key)).map(m => (
+                    <Line key={m.key} type="monotone" dataKey={m.key} stroke={m.color} strokeWidth={2} dot={{ r: 2.5, fill: m.color }} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {tab === "compare" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+            <h3 className="font-display font-semibold text-foreground mb-1">You vs. Cohort</h3>
+            <p className="text-xs text-muted-foreground mb-3">Women 25–30, combination skin</p>
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cohortData} barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="metric" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
+                  <Bar dataKey="you" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="You" />
+                  <Bar dataKey="avg" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Avg" opacity={0.5} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="bg-card rounded-xl p-4 shadow-card">
+            <p className="text-sm text-foreground">
+              You're <span className="text-primary font-semibold">above average</span> in hydration & texture. Redness is below cohort avg — nice!
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {tab === "predict" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+            <h3 className="font-display font-semibold text-foreground mb-1">7-Day Prediction</h3>
+            <p className="text-xs text-muted-foreground mb-3">Based on trends + daily factors</p>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={predictionData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[60, 90]} />
+                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
+                  <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2.5}
+                    strokeDasharray="0" dot={{ r: 3, fill: "hsl(var(--primary))" }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <h3 className="font-display font-semibold text-foreground mb-2">Adjustment Factors</h3>
+          <div className="space-y-2 mb-4">
+            {predictionFactors.map((f, i) => (
+              <motion.div key={f.factor} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
+                className="bg-card rounded-xl p-3 shadow-card flex items-center gap-3">
+                <Zap size={14} className="text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{f.factor}</p>
+                  <p className="text-xs text-muted-foreground">{f.impact}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="bg-card rounded-xl p-4 shadow-card">
+            <p className="text-sm text-foreground">
+              Predicted trend: <span className="text-primary font-semibold">↑ improving</span>. Score may dip day 3 (UV spike).
+            </p>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 };
