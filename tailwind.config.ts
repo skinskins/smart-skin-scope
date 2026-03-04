@@ -47,6 +47,13 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        skin: {
+          glow: "hsl(var(--skin-glow))",
+          hydration: "hsl(var(--skin-hydration))",
+          redness: "hsl(var(--skin-redness))",
+          texture: "hsl(var(--skin-texture))",
+          oil: "hsl(var(--skin-oil))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -57,6 +64,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      fontFamily: {
+        display: ['Playfair Display', 'serif'],
+        body: ['DM Sans', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
