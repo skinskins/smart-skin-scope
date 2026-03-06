@@ -10,29 +10,29 @@ interface Question {
 }
 
 const questions: Question[] = [
-  { id: "water", text: "How many glasses of water today?", options: [
+  { id: "water", text: "Combien de verres d'eau aujourd'hui ?", options: [
     { label: "0–2", value: 1 }, { label: "3–5", value: 2 }, { label: "6–8", value: 3 }, { label: "8+", value: 4 }
   ]},
-  { id: "sunscreen", text: "Did you apply sunscreen?", options: [
-    { label: "No", value: 1 }, { label: "Once", value: 2 }, { label: "Reapplied", value: 4 }
+  { id: "sunscreen", text: "Avez-vous appliqué de la crème solaire ?", options: [
+    { label: "Non", value: 1 }, { label: "Une fois", value: 2 }, { label: "Réappliqué", value: 4 }
   ]},
-  { id: "sleep", text: "Hours of sleep last night?", options: [
+  { id: "sleep", text: "Heures de sommeil cette nuit ?", options: [
     { label: "<5h", value: 1 }, { label: "5–6h", value: 2 }, { label: "7–8h", value: 3 }, { label: "8+", value: 4 }
   ]},
-  { id: "stress", text: "Stress level today?", options: [
-    { label: "High", value: 1 }, { label: "Moderate", value: 2 }, { label: "Low", value: 3 }, { label: "None", value: 4 }
+  { id: "stress", text: "Niveau de stress aujourd'hui ?", options: [
+    { label: "Élevé", value: 1 }, { label: "Modéré", value: 2 }, { label: "Faible", value: 3 }, { label: "Aucun", value: 4 }
   ]},
-  { id: "diet", text: "How clean was your diet?", options: [
-    { label: "Poor", value: 1 }, { label: "Okay", value: 2 }, { label: "Good", value: 3 }, { label: "Great", value: 4 }
+  { id: "diet", text: "Qualité de votre alimentation ?", options: [
+    { label: "Mauvaise", value: 1 }, { label: "Correcte", value: 2 }, { label: "Bonne", value: 3 }, { label: "Excellente", value: 4 }
   ]},
 ];
 
 const tipMap: Record<string, string[]> = {
-  water: ["Drink 2 more glasses before evening.", "Good hydration — keep it up!", "Great water intake, skin will glow."],
-  sunscreen: ["Apply SPF 50 before going out.", "Good start, reapply every 2h outdoors.", "Perfect sun protection routine."],
-  sleep: ["Aim for 7h+ for skin repair.", "Almost there — avoid screens before bed.", "Great sleep supports cell renewal."],
-  stress: ["Try 5 min breathing exercises.", "Moderate stress — take short breaks.", "Low stress helps skin barrier."],
-  diet: ["Cut sugar to reduce breakouts.", "Add omega-3 rich foods this week.", "Clean diet = clear skin."],
+  water: ["Buvez 2 verres de plus avant ce soir.", "Bonne hydratation — continuez !", "Super apport en eau, votre peau va briller."],
+  sunscreen: ["Appliquez du SPF 50 avant de sortir.", "Bon début, réappliquez toutes les 2h dehors.", "Protection solaire parfaite."],
+  sleep: ["Visez 7h+ pour la réparation cutanée.", "Presque — évitez les écrans avant de dormir.", "Excellent sommeil pour le renouvellement cellulaire."],
+  stress: ["Essayez 5 min de respiration.", "Stress modéré — faites des pauses.", "Peu de stress aide la barrière cutanée."],
+  diet: ["Réduisez le sucre pour limiter les boutons.", "Ajoutez des aliments riches en oméga-3.", "Alimentation saine = peau nette."],
 };
 
 const Tips = () => {
@@ -67,12 +67,12 @@ const Tips = () => {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="flex items-center gap-2 mb-1">
           <Sparkles size={20} className="text-primary" />
-          <h1 className="text-2xl font-display font-semibold text-foreground">Skin Quiz</h1>
+          <h1 className="text-2xl font-display font-semibold text-foreground">Quiz Peau</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">Answer quickly for personalized tips</p>
+        <p className="text-sm text-muted-foreground mb-6">Répondez rapidement pour des conseils personnalisés</p>
       </motion.div>
 
-      {/* Progress bar */}
+      {/* Barre de progression */}
       <div className="flex gap-1 mb-6">
         {questions.map((_, i) => (
           <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${
@@ -107,7 +107,7 @@ const Tips = () => {
         ) : (
           <motion.div key="result" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <div className="rounded-2xl p-6 mb-4" style={{ background: "var(--gradient-hero)" }}>
-              <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider mb-2">Your Tips</p>
+              <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider mb-2">Vos conseils</p>
               <div className="space-y-2">
                 {getTips().map((tip, i) => (
                   <p key={i} className="text-primary-foreground text-sm font-medium flex gap-2">
@@ -119,13 +119,13 @@ const Tips = () => {
 
             <div className="bg-card rounded-xl p-4 shadow-card mb-4">
               <p className="text-sm text-foreground">
-                <span className="font-semibold">Score:</span>{" "}
+                <span className="font-semibold">Score :</span>{" "}
                 {Math.round((Object.values(answers).reduce((a, b) => a + b, 0) / (questions.length * 4)) * 100)}% — 
-                {Object.values(answers).reduce((a, b) => a + b, 0) > 12 ? " Great habits!" : " Room to improve."}
+                {Object.values(answers).reduce((a, b) => a + b, 0) > 12 ? " Très bonnes habitudes !" : " Marge de progression."}
               </p>
             </div>
 
-            <Button onClick={restart} variant="outline" className="w-full rounded-xl py-5">Retake Quiz</Button>
+            <Button onClick={restart} variant="outline" className="w-full rounded-xl py-5">Refaire le quiz</Button>
           </motion.div>
         )}
       </AnimatePresence>

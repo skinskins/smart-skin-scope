@@ -13,15 +13,15 @@ interface MetricCardProps {
 }
 
 const trendText = {
-  up: { label: "↑ Improving", desc: "This metric has been trending upward over the past 7 days." },
-  down: { label: "↓ Declining", desc: "This metric has decreased compared to your recent average." },
-  stable: { label: "→ Stable", desc: "No significant changes detected recently." },
+  up: { label: "↑ En hausse", desc: "Cette métrique s'améliore sur les 7 derniers jours." },
+  down: { label: "↓ En baisse", desc: "Cette métrique a diminué par rapport à votre moyenne récente." },
+  stable: { label: "→ Stable", desc: "Aucun changement significatif détecté récemment." },
 };
 
 const MetricCard = ({ label, value, maxValue = 100, color, icon, trend, detail }: MetricCardProps) => {
   const [open, setOpen] = useState(false);
   const percentage = (value / maxValue) * 100;
-  const level = percentage >= 70 ? "Good" : percentage >= 40 ? "Moderate" : "Low";
+  const level = percentage >= 70 ? "Bon" : percentage >= 40 ? "Modéré" : "Faible";
 
   return (
     <>
@@ -51,7 +51,7 @@ const MetricCard = ({ label, value, maxValue = 100, color, icon, trend, detail }
         {trend && (
           <div className="mt-2 text-xs text-muted-foreground">{trendText[trend].label}</div>
         )}
-        <p className="mt-1 text-[10px] text-muted-foreground/60">Tap for details</p>
+        <p className="mt-1 text-[10px] text-muted-foreground/60">Appuyez pour le détail</p>
       </motion.div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -61,19 +61,19 @@ const MetricCard = ({ label, value, maxValue = 100, color, icon, trend, detail }
               {icon} {label}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Detailed breakdown
+              Détail complet
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Current Value</span>
+              <span className="text-sm text-muted-foreground">Valeur actuelle</span>
               <span className="text-lg font-semibold text-foreground">{value}/{maxValue}</span>
             </div>
             <div className="h-3 rounded-full bg-muted overflow-hidden">
               <div className="h-full rounded-full" style={{ backgroundColor: color, width: `${percentage}%` }} />
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Level</span>
+              <span className="text-sm text-muted-foreground">Niveau</span>
               <span className="text-sm font-medium" style={{ color }}>{level}</span>
             </div>
             {trend && (
@@ -87,12 +87,12 @@ const MetricCard = ({ label, value, maxValue = 100, color, icon, trend, detail }
             )}
             <div className="bg-muted rounded-xl p-3">
               <p className="text-[11px] text-muted-foreground">
-                <span className="font-semibold">What affects this:</span>{" "}
-                {label === "Hydration" && "Water intake, humidity, moisturizer use, alcohol consumption."}
-                {label === "Glow" && "Sleep quality, vitamin C serums, exfoliation frequency."}
-                {label === "Redness" && "Stress, UV exposure, harsh products, allergies."}
-                {label === "Texture" && "Retinol use, exfoliation, hydration levels."}
-                {label === "Oiliness" && "Diet, hormones, cleanser type, humidity."}
+                <span className="font-semibold">Ce qui influence :</span>{" "}
+                {label === "Hydratation" && "Apport en eau, humidité, crème hydratante, alcool."}
+                {label === "Éclat" && "Qualité du sommeil, sérums vitamine C, fréquence d'exfoliation."}
+                {label === "Rougeurs" && "Stress, exposition UV, produits agressifs, allergies."}
+                {label === "Texture" && "Rétinol, exfoliation, niveaux d'hydratation."}
+                {label === "Sébum" && "Alimentation, hormones, type de nettoyant, humidité."}
               </p>
             </div>
           </div>
