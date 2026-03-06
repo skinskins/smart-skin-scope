@@ -1,34 +1,28 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Upload, Loader2, CheckCircle2, AlertTriangle, RotateCcw } from "lucide-react";
+import { Camera, Upload, Loader2, RotateCcw, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 type ScanState = "idle" | "analyzing" | "result";
 
-interface Marker {
-  x: number; y: number; label: string; severity: "clear" | "mild" | "attention";
-  color: string;
+interface Zone {
+  id: string; label: string; x: number; y: number; description: string;
 }
 
-const mockMarkers: Marker[] = [
-  { x: 30, y: 25, label: "Redness", severity: "mild", color: "hsl(0, 70%, 60%)" },
-  { x: 65, y: 20, label: "Pores", severity: "mild", color: "hsl(280, 30%, 55%)" },
-  { x: 45, y: 45, label: "Dryness", severity: "attention", color: "hsl(35, 70%, 55%)" },
-  { x: 55, y: 65, label: "Acne", severity: "mild", color: "hsl(0, 70%, 60%)" },
-  { x: 35, y: 55, label: "Pigmentation", severity: "clear", color: "hsl(45, 80%, 65%)" },
-  { x: 50, y: 35, label: "Texture", severity: "clear", color: "hsl(280, 30%, 55%)" },
-];
-
-const mockFindings = [
-  { area: "Forehead", status: "clear", note: "No issues" },
-  { area: "Cheeks", status: "mild", note: "Slight dryness" },
-  { area: "T-Zone", status: "attention", note: "Excess oil" },
-  { area: "Chin", status: "clear", note: "Healthy" },
+const faceZones: Zone[] = [
+  { id: "forehead", label: "Forehead", x: 50, y: 18, description: "Common area for texture issues, fine lines, and oil buildup." },
+  { id: "left-cheek", label: "Left Cheek", x: 25, y: 45, description: "Often shows redness and dryness. Linked to respiratory health." },
+  { id: "right-cheek", label: "Right Cheek", x: 75, y: 45, description: "Phone contact area — often shows breakouts and irritation." },
+  { id: "nose", label: "T-Zone", x: 50, y: 42, description: "Highest oil production. Pores and blackheads concentrate here." },
+  { id: "chin", label: "Chin", x: 50, y: 68, description: "Hormonal breakouts typically appear here, especially during luteal phase." },
+  { id: "jaw", label: "Jawline", x: 35, y: 72, description: "Stress and hormonal acne. Often linked to cycle and diet." },
 ];
 
 const Diagnosis = () => {
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,7 +37,7 @@ const Diagnosis = () => {
     reader.readAsDataURL(file);
   };
 
-  const reset = () => { setScanState("idle"); setUploadedImage(null); };
+  const reset = () => { setScanState("idle"); setUploadedImage(null); setSelectedZone(null); };
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
@@ -87,46 +81,44 @@ const Diagnosis = () => {
 
         {scanState === "result" && (
           <motion.div key="result" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            {/* Photo with markers */}
+            {/* Photo with clickable greyed zones */}
             {uploadedImage && (
               <div className="relative rounded-2xl overflow-hidden mb-4 shadow-card">
                 <img src={uploadedImage} alt="Analysis" className="w-full aspect-square object-cover" />
-                {mockMarkers.map((m, i) => (
-                  <motion.div key={i} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.1 }}
-                    className="absolute flex flex-col items-center" style={{ left: `${m.x}%`, top: `${m.y}%`, transform: "translate(-50%, -50%)" }}>
-                    <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[8px] font-bold"
-                      style={{ borderColor: m.color, backgroundColor: `${m.color}30`, color: m.color }}>
-                      {m.severity === "clear" ? "✓" : "!"}
+                {faceZones.map((zone, i) => (
+                  <motion.button
+                    key={zone.id}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: i * 0.1 }}
+                    onClick={() => setSelectedZone(zone)}
+                    className="absolute flex flex-col items-center group"
+                    style={{ left: `${zone.x}%`, top: `${zone.y}%`, transform: "translate(-50%, -50%)" }}
+                  >
+                    <div className="w-8 h-8 rounded-full border-2 border-muted-foreground/40 bg-muted/50 backdrop-blur-sm flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity">
+                      <Lock size={10} className="text-muted-foreground" />
                     </div>
-                    <span className="text-[9px] font-semibold mt-0.5 px-1 rounded bg-card/80 backdrop-blur-sm" style={{ color: m.color }}>
-                      {m.label}
+                    <span className="text-[9px] font-medium mt-0.5 px-1.5 py-0.5 rounded bg-card/80 backdrop-blur-sm text-muted-foreground">
+                      {zone.label}
                     </span>
-                  </motion.div>
+                  </motion.button>
                 ))}
               </div>
             )}
 
-            {/* Comparison text */}
-            <div className="bg-card rounded-xl p-4 shadow-card mb-4">
-              <p className="text-sm text-foreground">
-                <span className="font-semibold text-primary">vs. last scan:</span> Redness ↓12%, Hydration ↑5%. Dryness on cheeks persists.
+            {/* Info banner */}
+            <div className="bg-accent rounded-xl p-3 mb-4 flex items-start gap-2">
+              <Lock size={14} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                AI analysis not yet available. Tap any zone to learn what it tracks.
               </p>
             </div>
 
-            {/* Findings */}
-            <h3 className="font-display font-semibold text-foreground mb-2">Findings</h3>
-            <div className="space-y-2 mb-4">
-              {mockFindings.map((f, i) => (
-                <motion.div key={f.area} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
-                  className="bg-card rounded-xl p-3 shadow-card flex items-center gap-3">
-                  {f.status === "clear" ? <CheckCircle2 size={16} className="text-primary flex-shrink-0" />
-                    : <AlertTriangle size={16} className="text-skin-oil flex-shrink-0" />}
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{f.area}</p>
-                    <p className="text-xs text-muted-foreground">{f.note}</p>
-                  </div>
-                </motion.div>
-              ))}
+            {/* Comparison text */}
+            <div className="bg-card rounded-xl p-4 shadow-card mb-4">
+              <p className="text-sm text-foreground">
+                <span className="font-semibold text-primary">vs. last scan:</span> Photo saved for comparison. Full analysis coming soon.
+              </p>
             </div>
 
             <Button onClick={reset} variant="outline" className="w-full rounded-xl py-5">
@@ -135,6 +127,21 @@ const Diagnosis = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Zone detail dialog */}
+      <Dialog open={!!selectedZone} onOpenChange={() => setSelectedZone(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{selectedZone?.label}</DialogTitle>
+            <DialogDescription>{selectedZone?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="bg-accent rounded-xl p-3">
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <Lock size={12} /> Detailed analysis will be available when AI scanning is enabled.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
