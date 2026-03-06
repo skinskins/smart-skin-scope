@@ -4,32 +4,32 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { useState } from "react";
 
 const weeklyData = [
-  { day: "Mon", hydration: 65, glow: 55, redness: 40, texture: 70 },
-  { day: "Tue", hydration: 68, glow: 58, redness: 38, texture: 72 },
-  { day: "Wed", hydration: 60, glow: 60, redness: 42, texture: 68 },
-  { day: "Thu", hydration: 72, glow: 62, redness: 35, texture: 75 },
-  { day: "Fri", hydration: 70, glow: 63, redness: 30, texture: 78 },
-  { day: "Sat", hydration: 75, glow: 65, redness: 28, texture: 80 },
-  { day: "Sun", hydration: 72, glow: 65, redness: 28, texture: 80 },
+  { day: "Lun", hydration: 65, glow: 55, redness: 40, texture: 70 },
+  { day: "Mar", hydration: 68, glow: 58, redness: 38, texture: 72 },
+  { day: "Mer", hydration: 60, glow: 60, redness: 42, texture: 68 },
+  { day: "Jeu", hydration: 72, glow: 62, redness: 35, texture: 75 },
+  { day: "Ven", hydration: 70, glow: 63, redness: 30, texture: 78 },
+  { day: "Sam", hydration: 75, glow: 65, redness: 28, texture: 80 },
+  { day: "Dim", hydration: 72, glow: 65, redness: 28, texture: 80 },
 ];
 
 const metrics = [
-  { key: "hydration", label: "Hydration", color: "hsl(200, 60%, 55%)" },
-  { key: "glow", label: "Glow", color: "hsl(45, 80%, 65%)" },
-  { key: "redness", label: "Redness", color: "hsl(0, 70%, 60%)" },
+  { key: "hydration", label: "Hydratation", color: "hsl(200, 60%, 55%)" },
+  { key: "glow", label: "Éclat", color: "hsl(45, 80%, 65%)" },
+  { key: "redness", label: "Rougeurs", color: "hsl(0, 70%, 60%)" },
   { key: "texture", label: "Texture", color: "hsl(280, 30%, 55%)" },
 ];
 
 const cohortData = [
-  { metric: "Hydration", you: 72, avg: 65 },
-  { metric: "Glow", you: 65, avg: 60 },
-  { metric: "Redness", you: 28, avg: 35 },
-  { metric: "Texture", you: 80, avg: 70 },
-  { metric: "Oiliness", you: 45, avg: 50 },
+  { metric: "Hydrat.", you: 72, avg: 65 },
+  { metric: "Éclat", you: 65, avg: 60 },
+  { metric: "Roug.", you: 28, avg: 35 },
+  { metric: "Text.", you: 80, avg: 70 },
+  { metric: "Sébum", you: 45, avg: 50 },
 ];
 
 const predictionData = [
-  { day: "Today", score: 74 },
+  { day: "Auj.", score: 74 },
   { day: "+1", score: 73 },
   { day: "+2", score: 76 },
   { day: "+3", score: 72 },
@@ -40,9 +40,9 @@ const predictionData = [
 ];
 
 const predictionFactors = [
-  { factor: "Weather", impact: "UV ↑ → slight redness risk" },
-  { factor: "Cycle", impact: "Follicular → better glow" },
-  { factor: "Sleep", impact: "Avg 7.2h → good recovery" },
+  { factor: "Météo", impact: "UV ↑ → risque de rougeurs" },
+  { factor: "Cycle", impact: "Folliculaire → meilleur éclat" },
+  { factor: "Sommeil", impact: "Moy. 7,2h → bonne récupération" },
 ];
 
 type Tab = "trends" | "compare" | "predict";
@@ -60,14 +60,14 @@ const Progress = () => {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="flex items-center gap-2 mb-1">
           <TrendingUp size={20} className="text-primary" />
-          <h1 className="text-2xl font-display font-semibold text-foreground">Progress</h1>
+          <h1 className="text-2xl font-display font-semibold text-foreground">Progression</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">Track, compare & predict</p>
+        <p className="text-sm text-muted-foreground mb-4">Suivre, comparer & prédire</p>
       </motion.div>
 
-      {/* Tabs */}
+      {/* Onglets */}
       <div className="flex gap-1 bg-muted rounded-xl p-1 mb-5">
-        {([["trends", "Trends", TrendingUp], ["compare", "Cohort", Users], ["predict", "Predict", Zap]] as const).map(([key, label, Icon]) => (
+        {([["trends", "Tendances", TrendingUp], ["compare", "Cohorte", Users], ["predict", "Prédiction", Zap]] as const).map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
               tab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
@@ -80,7 +80,7 @@ const Progress = () => {
       {tab === "trends" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-            <h3 className="font-display font-semibold text-foreground mb-3">Weekly Trends</h3>
+            <h3 className="font-display font-semibold text-foreground mb-3">Tendances hebdo</h3>
             <div className="flex flex-wrap gap-2 mb-3">
               {metrics.map(m => (
                 <button key={m.key} onClick={() => toggleMetric(m.key)}
@@ -111,8 +111,8 @@ const Progress = () => {
       {tab === "compare" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-            <h3 className="font-display font-semibold text-foreground mb-1">You vs. Cohort</h3>
-            <p className="text-xs text-muted-foreground mb-3">Women 25–30, combination skin</p>
+            <h3 className="font-display font-semibold text-foreground mb-1">Vous vs. Cohorte</h3>
+            <p className="text-xs text-muted-foreground mb-3">Femmes 25–30 ans, peau mixte</p>
             <div className="h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={cohortData} barGap={2}>
@@ -120,15 +120,15 @@ const Progress = () => {
                   <XAxis dataKey="metric" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
-                  <Bar dataKey="you" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="You" />
-                  <Bar dataKey="avg" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Avg" opacity={0.5} />
+                  <Bar dataKey="you" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Vous" />
+                  <Bar dataKey="avg" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Moyenne" opacity={0.5} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
           <div className="bg-card rounded-xl p-4 shadow-card">
             <p className="text-sm text-foreground">
-              You're <span className="text-primary font-semibold">above average</span> in hydration & texture. Redness is below cohort avg — nice!
+              Vous êtes <span className="text-primary font-semibold">au-dessus de la moyenne</span> en hydratation & texture. Rougeurs en dessous — bravo !
             </p>
           </div>
         </motion.div>
@@ -137,8 +137,8 @@ const Progress = () => {
       {tab === "predict" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-            <h3 className="font-display font-semibold text-foreground mb-1">7-Day Prediction</h3>
-            <p className="text-xs text-muted-foreground mb-3">Based on trends + daily factors</p>
+            <h3 className="font-display font-semibold text-foreground mb-1">Prédiction 7 jours</h3>
+            <p className="text-xs text-muted-foreground mb-3">Basée sur les tendances + facteurs</p>
             <div className="h-44">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={predictionData}>
@@ -147,13 +147,13 @@ const Progress = () => {
                   <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[60, 90]} />
                   <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
                   <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2.5}
-                    strokeDasharray="0" dot={{ r: 3, fill: "hsl(var(--primary))" }} />
+                    dot={{ r: 3, fill: "hsl(var(--primary))" }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <h3 className="font-display font-semibold text-foreground mb-2">Adjustment Factors</h3>
+          <h3 className="font-display font-semibold text-foreground mb-2">Facteurs d'ajustement</h3>
           <div className="space-y-2 mb-4">
             {predictionFactors.map((f, i) => (
               <motion.div key={f.factor} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
@@ -169,7 +169,7 @@ const Progress = () => {
 
           <div className="bg-card rounded-xl p-4 shadow-card">
             <p className="text-sm text-foreground">
-              Predicted trend: <span className="text-primary font-semibold">↑ improving</span>. Score may dip day 3 (UV spike).
+              Tendance prédite : <span className="text-primary font-semibold">↑ en amélioration</span>. Baisse possible J+3 (pic UV).
             </p>
           </div>
         </motion.div>
