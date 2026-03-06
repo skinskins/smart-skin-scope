@@ -96,9 +96,9 @@ const Dashboard = () => {
             <span className="text-xs text-muted-foreground">Take today's photo</span>
           </button>
         </div>
-        <div className="flex gap-2 justify-between">
+        <div className="flex flex-row gap-2 justify-between overflow-x-auto">
           {weekDays.map((day, i) => (
-            <div key={day} className="flex flex-col items-center gap-1">
+            <div key={day} className="flex flex-col items-center gap-1 flex-shrink-0">
               <span className={`text-[10px] font-medium ${i === todayIndex ? 'text-primary' : 'text-muted-foreground'}`}>{day}</span>
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                 i === todayIndex ? 'ring-2 ring-primary' : ''
