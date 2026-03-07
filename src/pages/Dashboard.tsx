@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Camera, ImageIcon } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
 import { useState } from "react";
@@ -31,10 +31,9 @@ const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
 const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
-// Previous days only (Mon, Tue for today = Wed)
 const pastDays = [
-  { label: "Lun", hasPhoto: false },
-  { label: "Mar", hasPhoto: false },
+  { label: "Lun", score: 68, hasPhoto: true },
+  { label: "Mar", score: 71, hasPhoto: false },
 ];
 
 const factorDetails: Record<string, { title: string; desc: string }> = {
@@ -85,49 +84,61 @@ const Dashboard = () => {
         <h1 className="text-2xl font-display font-semibold text-foreground mt-1">Votre peau aujourd'hui</h1>
       </motion.div>
 
-      {/* Photo du jour + jours précédents en vertical */}
+      {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="bg-card rounded-2xl p-4 shadow-card mb-4">
-        <p className="text-sm font-semibold text-foreground mb-3">Photo du jour</p>
-        <div className="flex gap-4 items-start">
-          {/* Today's photo placeholder */}
-          <button onClick={() => navigate("/diagnosis")}
-            className="w-28 h-28 rounded-2xl bg-accent/50 border-2 border-dashed border-primary/30 flex flex-col items-center justify-center gap-2 flex-shrink-0">
-            <Camera size={24} className="text-muted-foreground/50" />
-            <span className="text-[10px] text-muted-foreground text-center leading-tight">Prendre la photo</span>
-          </button>
-          {/* Previous days - vertical list */}
-          <div className="flex flex-col gap-2 flex-1">
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Jours précédents</p>
-            {pastDays.map((day) => (
-              <div key={day.label} className="flex items-center gap-2 bg-muted/50 rounded-xl p-2">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  {day.hasPhoto ? (
-                    <ImageIcon size={12} className="text-primary" />
-                  ) : (
-                    <ImageIcon size={12} className="text-muted-foreground/40" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-foreground">{day.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{day.hasPhoto ? "Photo prise" : "Pas de photo"}</p>
-                </div>
-              </div>
-            ))}
+        className="bg-card rounded-3xl p-5 shadow-card mb-4 relative overflow-hidden">
+        {/* Decorative gradient */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative flex items-center gap-4">
+          {/* Score ring */}
+          <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
+            <SkinScoreRing score={74} />
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span> aujourd'hui</p>
+            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground/60">
+              <Calendar size={10} /><span>Dernier diagnostic : il y a 2h</span>
+            </div>
+            <button onClick={() => setScoreOpen(true)} className="text-[10px] text-primary font-medium mt-1 underline underline-offset-2">
+              Voir le détail du score
+            </button>
           </div>
         </div>
-      </motion.div>
 
-      {/* Score global */}
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-        className="flex flex-col items-center bg-card rounded-3xl p-6 shadow-card mb-5 cursor-pointer hover:shadow-elevated transition-shadow"
-        onClick={() => setScoreOpen(true)}>
-        <SkinScoreRing score={74} />
-        <p className="mt-3 text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span> aujourd'hui</p>
-        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-          <Calendar size={14} /><span>Dernier diagnostic : il y a 2h</span>
-        </div>
-        <p className="mt-1 text-[10px] text-muted-foreground/60">Appuyez pour le détail</p>
+        {/* Diagnostic CTA */}
+        <button onClick={() => navigate("/diagnosis")}
+          className="mt-4 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 shadow-elevated hover:opacity-90 transition-opacity">
+          <div className="flex items-center gap-3">
+            <Stethoscope size={20} />
+            <div className="text-left">
+              <p className="text-sm font-semibold">Faire un diagnostic</p>
+              <p className="text-[10px] opacity-80">Analysez votre peau en 30 secondes</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="opacity-60" />
+        </button>
+
+        {/* Previous days - minimal row */}
+        {pastDays.length > 0 && (
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wider">Historique</span>
+            <div className="flex gap-1.5">
+              {pastDays.map((day) => (
+                <button key={day.label}
+                  className="flex items-center gap-1 bg-muted/50 hover:bg-muted rounded-full px-2.5 py-1 transition-colors"
+                  onClick={() => {/* TODO: show past diagnostic */}}>
+                  <span className="text-[10px] font-medium text-foreground">{day.label}</span>
+                  <span className={`text-[9px] font-semibold ${day.hasPhoto ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                    {day.score}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
 
       {/* Détail du score */}
