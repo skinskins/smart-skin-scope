@@ -31,10 +31,9 @@ const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
 const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
-// Previous days only (Mon, Tue for today = Wed)
 const pastDays = [
-  { label: "Lun", hasPhoto: false },
-  { label: "Mar", hasPhoto: false },
+  { label: "Lun", score: 68, hasPhoto: true },
+  { label: "Mar", score: 71, hasPhoto: false },
 ];
 
 const factorDetails: Record<string, { title: string; desc: string }> = {
