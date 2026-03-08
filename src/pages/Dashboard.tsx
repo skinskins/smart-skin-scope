@@ -196,7 +196,7 @@ const Dashboard = () => {
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">Détail du score</DialogTitle>
-            <DialogDescription>Comment votre score de 74/100 est calculé</DialogDescription>
+            <DialogDescription>Comment votre score de {currentScore}/100 est calculé</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {skinMetrics.map((m) =>
