@@ -32,9 +32,16 @@ const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
 const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
+const getDayLabel = (daysAgo: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
+};
+
 const pastDays = [
-  { label: "Lun", score: 68, hasDiag: true },
-  { label: "Mar", score: 71, hasDiag: false },
+  { label: getDayLabel(1), score: 71, hasDiag: true },
+  { label: getDayLabel(2), score: 68, hasDiag: true },
+  { label: getDayLabel(3), score: 65, hasDiag: false },
 ];
 
 const hasTodayDiag = false;
