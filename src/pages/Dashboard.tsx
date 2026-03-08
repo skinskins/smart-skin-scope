@@ -148,20 +148,20 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
-
-            <button onClick={() => navigate("/diagnosis")}
-              className="mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-6 py-5 shadow-elevated hover:opacity-90 transition-opacity">
-              <div className="flex items-center gap-3">
-                <Stethoscope size={20} />
-                <div className="text-left">
-                  <p className="text-sm font-semibold">Faire un diagnostic</p>
-                  <p className="text-[10px] opacity-80">Analysez votre peau en 30s</p>
-                </div>
-              </div>
-              <ChevronRight size={18} className="opacity-60" />
-            </button>
           </div>
         </div>
+
+        <button onClick={() => navigate("/diagnosis")}
+          className="relative mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-6 py-5 shadow-elevated hover:opacity-90 transition-opacity">
+          <div className="flex items-center gap-3">
+            <Stethoscope size={20} />
+            <div className="text-left">
+              <p className="text-sm font-semibold">Faire un diagnostic</p>
+              <p className="text-[10px] opacity-80">Analysez votre peau en 30s</p>
+            </div>
+          </div>
+          <ChevronRight size={18} className="opacity-60" />
+        </button>
       </motion.div>
 
       {/* Détail du score */}
