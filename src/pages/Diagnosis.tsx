@@ -342,6 +342,22 @@ const Diagnosis = () => {
             <DialogDescription className="pt-2">{selectedZone?.detail}</DialogDescription>
           </DialogHeader>
           {selectedZone && (
+            <div className="relative w-full h-40 rounded-xl overflow-hidden">
+              <img
+                src={selectedZone.image}
+                alt={`Analyse de la zone ${selectedZone.label}`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+              <div className="absolute bottom-2 left-3 flex items-center gap-2">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusConfig[selectedZone.status].bg} ${statusConfig[selectedZone.status].color}`}>
+                  {statusConfig[selectedZone.status].label}
+                </span>
+                <span className="text-xs text-white/80 font-medium">Scan zone {selectedZone.label}</span>
+              </div>
+            </div>
+          )}
+          {selectedZone && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {trendIcon(selectedZone.trend)}
