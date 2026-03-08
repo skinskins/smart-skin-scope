@@ -188,7 +188,7 @@ const Dashboard = () => {
       </Dialog>
 
       {/* Facteurs quotidiens */}
-      <h2 className="text-lg font-display font-semibold text-foreground mb-3">Facteurs du jour</h2>
+      <h2 className="text-lg font-display font-semibold text-foreground mb-3">Paramètres du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
       className="bg-card rounded-2xl p-4 shadow-card mb-4">
         {/* Location row */}
