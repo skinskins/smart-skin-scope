@@ -4,6 +4,7 @@ import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
@@ -45,7 +46,7 @@ const pastDays = [
 { label: getDayLabel(3), score: 65, hasDiag: false }];
 
 
-const hasTodayDiag = false;
+// hasTodayDiag is now dynamic
 
 const factorDetails: Record<string, {title: string;desc: string;}> = {
   temp: { title: "Température", desc: "Les hautes températures augmentent le sébum. Idéal : 18–22°C." },
@@ -64,6 +65,7 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
 const Dashboard = () => {
   const [dailyLog, setDailyLog] = useState(defaultDailyLog);
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
+  const diagResult = useDiagnosisResult();
   const [amSelected, setAmSelected] = useState<string[]>(["Nettoyant", "SPF 50", "Hydratant"]);
   const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
   const [productTime, setProductTime] = useState<"am" | "pm">("am");
@@ -72,6 +74,22 @@ const Dashboard = () => {
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const navigate = useNavigate();
+
+  const hasTodayDiag = !!diagResult;
+  const currentScore = diagResult?.globalScore ?? 74;
+
+  const formatDiagDate = () => {
+    if (!diagResult) return "Aucun diagnostic";
+    const d = new Date(diagResult.date);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return "À l'instant";
+    if (diffMin < 60) return `il y a ${diffMin}min`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return `il y a ${diffH}h`;
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  };
 
   // Update dailyLog weather when live data arrives
   useEffect(() => {
@@ -145,12 +163,12 @@ const Dashboard = () => {
           <div className="flex-1 min-w-0">
             <div className="flex flex-col items-center gap-3">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
-                <SkinScoreRing score={74} size={130} />
+                <SkinScoreRing score={currentScore} size={130} />
               </div>
               <div className="text-center space-y-1">
-                <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
+                <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
                 <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  <Calendar size={11} /><span>Dernier diag : il y a 2h</span>
+                  <Calendar size={11} /><span>Dernier diag : {formatDiagDate()}</span>
                 </div>
                 <button onClick={() => setScoreOpen(true)} className="text-[11px] text-primary font-medium underline underline-offset-2">
                   Voir le détail
@@ -178,7 +196,7 @@ const Dashboard = () => {
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">Détail du score</DialogTitle>
-            <DialogDescription>Comment votre score de 74/100 est calculé</DialogDescription>
+            <DialogDescription>Comment votre score de {currentScore}/100 est calculé</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             {skinMetrics.map((m) =>
@@ -189,7 +207,7 @@ const Dashboard = () => {
             )}
             <div className="border-t border-border pt-2 mt-2 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Moyenne pondérée</span>
-              <span className="font-semibold text-primary">74</span>
+              <span className="font-semibold text-primary">{currentScore}</span>
             </div>
             <p className="text-[11px] text-muted-foreground">Score = moyenne pondérée. Rougeurs inversées (bas = mieux).</p>
           </div>

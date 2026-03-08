@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Stethoscope, ChevronRight, Sun, Droplets, Sparkles, ShieldCheck, Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -142,7 +143,7 @@ const Diagnosis = () => {
       });
     }, stepInterval);
 
-    const doneTimer = setTimeout(() => setStep("results"), totalDuration + 300);
+    const doneTimer = setTimeout(() => { saveDiagnosisResult(globalScore); setStep("results"); }, totalDuration + 300);
 
     return () => { clearInterval(progressTimer); clearInterval(stepTimer); clearTimeout(doneTimer); };
   }, [step]);
