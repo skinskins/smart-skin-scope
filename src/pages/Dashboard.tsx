@@ -96,7 +96,7 @@ const Dashboard = () => {
         
         <div className="relative flex items-start gap-5">
           {/* Diagnostic photo placeholder */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-2">
+          <div className="flex-shrink-0 flex flex-col items-center gap-3">
             <div className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
               hasTodayDiag ? 'border-primary' : 'border-muted-foreground/20 bg-muted/50'
             }`}>
