@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
 import { useState } from "react";
@@ -16,6 +16,7 @@ const skinMetrics = [
 
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
+  location: "Montreuil, 93",
   cyclePhase: "Folliculaire",
   heartRate: 72,
   stressLevel: 3,
@@ -32,15 +33,18 @@ const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Co
 const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
 const pastDays = [
-  { label: "Lun", score: 68, hasPhoto: true },
-  { label: "Mar", score: 71, hasPhoto: false },
+  { label: "Lun", score: 68, hasDiag: true },
+  { label: "Mar", score: 71, hasDiag: false },
 ];
+
+const hasTodayDiag = false;
 
 const factorDetails: Record<string, { title: string; desc: string }> = {
   temp: { title: "Température", desc: "Les hautes températures augmentent le sébum. Idéal : 18–22°C." },
   humidity: { title: "Humidité", desc: "Faible humidité = peau sèche. Haute = pores obstrués. Idéal : 40–60%." },
   uv: { title: "Indice UV", desc: "UV 6+ : réappliquer SPF toutes les 2h. Cause vieillissement et taches." },
   air: { title: "Qualité de l'air", desc: "La pollution pénètre les pores et cause stress oxydatif et teint terne." },
+  location: { title: "Localisation", desc: "Votre position permet d'ajuster les données météo, UV et pollution en temps réel." },
   cycle: { title: "Phase du cycle", desc: "Lutéal = plus gras. Menstruel = sensible. Folliculaire = équilibré." },
   heartStress: { title: "Cœur & Stress", desc: "Le stress augmente le cortisol → plus de boutons. L'exercice améliore l'éclat." },
   water: { title: "Hydratation", desc: "6–8 verres/jour soutiennent la barrière cutanée." },
@@ -87,58 +91,70 @@ const Dashboard = () => {
       {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
         className="bg-card rounded-3xl p-5 shadow-card mb-4 relative overflow-hidden">
-        {/* Decorative gradient */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
         
-        <div className="relative flex items-center gap-4">
-          {/* Score ring */}
-          <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
-            <SkinScoreRing score={74} />
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span> aujourd'hui</p>
-            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground/60">
-              <Calendar size={10} /><span>Dernier diagnostic : il y a 2h</span>
+        <div className="relative flex items-start gap-4">
+          {/* Diagnostic photo placeholder */}
+          <div className="flex-shrink-0 flex flex-col items-center gap-2">
+            <div className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
+              hasTodayDiag ? 'border-primary' : 'border-muted-foreground/20 bg-muted/50'
+            }`}>
+              {hasTodayDiag ? (
+                <div className="w-full h-full bg-muted flex items-center justify-center text-[10px] text-muted-foreground">Photo</div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 opacity-40">
+                  <Camera size={20} className="text-muted-foreground" />
+                  <span className="text-[8px] text-muted-foreground">Pas encore</span>
+                </div>
+              )}
             </div>
-            <button onClick={() => setScoreOpen(true)} className="text-[10px] text-primary font-medium mt-1 underline underline-offset-2">
-              Voir le détail du score
+            {pastDays.length > 0 && (
+              <div className="flex gap-1">
+                {pastDays.map((day) => (
+                  <button key={day.label}
+                    className="flex flex-col items-center bg-muted/50 hover:bg-muted rounded-lg px-1.5 py-0.5 transition-colors"
+                    onClick={() => {/* TODO: show past diagnostic */}}>
+                    <span className="text-[8px] font-medium text-muted-foreground">{day.label}</span>
+                    <span className={`text-[9px] font-semibold ${day.hasDiag ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                      {day.score}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Score + info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
+                <SkinScoreRing score={74} size={80} />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
+                <div className="flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground/60">
+                  <Calendar size={10} /><span>Dernier diag : il y a 2h</span>
+                </div>
+                <button onClick={() => setScoreOpen(true)} className="text-[10px] text-primary font-medium mt-1 underline underline-offset-2">
+                  Voir le détail
+                </button>
+              </div>
+            </div>
+
+            <button onClick={() => navigate("/diagnosis")}
+              className="mt-3 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-4 py-3 shadow-elevated hover:opacity-90 transition-opacity">
+              <div className="flex items-center gap-3">
+                <Stethoscope size={18} />
+                <div className="text-left">
+                  <p className="text-xs font-semibold">Faire un diagnostic</p>
+                  <p className="text-[9px] opacity-80">Analysez votre peau en 30s</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="opacity-60" />
             </button>
           </div>
         </div>
-
-        {/* Diagnostic CTA */}
-        <button onClick={() => navigate("/diagnosis")}
-          className="mt-4 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 shadow-elevated hover:opacity-90 transition-opacity">
-          <div className="flex items-center gap-3">
-            <Stethoscope size={20} />
-            <div className="text-left">
-              <p className="text-sm font-semibold">Faire un diagnostic</p>
-              <p className="text-[10px] opacity-80">Analysez votre peau en 30 secondes</p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="opacity-60" />
-        </button>
-
-        {/* Previous days - minimal row */}
-        {pastDays.length > 0 && (
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wider">Historique</span>
-            <div className="flex gap-1.5">
-              {pastDays.map((day) => (
-                <button key={day.label}
-                  className="flex items-center gap-1 bg-muted/50 hover:bg-muted rounded-full px-2.5 py-1 transition-colors"
-                  onClick={() => {/* TODO: show past diagnostic */}}>
-                  <span className="text-[10px] font-medium text-foreground">{day.label}</span>
-                  <span className={`text-[9px] font-semibold ${day.hasPhoto ? 'text-primary' : 'text-muted-foreground/40'}`}>
-                    {day.score}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </motion.div>
 
       {/* Détail du score */}
@@ -191,6 +207,20 @@ const Dashboard = () => {
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Facteurs du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        {/* Location row */}
+        <FactorButton id="location">
+          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
+            <MapPin size={16} className="text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground">Localisation</p>
+              <p className="text-sm font-semibold text-foreground">{dailyLog.location}</p>
+            </div>
+            <span className="ml-auto flex items-center gap-1 text-[9px] text-primary/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              En direct
+            </span>
+          </div>
+        </FactorButton>
         <div className="grid grid-cols-4 gap-3 text-center text-xs">
           {[
             { id: "temp", icon: <Thermometer size={16} className="text-skin-redness" />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
