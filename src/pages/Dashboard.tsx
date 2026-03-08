@@ -90,13 +90,13 @@ const Dashboard = () => {
 
       {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="bg-card rounded-3xl p-5 shadow-card mb-4 relative overflow-hidden">
+        className="bg-card rounded-3xl p-6 shadow-card mb-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
         
-        <div className="relative flex items-start gap-4">
+        <div className="relative flex items-start gap-5">
           {/* Diagnostic photo placeholder */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-2">
+          <div className="flex-shrink-0 flex flex-col items-center gap-3">
             <div className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
               hasTodayDiag ? 'border-primary' : 'border-muted-foreground/20 bg-muted/50'
             }`}>
@@ -127,7 +127,7 @@ const Dashboard = () => {
 
           {/* Score + info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
                 <SkinScoreRing score={74} size={80} />
               </div>
@@ -143,7 +143,7 @@ const Dashboard = () => {
             </div>
 
             <button onClick={() => navigate("/diagnosis")}
-              className="mt-3 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-4 py-3 shadow-elevated hover:opacity-90 transition-opacity">
+              className="mt-4 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-4 py-3.5 shadow-elevated hover:opacity-90 transition-opacity">
               <div className="flex items-center gap-3">
                 <Stethoscope size={18} />
                 <div className="text-left">
