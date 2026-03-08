@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useWeatherData } from "@/hooks/useWeatherData";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
@@ -62,6 +63,7 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
 
 const Dashboard = () => {
   const [dailyLog, setDailyLog] = useState(defaultDailyLog);
+  const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
   const [amSelected, setAmSelected] = useState<string[]>(["Nettoyant", "SPF 50", "Hydratant"]);
   const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
   const [productTime, setProductTime] = useState<"am" | "pm">("am");
@@ -70,6 +72,13 @@ const Dashboard = () => {
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Update dailyLog weather when live data arrives
+  useEffect(() => {
+    if (!weatherLoading) {
+      setDailyLog((d) => ({ ...d, weather: liveWeather }));
+    }
+  }, [liveWeather, weatherLoading]);
 
   const currentProducts = productTime === "am" ? amProducts : pmProducts;
   const selected = productTime === "am" ? amSelected : pmSelected;
