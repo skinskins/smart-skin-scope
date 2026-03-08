@@ -65,6 +65,7 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
 const Dashboard = () => {
   const [dailyLog, setDailyLog] = useState(defaultDailyLog);
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
+  const diagResult = useDiagnosisResult();
   const [amSelected, setAmSelected] = useState<string[]>(["Nettoyant", "SPF 50", "Hydratant"]);
   const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
   const [productTime, setProductTime] = useState<"am" | "pm">("am");
@@ -73,6 +74,22 @@ const Dashboard = () => {
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const navigate = useNavigate();
+
+  const hasTodayDiag = !!diagResult;
+  const currentScore = diagResult?.globalScore ?? 74;
+
+  const formatDiagDate = () => {
+    if (!diagResult) return "Aucun diagnostic";
+    const d = new Date(diagResult.date);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return "À l'instant";
+    if (diffMin < 60) return `il y a ${diffMin}min`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return `il y a ${diffH}h`;
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  };
 
   // Update dailyLog weather when live data arrives
   useEffect(() => {
