@@ -50,6 +50,7 @@ const zoneResults: ZoneResult[] = [
     summary: "Excès de sébum, pores visibles",
     detail: "Production de sébum élevée au niveau du nez et entre les sourcils. Points noirs concentrés sur les ailes du nez. À surveiller.",
     tips: ["Double nettoyage le soir", "Masque à l'argile 1x/semaine", "SPF matifiant le matin"],
+    image: zoneTzone,
   },
   {
     id: "chin", label: "Menton", score: 52, status: "warning", trend: "stable",
