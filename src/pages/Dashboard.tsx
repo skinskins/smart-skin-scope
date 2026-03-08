@@ -16,6 +16,7 @@ const skinMetrics = [
 
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
+  location: "Montreuil, 93",
   cyclePhase: "Folliculaire",
   heartRate: 72,
   stressLevel: 3,
