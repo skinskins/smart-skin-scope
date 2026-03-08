@@ -32,9 +32,16 @@ const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
 const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
+const getDayLabel = (daysAgo: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
+};
+
 const pastDays = [
-  { label: "Lun", score: 68, hasDiag: true },
-  { label: "Mar", score: 71, hasDiag: false },
+  { label: getDayLabel(1), score: 71, hasDiag: true },
+  { label: getDayLabel(2), score: 68, hasDiag: true },
+  { label: getDayLabel(3), score: 65, hasDiag: false },
 ];
 
 const hasTodayDiag = false;
@@ -94,9 +101,9 @@ const Dashboard = () => {
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-28 h-28 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
         
-        <div className="relative flex items-start gap-6">
-          {/* Diagnostic photo placeholder */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-4">
+        <div className="relative flex items-start gap-5">
+          {/* Diagnostic photo + past days vertical */}
+          <div className="flex-shrink-0 flex flex-col items-center gap-3">
             <div className={`w-24 h-24 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
               hasTodayDiag ? 'border-primary' : 'border-muted-foreground/20 bg-muted/50'
             }`}>
@@ -110,12 +117,12 @@ const Dashboard = () => {
               )}
             </div>
             {pastDays.length > 0 && (
-              <div className="flex gap-1.5">
+              <div className="flex flex-col gap-1">
                 {pastDays.map((day) => (
                   <button key={day.label}
-                    className="flex flex-col items-center bg-muted/50 hover:bg-muted rounded-lg px-2 py-1 transition-colors"
+                    className="flex items-center justify-between gap-2 bg-muted/50 hover:bg-muted rounded-lg px-2.5 py-1 transition-colors w-full"
                     onClick={() => {/* TODO: show past diagnostic */}}>
-                    <span className="text-[9px] font-medium text-muted-foreground">{day.label}</span>
+                    <span className="text-[9px] font-medium text-muted-foreground capitalize">{day.label}</span>
                     <span className={`text-[10px] font-semibold ${day.hasDiag ? 'text-primary' : 'text-muted-foreground/40'}`}>
                       {day.score}
                     </span>
@@ -127,9 +134,9 @@ const Dashboard = () => {
 
           {/* Score + info */}
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-3">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
-                <SkinScoreRing score={74} size={110} />
+                <SkinScoreRing score={74} size={130} />
               </div>
               <div className="text-center space-y-1">
                 <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
