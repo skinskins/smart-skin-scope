@@ -29,6 +29,7 @@ const zoneResults: ZoneResult[] = [
     summary: "Texture lisse, légère brillance en zone T",
     detail: "La texture de votre front est globalement bonne. Légère surproduction de sébum détectée au niveau des pores, mais en amélioration par rapport au dernier scan.",
     tips: ["Appliquer un sérum matifiant le matin", "Exfolier 2x/semaine avec un AHA doux"],
+    image: zoneForehead,
   },
   {
     id: "left-cheek", label: "Joue gauche", score: 58, status: "warning", trend: "down",
