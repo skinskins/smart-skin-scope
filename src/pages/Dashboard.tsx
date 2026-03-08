@@ -33,9 +33,11 @@ const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Co
 const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
 const pastDays = [
-  { label: "Lun", score: 68, hasPhoto: true },
-  { label: "Mar", score: 71, hasPhoto: false },
+  { label: "Lun", score: 68, hasDiag: true },
+  { label: "Mar", score: 71, hasDiag: false },
 ];
+
+const hasTodayDiag = false;
 
 const factorDetails: Record<string, { title: string; desc: string }> = {
   temp: { title: "Température", desc: "Les hautes températures augmentent le sébum. Idéal : 18–22°C." },
