@@ -127,7 +127,7 @@ const Dashboard = () => {
 
           {/* Score + info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
                 <SkinScoreRing score={74} size={80} />
               </div>
