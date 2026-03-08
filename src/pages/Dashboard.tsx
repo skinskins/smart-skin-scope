@@ -4,6 +4,7 @@ import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
