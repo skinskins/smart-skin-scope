@@ -43,6 +43,7 @@ const zoneResults: ZoneResult[] = [
     summary: "Micro-boutons, zone de contact téléphone",
     detail: "Quelques imperfections liées au contact fréquent avec le téléphone. Pores légèrement dilatés dans la zone basse.",
     tips: ["Nettoyer votre téléphone quotidiennement", "Appliquer un soin anti-imperfections ciblé"],
+    image: zoneRightCheek,
   },
   {
     id: "tzone", label: "Zone T", score: 45, status: "alert", trend: "down",
