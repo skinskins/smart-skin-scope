@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { saveDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { Stethoscope, ChevronRight, Sun, Droplets, Sparkles, ShieldCheck, Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
