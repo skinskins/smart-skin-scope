@@ -207,7 +207,7 @@ const Dashboard = () => {
             )}
             <div className="border-t border-border pt-2 mt-2 flex justify-between text-sm">
               <span className="text-muted-foreground font-medium">Moyenne pondérée</span>
-              <span className="font-semibold text-primary">74</span>
+              <span className="font-semibold text-primary">{currentScore}</span>
             </div>
             <p className="text-[11px] text-muted-foreground">Score = moyenne pondérée. Rougeurs inversées (bas = mieux).</p>
           </div>
