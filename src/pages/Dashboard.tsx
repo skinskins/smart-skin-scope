@@ -166,9 +166,9 @@ const Dashboard = () => {
                 <SkinScoreRing score={currentScore} size={130} />
               </div>
               <div className="text-center space-y-1">
-                <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
+                <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
                 <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  <Calendar size={11} /><span>Dernier diag : il y a 2h</span>
+                  <Calendar size={11} /><span>Dernier diag : {formatDiagDate()}</span>
                 </div>
                 <button onClick={() => setScoreOpen(true)} className="text-[11px] text-primary font-medium underline underline-offset-2">
                   Voir le détail
