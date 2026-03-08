@@ -150,7 +150,7 @@ const Dashboard = () => {
             </div>
 
             <button onClick={() => navigate("/diagnosis")}
-              className="mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-5 py-4 shadow-elevated hover:opacity-90 transition-opacity">
+              className="mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-6 py-5 shadow-elevated hover:opacity-90 transition-opacity">
               <div className="flex items-center gap-3">
                 <Stethoscope size={20} />
                 <div className="text-left">
