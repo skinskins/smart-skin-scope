@@ -46,7 +46,7 @@ const pastDays = [
 { label: getDayLabel(3), score: 65, hasDiag: false }];
 
 
-const hasTodayDiag = false;
+// hasTodayDiag is now dynamic
 
 const factorDetails: Record<string, {title: string;desc: string;}> = {
   temp: { title: "Température", desc: "Les hautes températures augmentent le sébum. Idéal : 18–22°C." },
