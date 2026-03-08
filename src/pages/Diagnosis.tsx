@@ -57,6 +57,7 @@ const zoneResults: ZoneResult[] = [
     summary: "Boutons hormonaux actifs",
     detail: "Présence de boutons inflammatoires typiques de la zone hormonale. Corrélation possible avec la phase lutéale du cycle.",
     tips: ["Éviter de toucher cette zone", "Soin au niacinamide 10%"],
+    image: zoneChin,
   },
   {
     id: "jaw", label: "Mâchoire", score: 78, status: "good", trend: "up",
