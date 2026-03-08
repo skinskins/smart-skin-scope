@@ -207,6 +207,20 @@ const Dashboard = () => {
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Facteurs du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        {/* Location row */}
+        <FactorButton id="location">
+          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
+            <MapPin size={16} className="text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground">Localisation</p>
+              <p className="text-sm font-semibold text-foreground">{dailyLog.location}</p>
+            </div>
+            <span className="ml-auto flex items-center gap-1 text-[9px] text-primary/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              En direct
+            </span>
+          </div>
+        </FactorButton>
         <div className="grid grid-cols-4 gap-3 text-center text-xs">
           {[
             { id: "temp", icon: <Thermometer size={16} className="text-skin-redness" />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
