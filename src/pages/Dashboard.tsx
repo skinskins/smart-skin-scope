@@ -29,8 +29,8 @@ const defaultDailyLog = {
 const cyclePhases = ["Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"];
 const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 
-const amProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
-const pmProducts = ["Nettoyant", "Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
+const amProducts = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
+const pmProducts = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
 
 const getDayLabel = (daysAgo: number) => {
   const d = new Date();
