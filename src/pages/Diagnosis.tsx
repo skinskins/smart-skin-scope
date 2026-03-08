@@ -3,6 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Stethoscope, ChevronRight, Sun, Droplets, Sparkles, ShieldCheck, Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import zoneForehead from "@/assets/zone-forehead.jpg";
+import zoneLeftCheek from "@/assets/zone-left-cheek.jpg";
+import zoneRightCheek from "@/assets/zone-right-cheek.jpg";
+import zoneTzone from "@/assets/zone-tzone.jpg";
+import zoneChin from "@/assets/zone-chin.jpg";
+import zoneJaw from "@/assets/zone-jaw.jpg";
 import { Progress } from "@/components/ui/progress";
 
 interface ZoneResult {
