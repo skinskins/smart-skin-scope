@@ -36,6 +36,7 @@ const zoneResults: ZoneResult[] = [
     summary: "Rougeurs diffuses, hydratation insuffisante",
     detail: "Rougeurs modérées détectées, probablement liées à la sensibilité cutanée ou au frottement de l'oreiller. Barrière cutanée légèrement altérée.",
     tips: ["Utiliser une crème apaisante au centella", "Changer de taie d'oreiller en soie"],
+    image: zoneLeftCheek,
   },
   {
     id: "right-cheek", label: "Joue droite", score: 61, status: "warning", trend: "stable",
