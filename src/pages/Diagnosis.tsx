@@ -3,6 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Stethoscope, ChevronRight, Sun, Droplets, Sparkles, ShieldCheck, Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import zoneForehead from "@/assets/zone-forehead.jpg";
+import zoneLeftCheek from "@/assets/zone-left-cheek.jpg";
+import zoneRightCheek from "@/assets/zone-right-cheek.jpg";
+import zoneTzone from "@/assets/zone-tzone.jpg";
+import zoneChin from "@/assets/zone-chin.jpg";
+import zoneJaw from "@/assets/zone-jaw.jpg";
 import { Progress } from "@/components/ui/progress";
 
 interface ZoneResult {
@@ -14,6 +20,7 @@ interface ZoneResult {
   summary: string;
   detail: string;
   tips: string[];
+  image: string;
 }
 
 const zoneResults: ZoneResult[] = [
@@ -22,36 +29,42 @@ const zoneResults: ZoneResult[] = [
     summary: "Texture lisse, légère brillance en zone T",
     detail: "La texture de votre front est globalement bonne. Légère surproduction de sébum détectée au niveau des pores, mais en amélioration par rapport au dernier scan.",
     tips: ["Appliquer un sérum matifiant le matin", "Exfolier 2x/semaine avec un AHA doux"],
+    image: zoneForehead,
   },
   {
     id: "left-cheek", label: "Joue gauche", score: 58, status: "warning", trend: "down",
     summary: "Rougeurs diffuses, hydratation insuffisante",
     detail: "Rougeurs modérées détectées, probablement liées à la sensibilité cutanée ou au frottement de l'oreiller. Barrière cutanée légèrement altérée.",
     tips: ["Utiliser une crème apaisante au centella", "Changer de taie d'oreiller en soie"],
+    image: zoneLeftCheek,
   },
   {
     id: "right-cheek", label: "Joue droite", score: 61, status: "warning", trend: "stable",
     summary: "Micro-boutons, zone de contact téléphone",
     detail: "Quelques imperfections liées au contact fréquent avec le téléphone. Pores légèrement dilatés dans la zone basse.",
     tips: ["Nettoyer votre téléphone quotidiennement", "Appliquer un soin anti-imperfections ciblé"],
+    image: zoneRightCheek,
   },
   {
     id: "tzone", label: "Zone T", score: 45, status: "alert", trend: "down",
     summary: "Excès de sébum, pores visibles",
     detail: "Production de sébum élevée au niveau du nez et entre les sourcils. Points noirs concentrés sur les ailes du nez. À surveiller.",
     tips: ["Double nettoyage le soir", "Masque à l'argile 1x/semaine", "SPF matifiant le matin"],
+    image: zoneTzone,
   },
   {
     id: "chin", label: "Menton", score: 52, status: "warning", trend: "stable",
     summary: "Boutons hormonaux actifs",
     detail: "Présence de boutons inflammatoires typiques de la zone hormonale. Corrélation possible avec la phase lutéale du cycle.",
     tips: ["Éviter de toucher cette zone", "Soin au niacinamide 10%"],
+    image: zoneChin,
   },
   {
     id: "jaw", label: "Mâchoire", score: 78, status: "good", trend: "up",
     summary: "Zone saine, bonne élasticité",
     detail: "Aucune anomalie majeure. Peau bien hydratée avec une bonne élasticité. Continuez votre routine actuelle.",
     tips: ["Maintenir l'hydratation", "Massage lymphatique le matin"],
+    image: zoneJaw,
   },
 ];
 
@@ -328,6 +341,22 @@ const Diagnosis = () => {
             </DialogTitle>
             <DialogDescription className="pt-2">{selectedZone?.detail}</DialogDescription>
           </DialogHeader>
+          {selectedZone && (
+            <div className="relative w-full h-40 rounded-xl overflow-hidden">
+              <img
+                src={selectedZone.image}
+                alt={`Analyse de la zone ${selectedZone.label}`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+              <div className="absolute bottom-2 left-3 flex items-center gap-2">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusConfig[selectedZone.status].bg} ${statusConfig[selectedZone.status].color}`}>
+                  {statusConfig[selectedZone.status].label}
+                </span>
+                <span className="text-xs text-white/80 font-medium">Scan zone {selectedZone.label}</span>
+              </div>
+            </div>
+          )}
           {selectedZone && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
