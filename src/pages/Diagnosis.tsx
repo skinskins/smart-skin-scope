@@ -64,6 +64,7 @@ const zoneResults: ZoneResult[] = [
     summary: "Zone saine, bonne élasticité",
     detail: "Aucune anomalie majeure. Peau bien hydratée avec une bonne élasticité. Continuez votre routine actuelle.",
     tips: ["Maintenir l'hydratation", "Massage lymphatique le matin"],
+    image: zoneJaw,
   },
 ];
 
