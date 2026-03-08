@@ -143,7 +143,7 @@ const Diagnosis = () => {
       });
     }, stepInterval);
 
-    const doneTimer = setTimeout(() => setStep("results"), totalDuration + 300);
+    const doneTimer = setTimeout(() => { saveDiagnosisResult(globalScore); setStep("results"); }, totalDuration + 300);
 
     return () => { clearInterval(progressTimer); clearInterval(stepTimer); clearTimeout(doneTimer); };
   }, [step]);
