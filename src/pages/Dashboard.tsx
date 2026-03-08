@@ -90,11 +90,11 @@ const Dashboard = () => {
 
       {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="bg-card rounded-3xl p-5 shadow-card mb-4 relative overflow-hidden">
+        className="bg-card rounded-3xl p-6 shadow-card mb-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
         
-        <div className="relative flex items-start gap-4">
+        <div className="relative flex items-start gap-5">
           {/* Diagnostic photo placeholder */}
           <div className="flex-shrink-0 flex flex-col items-center gap-2">
             <div className={`w-20 h-20 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
