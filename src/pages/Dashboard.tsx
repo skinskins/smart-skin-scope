@@ -127,13 +127,13 @@ const Dashboard = () => {
 
           {/* Score + info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col items-center gap-2">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
-                <SkinScoreRing score={74} size={90} />
+                <SkinScoreRing score={74} size={110} />
               </div>
-              <div className="space-y-1.5">
+              <div className="text-center space-y-1">
                 <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60">
                   <Calendar size={11} /><span>Dernier diag : il y a 2h</span>
                 </div>
                 <button onClick={() => setScoreOpen(true)} className="text-[11px] text-primary font-medium underline underline-offset-2">
@@ -180,29 +180,6 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Appareil connecté */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}
-        className="bg-card rounded-xl p-3 shadow-card mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {deviceConnected ? (
-            <Bluetooth size={16} className="text-primary" />
-          ) : (
-            <BluetoothOff size={16} className="text-muted-foreground" />
-          )}
-          <div>
-            <p className="text-xs font-semibold text-foreground">
-              {deviceConnected ? "Apple Watch connectée" : "Aucun appareil connecté"}
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {deviceConnected ? "Sport et rythme cardiaque synchronisés" : "Rythme cardiaque, sport et sommeil en saisie manuelle"}
-            </p>
-          </div>
-        </div>
-        <button className="text-[10px] font-medium text-primary px-2 py-1 rounded-full bg-accent">
-          {deviceConnected ? "Réglages" : "Connecter"}
-        </button>
-      </motion.div>
-
       {/* Facteurs quotidiens */}
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Facteurs du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
@@ -239,8 +216,29 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
+      {/* Appareil connecté + lifestyle factors */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
         className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            {deviceConnected ? (
+              <Bluetooth size={16} className="text-primary" />
+            ) : (
+              <BluetoothOff size={16} className="text-muted-foreground" />
+            )}
+            <div>
+              <p className="text-xs font-semibold text-foreground">
+                {deviceConnected ? "Apple Watch connectée" : "Aucun appareil connecté"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {deviceConnected ? "Sport, cycle, rythme cardiaque et sommeil synchronisés" : "Sport, cycle, rythme cardiaque et sommeil en saisie manuelle"}
+              </p>
+            </div>
+          </div>
+          <button className="text-[10px] font-medium text-primary px-2 py-1 rounded-full bg-accent">
+            {deviceConnected ? "Réglages" : "Connecter"}
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <FactorButton id="cycle">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
