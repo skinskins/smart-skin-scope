@@ -44,6 +44,7 @@ const factorDetails: Record<string, { title: string; desc: string }> = {
   humidity: { title: "Humidité", desc: "Faible humidité = peau sèche. Haute = pores obstrués. Idéal : 40–60%." },
   uv: { title: "Indice UV", desc: "UV 6+ : réappliquer SPF toutes les 2h. Cause vieillissement et taches." },
   air: { title: "Qualité de l'air", desc: "La pollution pénètre les pores et cause stress oxydatif et teint terne." },
+  location: { title: "Localisation", desc: "Votre position permet d'ajuster les données météo, UV et pollution en temps réel." },
   cycle: { title: "Phase du cycle", desc: "Lutéal = plus gras. Menstruel = sensible. Folliculaire = équilibré." },
   heartStress: { title: "Cœur & Stress", desc: "Le stress augmente le cortisol → plus de boutons. L'exercice améliore l'éclat." },
   water: { title: "Hydratation", desc: "6–8 verres/jour soutiennent la barrière cutanée." },
