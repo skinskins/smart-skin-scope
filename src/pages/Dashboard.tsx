@@ -127,13 +127,13 @@ const Dashboard = () => {
 
           {/* Score + info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-5">
+            <div className="flex flex-col items-center gap-2">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
-                <SkinScoreRing score={74} size={90} />
+                <SkinScoreRing score={74} size={110} />
               </div>
-              <div className="space-y-1.5">
+              <div className="text-center space-y-1">
                 <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60">
                   <Calendar size={11} /><span>Dernier diag : il y a 2h</span>
                 </div>
                 <button onClick={() => setScoreOpen(true)} className="text-[11px] text-primary font-medium underline underline-offset-2">
