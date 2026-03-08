@@ -163,7 +163,7 @@ const Dashboard = () => {
           <div className="flex-1 min-w-0">
             <div className="flex flex-col items-center gap-3">
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
-                <SkinScoreRing score={74} size={130} />
+                <SkinScoreRing score={currentScore} size={130} />
               </div>
               <div className="text-center space-y-1">
                 <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">belle</span></p>
