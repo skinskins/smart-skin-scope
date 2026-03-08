@@ -63,6 +63,7 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
 
 const Dashboard = () => {
   const [dailyLog, setDailyLog] = useState(defaultDailyLog);
+  const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
   const [amSelected, setAmSelected] = useState<string[]>(["Nettoyant", "SPF 50", "Hydratant"]);
   const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
   const [productTime, setProductTime] = useState<"am" | "pm">("am");
@@ -71,6 +72,13 @@ const Dashboard = () => {
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Update dailyLog weather when live data arrives
+  useEffect(() => {
+    if (!weatherLoading) {
+      setDailyLog((d) => ({ ...d, weather: liveWeather }));
+    }
+  }, [liveWeather, weatherLoading]);
 
   const currentProducts = productTime === "am" ? amProducts : pmProducts;
   const selected = productTime === "am" ? amSelected : pmSelected;
