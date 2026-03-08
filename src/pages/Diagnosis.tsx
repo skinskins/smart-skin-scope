@@ -20,6 +20,7 @@ interface ZoneResult {
   summary: string;
   detail: string;
   tips: string[];
+  image: string;
 }
 
 const zoneResults: ZoneResult[] = [
