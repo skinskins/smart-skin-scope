@@ -380,24 +380,16 @@ const Tips = () => {
             {/* Score summary */}
             <div className="rounded-2xl p-5 mb-4 text-center" style={{ background: "var(--gradient-hero)" }}>
               <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider mb-2">Votre bilan personnalisé</p>
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <span className="text-4xl font-display font-bold text-primary-foreground">{quizScore}%</span>
-              </div>
               <p className="text-primary-foreground/80 text-sm mb-3">
                 {quizScore > 75 ? "Excellentes habitudes au quotidien ✨" : quizScore > 50 ? "Bonnes bases, quelques ajustements à faire 🔍" : "Plusieurs axes d'amélioration importants 🩹"}
               </p>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-3 flex-wrap">
                 <span className="flex items-center gap-1 bg-white/20 text-primary-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full">
                   {tips.length} conseils
                 </span>
                 {highCount > 0 && (
                   <span className="flex items-center gap-1 bg-destructive/30 text-primary-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full">
                     <AlertTriangle size={10} /> {highCount} prioritaire{highCount > 1 ? "s" : ""}
-                  </span>
-                )}
-                {diagResult && (
-                  <span className="flex items-center gap-1 bg-white/20 text-primary-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                    Diag {diagResult.globalScore}/100
                   </span>
                 )}
               </div>
