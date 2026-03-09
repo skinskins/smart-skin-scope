@@ -190,7 +190,7 @@ const Dashboard = () => {
             >
               {hasTodayDiag ?
               <motion.img
-                src={zoneTzone}
+                src={faceScan}
                 alt="Dernier scan"
                 className="w-full h-full object-cover"
                 initial={{ scale: 1.3, opacity: 0 }}
