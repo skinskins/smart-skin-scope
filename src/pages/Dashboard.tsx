@@ -181,18 +181,28 @@ const Dashboard = () => {
         <div className="relative flex items-start gap-5">
           {/* Diagnostic photo + past days vertical */}
           <div className="flex-shrink-0 flex flex-col items-center gap-3">
-            <div className={`w-24 h-24 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
-            hasTodayDiag ? 'border-primary' : 'border-muted-foreground/20 bg-muted/50'}`
-            }>
+            <motion.div
+              initial={hasTodayDiag ? { scale: 0.8, opacity: 0, rotateY: 90 } : { scale: 1, opacity: 1 }}
+              animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 18, delay: 0.3 }}
+              className={`w-24 h-24 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
+              hasTodayDiag ? 'border-primary shadow-elevated' : 'border-muted-foreground/20 bg-muted/50'}`}
+            >
               {hasTodayDiag ?
-              <img src={zoneTzone} alt="Dernier scan" className="w-full h-full object-cover" /> :
-
+              <motion.img
+                src={zoneTzone}
+                alt="Dernier scan"
+                className="w-full h-full object-cover"
+                initial={{ scale: 1.3, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
+              /> :
               <div className="flex flex-col items-center gap-1.5 opacity-40">
                   <Camera size={24} className="text-muted-foreground" />
                   <span className="text-[9px] text-muted-foreground">Pas encore</span>
                 </div>
               }
-            </div>
+            </motion.div>
             {pastDays.length > 0 &&
             <div className="flex flex-col gap-1">
                 {pastDays.map((day) =>
