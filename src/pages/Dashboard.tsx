@@ -10,13 +10,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 
+type MetricTrend = "up" | "down" | "stable";
+type TrendTone = "positive" | "neutral" | "negative";
+
+const trendToneForMetric = (label: string, trend?: MetricTrend): TrendTone | undefined => {
+  if (!trend) return undefined;
+  if (trend === "stable") return "neutral";
+
+  // Par défaut : "up" = positif. Exceptions métier :
+  const improvesWhen: Record<string, Exclude<MetricTrend, "stable">> = {
+    Rougeurs: "down", // moins de rougeurs = mieux
+    Texture: "up", // plus de texture (lissage/qualité) = mieux
+  };
+
+  const positiveTrend = improvesWhen[label] ?? "up";
+  return trend === positiveTrend ? "positive" : "negative";
+};
+
 const skinMetrics = [
 { label: "Hydratation", value: 72, color: "hsl(200, 60%, 55%)", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation basée sur vos apports quotidiens et l'humidité ambiante." },
 { label: "Éclat", value: 65, color: "hsl(45, 80%, 65%)", icon: <Sun size={18} />, trend: "stable" as const, detail: "Calculé à partir du sommeil, des produits et de la luminosité du scan." },
 { label: "Rougeurs", value: 28, color: "hsl(0, 70%, 60%)", icon: <Flame size={18} />, trend: "down" as const, detail: "Plus bas = mieux. Basé sur l'analyse du scan et les facteurs d'inflammation." },
 { label: "Texture", value: 80, color: "hsl(280, 30%, 55%)", icon: <Fingerprint size={18} />, trend: "up" as const, detail: "Indice de lissage issu des scans et de l'utilisation de rétinol." },
 { label: "Sébum", value: 45, color: "hsl(35, 70%, 55%)", icon: <CircleDot size={18} />, trend: "stable" as const, detail: "Production de sébum en zone T. 50 = équilibré." }];
-
 
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
