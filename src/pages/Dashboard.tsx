@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 
 const skinMetrics = [
 { label: "Hydratation", value: 72, color: "hsl(200, 60%, 55%)", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation basée sur vos apports quotidiens et l'humidité ambiante." },
@@ -62,6 +63,19 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
   workout: { title: "Sport", desc: "L'exercice modéré améliore la circulation. Intense sans nettoyage = boutons." }
 };
 
+const DEFAULT_UPDATED_AGO = 18 * 60 * 60 * 1000; // 18h in ms
+
+const formatUpdatedAgo = (timestamp: number) => {
+  const diffMs = Date.now() - timestamp;
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "à l'instant";
+  if (diffMin < 60) return `il y a ${diffMin}min`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `il y a ${diffH}h`;
+  const diffD = Math.round(diffH / 24);
+  return `il y a ${diffD}j`;
+};
+
 const Dashboard = () => {
   const [dailyLog, setDailyLog] = useState(defaultDailyLog);
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
@@ -73,7 +87,21 @@ const Dashboard = () => {
   const [deviceConnected] = useState(false);
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [editingFactor, setEditingFactor] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Track last update timestamps for manual factors (default: 18h ago)
+  const [manualUpdates, setManualUpdates] = useState<Record<string, number>>(() => {
+    const defaultTime = Date.now() - DEFAULT_UPDATED_AGO;
+    return { heartStress: defaultTime, sleep: defaultTime, cycle: defaultTime, water: defaultTime, alcohol: defaultTime, workout: defaultTime };
+  });
+
+  // Temp edit values
+  const [editValues, setEditValues] = useState({ heartRate: 72, stressLevel: 3, sleepHours: 7.5 });
+
+  const markUpdated = useCallback((factorId: string) => {
+    setManualUpdates(prev => ({ ...prev, [factorId]: Date.now() }));
+  }, []);
 
   const hasTodayDiag = !!diagResult;
   const currentScore = diagResult?.globalScore ?? 74;
@@ -108,6 +136,27 @@ const Dashboard = () => {
   };
 
   const saveProducts = () => setProductsSaved(true);
+
+  const openEditDialog = (id: string) => {
+    setEditValues({ heartRate: dailyLog.heartRate, stressLevel: dailyLog.stressLevel, sleepHours: dailyLog.sleepHours });
+    setEditingFactor(id);
+  };
+
+  const saveEditFactor = () => {
+    if (!editingFactor) return;
+    setDailyLog(d => ({ ...d, heartRate: editValues.heartRate, stressLevel: editValues.stressLevel, sleepHours: editValues.sleepHours }));
+    markUpdated(editingFactor);
+    setEditingFactor(null);
+  };
+
+  const ManualLabel = ({ id }: { id: string }) => {
+    if (deviceConnected) return null;
+    return (
+      <p className="text-[9px] text-muted-foreground/60">
+        Manuel · <span className="text-primary/50">{formatUpdatedAgo(manualUpdates[id] ?? Date.now())}</span>
+      </p>
+    );
+  };
 
   const FactorButton = ({ id, children }: {id: string;children: React.ReactNode;}) =>
   <button onClick={() => setFactorOpen(id)} className="text-left w-full">
@@ -280,23 +329,27 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Cycle</p>
                 <select value={dailyLog.cyclePhase} onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setDailyLog((d) => ({ ...d, cyclePhase: e.target.value }))}
+                onChange={(e) => {setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle");}}
                 className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
                   {cyclePhases.map((p) => <option key={p}>{p}</option>)}
                 </select>
+                <ManualLabel id="cycle" />
               </div>
             </div>
           </FactorButton>
-          <FactorButton id="heartStress">
+          <button onClick={() => openEditDialog("heartStress")} className="text-left w-full">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Heart size={16} className="text-skin-redness" />
-              <div>
+              <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Cœur / Stress</p>
-                <p className="text-sm font-semibold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
-                {!deviceConnected && <p className="text-[9px] text-muted-foreground/60">Manuel</p>}
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-semibold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
+                  {!deviceConnected && <Pencil size={10} className="text-muted-foreground/40" />}
+                </div>
+                <ManualLabel id="heartStress" />
               </div>
             </div>
-          </FactorButton>
+          </button>
           <FactorButton id="water">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Droplets size={16} className="text-skin-hydration" />
@@ -304,32 +357,37 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground">Eau</p>
                 <div className="flex gap-0.5">
                   {[...Array(8)].map((_, i) =>
-                  <button key={i} onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, waterGlasses: i + 1 }));}}
+                  <button key={i} onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water");}}
                   className={`w-3 h-4 rounded-sm ${i < dailyLog.waterGlasses ? 'bg-skin-hydration' : 'bg-muted'}`} />
                   )}
                 </div>
+                <ManualLabel id="water" />
               </div>
             </div>
           </FactorButton>
-          <FactorButton id="sleep">
+          <button onClick={() => openEditDialog("sleep")} className="text-left w-full">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Moon size={16} className="text-skin-texture" />
               <div>
                 <p className="text-xs text-muted-foreground">Sommeil</p>
-                <p className="text-sm font-semibold text-foreground">{dailyLog.sleepHours}h</p>
-                {!deviceConnected && <p className="text-[9px] text-muted-foreground/60">Manuel</p>}
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-semibold text-foreground">{dailyLog.sleepHours}h</p>
+                  {!deviceConnected && <Pencil size={10} className="text-muted-foreground/40" />}
+                </div>
+                <ManualLabel id="sleep" />
               </div>
             </div>
-          </FactorButton>
+          </button>
           <FactorButton id="alcohol">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Wine size={16} className="text-skin-oil" />
               <div>
                 <p className="text-xs text-muted-foreground">Alcool</p>
-                <button onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, alcohol: !d.alcohol }));}}
+                <button onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol");}}
                 className={`text-sm font-semibold ${dailyLog.alcohol ? 'text-skin-redness' : 'text-primary'}`}>
                   {dailyLog.alcohol ? "Oui" : "Non"}
                 </button>
+                <ManualLabel id="alcohol" />
               </div>
             </div>
           </FactorButton>
@@ -339,11 +397,11 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Sport</p>
                 <select value={dailyLog.workoutIntensity} onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value }))}
+                onChange={(e) => {setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout");}}
                 className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
                   {intensities.map((i) => <option key={i}>{i}</option>)}
                 </select>
-                {!deviceConnected && <p className="text-[9px] text-muted-foreground/60">Manuel</p>}
+                <ManualLabel id="workout" />
               </div>
             </div>
           </FactorButton>
@@ -357,6 +415,49 @@ const Dashboard = () => {
             <DialogTitle className="text-foreground">{factorOpen ? factorDetails[factorOpen]?.title : ""}</DialogTitle>
             <DialogDescription>{factorOpen ? factorDetails[factorOpen]?.desc : ""}</DialogDescription>
           </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialogue édition facteur manuel */}
+      <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              {editingFactor === "heartStress" ? "Cœur & Stress" : "Sommeil"}
+            </DialogTitle>
+            <DialogDescription>Modifiez vos données manuellement</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editingFactor === "heartStress" && (
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Rythme cardiaque (bpm)</label>
+                  <Input type="number" value={editValues.heartRate} onChange={e => setEditValues(v => ({ ...v, heartRate: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Niveau de stress (1-5)</label>
+                  <div className="flex gap-2">
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} onClick={() => setEditValues(v => ({ ...v, stressLevel: n }))}
+                        className={`w-10 h-10 rounded-xl text-sm font-semibold transition-colors ${editValues.stressLevel === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+            {editingFactor === "sleep" && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Heures de sommeil</label>
+                <Input type="number" step="0.5" value={editValues.sleepHours} onChange={e => setEditValues(v => ({ ...v, sleepHours: Number(e.target.value) }))} />
+              </div>
+            )}
+            <button onClick={saveEditFactor}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground">
+              Enregistrer
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
