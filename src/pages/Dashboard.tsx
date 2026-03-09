@@ -418,6 +418,49 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialogue édition facteur manuel */}
+      <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">
+              {editingFactor === "heartStress" ? "Cœur & Stress" : "Sommeil"}
+            </DialogTitle>
+            <DialogDescription>Modifiez vos données manuellement</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {editingFactor === "heartStress" && (
+              <>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Rythme cardiaque (bpm)</label>
+                  <Input type="number" value={editValues.heartRate} onChange={e => setEditValues(v => ({ ...v, heartRate: Number(e.target.value) }))} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Niveau de stress (1-5)</label>
+                  <div className="flex gap-2">
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} onClick={() => setEditValues(v => ({ ...v, stressLevel: n }))}
+                        className={`w-10 h-10 rounded-xl text-sm font-semibold transition-colors ${editValues.stressLevel === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+            {editingFactor === "sleep" && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Heures de sommeil</label>
+                <Input type="number" step="0.5" value={editValues.sleepHours} onChange={e => setEditValues(v => ({ ...v, sleepHours: Number(e.target.value) }))} />
+              </div>
+            )}
+            <button onClick={saveEditFactor}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground">
+              Enregistrer
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Produits utilisés */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
       className="bg-card rounded-2xl p-4 shadow-card mb-5">
