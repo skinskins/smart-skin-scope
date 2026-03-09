@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
 
 const skinMetrics = [
 { label: "Hydratation", value: 72, color: "hsl(200, 60%, 55%)", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation basée sur vos apports quotidiens et l'humidité ambiante." },
