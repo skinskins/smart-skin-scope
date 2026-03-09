@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil } from "lucide-react";
-import zoneTzone from "@/assets/zone-tzone.jpg";
+import faceScan from "@/assets/face-scan.png";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
 import { useState, useEffect, useCallback } from "react";
