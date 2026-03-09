@@ -185,7 +185,7 @@ const Dashboard = () => {
             hasTodayDiag ? 'border-primary' : 'border-muted-foreground/20 bg-muted/50'}`
             }>
               {hasTodayDiag ?
-              <div className="w-full h-full bg-muted flex items-center justify-center text-[10px] text-muted-foreground">Photo</div> :
+              <img src={zoneTzone} alt="Dernier scan" className="w-full h-full object-cover" /> :
 
               <div className="flex flex-col items-center gap-1.5 opacity-40">
                   <Camera size={24} className="text-muted-foreground" />
