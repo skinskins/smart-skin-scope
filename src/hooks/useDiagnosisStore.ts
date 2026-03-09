@@ -1,35 +1,57 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 
-interface DiagnosisResult {
-  globalScore: number;
-  date: string; // ISO string
+export interface ZoneScore {
+  id: string;
+  label: string;
+  score: number;
+  status: "good" | "warning" | "alert";
 }
 
-const STORAGE_KEY = "skin-diagnosis-result";
+export interface DiagnosisResult {
+  globalScore: number;
+  date: string; // ISO string
+  zones: ZoneScore[];
+}
 
-function getStored(): DiagnosisResult | null {
+const STORAGE_KEY = "skin-diagnosis-history";
+
+function getHistory(): DiagnosisResult[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) {
+      // Migration: check old single-result key
+      const old = localStorage.getItem("skin-diagnosis-result");
+      if (old) {
+        const parsed = JSON.parse(old);
+        return [{ ...parsed, zones: parsed.zones || [] }];
+      }
+      return [];
+    }
+    return JSON.parse(raw);
   } catch {
-    return null;
+    return [];
   }
 }
 
-export function saveDiagnosisResult(globalScore: number) {
+export function saveDiagnosisResult(globalScore: number, zones?: ZoneScore[]) {
+  const history = getHistory();
   const result: DiagnosisResult = {
     globalScore,
     date: new Date().toISOString(),
+    zones: zones || [],
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(result));
+  history.push(result);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  // Keep legacy key for backward compat
+  localStorage.setItem("skin-diagnosis-result", JSON.stringify({ globalScore, date: result.date }));
   window.dispatchEvent(new Event("diagnosis-updated"));
 }
 
-export function useDiagnosisResult() {
-  const [result, setResult] = useState<DiagnosisResult | null>(getStored);
+export function useDiagnosisHistory() {
+  const [history, setHistory] = useState<DiagnosisResult[]>(getHistory);
 
   useEffect(() => {
-    const handler = () => setResult(getStored());
+    const handler = () => setHistory(getHistory());
     window.addEventListener("diagnosis-updated", handler);
     window.addEventListener("storage", handler);
     return () => {
@@ -38,5 +60,10 @@ export function useDiagnosisResult() {
     };
   }, []);
 
-  return result;
+  return history;
+}
+
+export function useDiagnosisResult() {
+  const history = useDiagnosisHistory();
+  return history.length > 0 ? history[history.length - 1] : null;
 }

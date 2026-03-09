@@ -1,59 +1,92 @@
 import { motion } from "framer-motion";
-import { TrendingUp, Users, Zap } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, BarChart, Bar } from "recharts";
-import { useState } from "react";
+import { TrendingUp, TrendingDown, Minus, CalendarDays, ArrowRight } from "lucide-react";
+import { useDiagnosisHistory, DiagnosisResult } from "@/hooks/useDiagnosisStore";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { useState, useMemo } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const weeklyData = [
-  { day: "Lun", hydration: 65, glow: 55, redness: 40, texture: 70 },
-  { day: "Mar", hydration: 68, glow: 58, redness: 38, texture: 72 },
-  { day: "Mer", hydration: 60, glow: 60, redness: 42, texture: 68 },
-  { day: "Jeu", hydration: 72, glow: 62, redness: 35, texture: 75 },
-  { day: "Ven", hydration: 70, glow: 63, redness: 30, texture: 78 },
-  { day: "Sam", hydration: 75, glow: 65, redness: 28, texture: 80 },
-  { day: "Dim", hydration: 72, glow: 65, redness: 28, texture: 80 },
+// Demo history for when no real data exists
+const demoHistory: DiagnosisResult[] = [
+  {
+    globalScore: 52,
+    date: "2026-02-10T10:00:00.000Z",
+    zones: [
+      { id: "forehead", label: "Front", score: 55, status: "warning" },
+      { id: "left-cheek", label: "Joue gauche", score: 38, status: "alert" },
+      { id: "right-cheek", label: "Joue droite", score: 42, status: "alert" },
+      { id: "tzone", label: "Zone T / Nez", score: 35, status: "alert" },
+      { id: "chin", label: "Menton", score: 70, status: "good" },
+      { id: "jaw", label: "Mâchoire", score: 68, status: "warning" },
+    ],
+  },
+  {
+    globalScore: 58,
+    date: "2026-03-01T14:30:00.000Z",
+    zones: [
+      { id: "forehead", label: "Front", score: 62, status: "warning" },
+      { id: "left-cheek", label: "Joue gauche", score: 45, status: "alert" },
+      { id: "right-cheek", label: "Joue droite", score: 48, status: "alert" },
+      { id: "tzone", label: "Zone T / Nez", score: 40, status: "alert" },
+      { id: "chin", label: "Menton", score: 78, status: "good" },
+      { id: "jaw", label: "Mâchoire", score: 76, status: "good" },
+    ],
+  },
 ];
 
-const metrics = [
-  { key: "hydration", label: "Hydratation", color: "hsl(200, 60%, 55%)" },
-  { key: "glow", label: "Éclat", color: "hsl(45, 80%, 65%)" },
-  { key: "redness", label: "Rougeurs", color: "hsl(0, 70%, 60%)" },
-  { key: "texture", label: "Texture", color: "hsl(280, 30%, 55%)" },
-];
+const ScoreChange = ({ diff }: { diff: number }) => {
+  if (diff > 0) return <span className="text-primary font-bold flex items-center gap-0.5"><TrendingUp size={14} />+{diff}</span>;
+  if (diff < 0) return <span className="text-destructive font-bold flex items-center gap-0.5"><TrendingDown size={14} />{diff}</span>;
+  return <span className="text-muted-foreground font-medium flex items-center gap-0.5"><Minus size={14} />0</span>;
+};
 
-const cohortData = [
-  { metric: "Hydrat.", you: 72, avg: 65 },
-  { metric: "Éclat", you: 65, avg: 60 },
-  { metric: "Roug.", you: 28, avg: 35 },
-  { metric: "Text.", you: 80, avg: 70 },
-  { metric: "Sébum", you: 45, avg: 50 },
-];
+const ScoreBar = ({ score, color }: { score: number; color: string }) => (
+  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+    <motion.div
+      className="h-full rounded-full"
+      style={{ backgroundColor: color }}
+      initial={{ width: 0 }}
+      animate={{ width: `${score}%` }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    />
+  </div>
+);
 
-const predictionData = [
-  { day: "Auj.", score: 74 },
-  { day: "+1", score: 73 },
-  { day: "+2", score: 76 },
-  { day: "+3", score: 72 },
-  { day: "+4", score: 78 },
-  { day: "+5", score: 75 },
-  { day: "+6", score: 79 },
-  { day: "+7", score: 80 },
-];
+const getScoreColor = (score: number) =>
+  score >= 70 ? "hsl(var(--primary))" : score >= 50 ? "hsl(var(--skin-oil))" : "hsl(var(--destructive))";
 
-const predictionFactors = [
-  { factor: "Météo", impact: "UV ↑ → risque de rougeurs" },
-  { factor: "Cycle", impact: "Folliculaire → meilleur éclat" },
-  { factor: "Sommeil", impact: "Moy. 7,2h → bonne récupération" },
-];
-
-type Tab = "trends" | "compare" | "predict";
+const getScoreTextClass = (score: number) =>
+  score >= 70 ? "text-primary" : score >= 50 ? "text-skin-oil" : "text-destructive";
 
 const Progress = () => {
-  const [activeMetrics, setActiveMetrics] = useState<string[]>(["hydration", "texture"]);
-  const [tab, setTab] = useState<Tab>("trends");
+  const realHistory = useDiagnosisHistory();
+  const history = realHistory.length >= 2 ? realHistory : demoHistory;
 
-  const toggleMetric = (key: string) => {
-    setActiveMetrics(prev => prev.includes(key) ? prev.filter(m => m !== key) : [...prev, key]);
-  };
+  const [selectedIdx, setSelectedIdx] = useState<number>(
+    history.length >= 2 ? history.length - 2 : 0
+  );
+
+  const latest = history[history.length - 1];
+  const compared = history[selectedIdx];
+
+  const globalDiff = latest.globalScore - compared.globalScore;
+
+  const zoneDiffs = useMemo(() => {
+    if (!latest.zones.length || !compared.zones.length) return [];
+    return latest.zones.map((z) => {
+      const prev = compared.zones.find((cz) => cz.id === z.id);
+      return {
+        ...z,
+        prevScore: prev?.score ?? z.score,
+        diff: prev ? z.score - prev.score : 0,
+      };
+    });
+  }, [latest, compared]);
+
+  const formatDate = (iso: string) =>
+    format(new Date(iso), "d MMM yyyy, HH:mm", { locale: fr });
+
+  const comparableEntries = history.slice(0, -1);
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
@@ -62,117 +95,116 @@ const Progress = () => {
           <TrendingUp size={20} className="text-primary" />
           <h1 className="text-2xl font-display font-semibold text-foreground">Progression</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-4">Suivre, comparer & prédire</p>
+        <p className="text-sm text-muted-foreground mb-5">Comparez vos diagnostics</p>
       </motion.div>
 
-      {/* Onglets */}
-      <div className="flex gap-1 bg-muted rounded-xl p-1 mb-5">
-        {([["trends", "Tendances", TrendingUp], ["compare", "Cohorte", Users], ["predict", "Prédiction", Zap]] as const).map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-              tab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-            }`}>
-            <Icon size={14} />{label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "trends" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-            <h3 className="font-display font-semibold text-foreground mb-3">Tendances hebdo</h3>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {metrics.map(m => (
-                <button key={m.key} onClick={() => toggleMetric(m.key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${
-                    activeMetrics.includes(m.key) ? "border-transparent text-primary-foreground" : "border-border text-muted-foreground bg-transparent"
-                  }`} style={activeMetrics.includes(m.key) ? { backgroundColor: m.color } : {}}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={weeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
-                  {metrics.filter(m => activeMetrics.includes(m.key)).map(m => (
-                    <Line key={m.key} type="monotone" dataKey={m.key} stroke={m.color} strokeWidth={2} dot={{ r: 2.5, fill: m.color }} />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+      {history.length < 2 ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="bg-card rounded-2xl p-6 shadow-card text-center">
+          <CalendarDays size={32} className="text-muted-foreground mx-auto mb-3" />
+          <p className="text-foreground font-semibold mb-1">Pas encore assez de données</p>
+          <p className="text-sm text-muted-foreground">
+            Effectuez au moins 2 diagnostics pour voir votre progression.
+          </p>
         </motion.div>
-      )}
+      ) : (
+        <>
+          {/* Date selector */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-card rounded-2xl p-4 shadow-card mb-4">
+            <p className="text-xs text-muted-foreground mb-2 font-medium">Comparer avec</p>
+            <Select value={String(selectedIdx)} onValueChange={(v) => setSelectedIdx(Number(v))}>
+              <SelectTrigger className="w-full bg-muted border-0 rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {comparableEntries.map((entry, i) => (
+                  <SelectItem key={i} value={String(i)}>
+                    {formatDate(entry.date)} — Score {entry.globalScore}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </motion.div>
 
-      {tab === "compare" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-            <h3 className="font-display font-semibold text-foreground mb-1">Vous vs. Cohorte</h3>
-            <p className="text-xs text-muted-foreground mb-3">Femmes 25–30 ans, peau mixte</p>
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={cohortData} barGap={2}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="metric" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
-                  <Bar dataKey="you" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Vous" />
-                  <Bar dataKey="avg" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Moyenne" opacity={0.5} />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Global score comparison */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+            className="bg-card rounded-2xl p-5 shadow-card mb-4">
+            <h3 className="font-display font-semibold text-foreground mb-4">Score global</h3>
+            <div className="flex items-center justify-between gap-4">
+              {/* Previous */}
+              <div className="flex-1 text-center">
+                <p className="text-xs text-muted-foreground mb-1">
+                  {format(new Date(compared.date), "d MMM", { locale: fr })}
+                </p>
+                <p className={`text-3xl font-bold ${getScoreTextClass(compared.globalScore)}`}>
+                  {compared.globalScore}
+                </p>
+              </div>
+
+              <div className="flex flex-col items-center gap-1">
+                <ArrowRight size={18} className="text-muted-foreground" />
+                <div className="text-lg"><ScoreChange diff={globalDiff} /></div>
+              </div>
+
+              {/* Latest */}
+              <div className="flex-1 text-center">
+                <p className="text-xs text-muted-foreground mb-1">
+                  {format(new Date(latest.date), "d MMM", { locale: fr })}
+                </p>
+                <p className={`text-3xl font-bold ${getScoreTextClass(latest.globalScore)}`}>
+                  {latest.globalScore}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="bg-card rounded-xl p-4 shadow-card">
+          </motion.div>
+
+          {/* Zone-by-zone comparison */}
+          {zoneDiffs.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <h3 className="font-display font-semibold text-foreground mb-3">Détail par zone</h3>
+              <div className="space-y-3">
+                {zoneDiffs.map((z, i) => (
+                  <motion.div key={z.id}
+                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.12 + i * 0.05 }}
+                    className="bg-card rounded-xl p-4 shadow-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-foreground">{z.label}</span>
+                      <ScoreChange diff={z.diff} />
+                    </div>
+                    <div className="flex items-center gap-3 mb-1.5">
+                      <span className="text-xs text-muted-foreground w-8">{z.prevScore}</span>
+                      <div className="flex-1">
+                        <ScoreBar score={z.prevScore} color="hsl(var(--muted-foreground) / 0.3)" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-semibold w-8 ${getScoreTextClass(z.score)}`}>{z.score}</span>
+                      <div className="flex-1">
+                        <ScoreBar score={z.score} color={getScoreColor(z.score)} />
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Summary */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="bg-card rounded-xl p-4 shadow-card mt-4">
             <p className="text-sm text-foreground">
-              Vous êtes <span className="text-primary font-semibold">au-dessus de la moyenne</span> en hydratation & texture. Rougeurs en dessous — bravo !
+              {globalDiff > 0 ? (
+                <>Tendance : <span className="text-primary font-semibold">↑ en amélioration</span> (+{globalDiff} pts depuis le {format(new Date(compared.date), "d MMM", { locale: fr })})</>
+              ) : globalDiff < 0 ? (
+                <>Tendance : <span className="text-destructive font-semibold">↓ en baisse</span> ({globalDiff} pts depuis le {format(new Date(compared.date), "d MMM", { locale: fr })})</>
+              ) : (
+                <>Tendance : <span className="text-muted-foreground font-semibold">→ stable</span> depuis le {format(new Date(compared.date), "d MMM", { locale: fr })}</>
+              )}
             </p>
-          </div>
-        </motion.div>
-      )}
-
-      {tab === "predict" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-            <h3 className="font-display font-semibold text-foreground mb-1">Prédiction 7 jours</h3>
-            <p className="text-xs text-muted-foreground mb-3">Basée sur les tendances + facteurs</p>
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={predictionData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} domain={[60, 90]} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "11px" }} />
-                  <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={2.5}
-                    dot={{ r: 3, fill: "hsl(var(--primary))" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <h3 className="font-display font-semibold text-foreground mb-2">Facteurs d'ajustement</h3>
-          <div className="space-y-2 mb-4">
-            {predictionFactors.map((f, i) => (
-              <motion.div key={f.factor} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
-                className="bg-card rounded-xl p-3 shadow-card flex items-center gap-3">
-                <Zap size={14} className="text-primary flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{f.factor}</p>
-                  <p className="text-xs text-muted-foreground">{f.impact}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="bg-card rounded-xl p-4 shadow-card">
-            <p className="text-sm text-foreground">
-              Tendance prédite : <span className="text-primary font-semibold">↑ en amélioration</span>. Baisse possible J+3 (pic UV).
-            </p>
-          </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </div>
   );
