@@ -526,8 +526,8 @@ const Dashboard = () => {
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Indicateurs de ma peau</h2>
       <div className="grid grid-cols-2 gap-3">
         {skinMetrics.map((metric, i) =>
-        <motion.div key={metric.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.05 }}>
-            <MetricCard {...metric} />
+          <motion.div key={metric.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.05 }}>
+            <MetricCard {...metric} trendTone={trendToneForMetric(metric.label, metric.trend)} />
           </motion.div>
         )}
       </div>
