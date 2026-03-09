@@ -329,23 +329,27 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Cycle</p>
                 <select value={dailyLog.cyclePhase} onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setDailyLog((d) => ({ ...d, cyclePhase: e.target.value }))}
+                onChange={(e) => {setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle");}}
                 className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
                   {cyclePhases.map((p) => <option key={p}>{p}</option>)}
                 </select>
+                <ManualLabel id="cycle" />
               </div>
             </div>
           </FactorButton>
-          <FactorButton id="heartStress">
+          <button onClick={() => openEditDialog("heartStress")} className="text-left w-full">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Heart size={16} className="text-skin-redness" />
-              <div>
+              <div className="flex-1">
                 <p className="text-xs text-muted-foreground">Cœur / Stress</p>
-                <p className="text-sm font-semibold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
-                {!deviceConnected && <p className="text-[9px] text-muted-foreground/60">Manuel</p>}
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-semibold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
+                  {!deviceConnected && <Pencil size={10} className="text-muted-foreground/40" />}
+                </div>
+                <ManualLabel id="heartStress" />
               </div>
             </div>
-          </FactorButton>
+          </button>
           <FactorButton id="water">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Droplets size={16} className="text-skin-hydration" />
@@ -353,32 +357,37 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground">Eau</p>
                 <div className="flex gap-0.5">
                   {[...Array(8)].map((_, i) =>
-                  <button key={i} onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, waterGlasses: i + 1 }));}}
+                  <button key={i} onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water");}}
                   className={`w-3 h-4 rounded-sm ${i < dailyLog.waterGlasses ? 'bg-skin-hydration' : 'bg-muted'}`} />
                   )}
                 </div>
+                <ManualLabel id="water" />
               </div>
             </div>
           </FactorButton>
-          <FactorButton id="sleep">
+          <button onClick={() => openEditDialog("sleep")} className="text-left w-full">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Moon size={16} className="text-skin-texture" />
               <div>
                 <p className="text-xs text-muted-foreground">Sommeil</p>
-                <p className="text-sm font-semibold text-foreground">{dailyLog.sleepHours}h</p>
-                {!deviceConnected && <p className="text-[9px] text-muted-foreground/60">Manuel</p>}
+                <div className="flex items-center gap-1">
+                  <p className="text-sm font-semibold text-foreground">{dailyLog.sleepHours}h</p>
+                  {!deviceConnected && <Pencil size={10} className="text-muted-foreground/40" />}
+                </div>
+                <ManualLabel id="sleep" />
               </div>
             </div>
-          </FactorButton>
+          </button>
           <FactorButton id="alcohol">
             <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
               <Wine size={16} className="text-skin-oil" />
               <div>
                 <p className="text-xs text-muted-foreground">Alcool</p>
-                <button onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, alcohol: !d.alcohol }));}}
+                <button onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol");}}
                 className={`text-sm font-semibold ${dailyLog.alcohol ? 'text-skin-redness' : 'text-primary'}`}>
                   {dailyLog.alcohol ? "Oui" : "Non"}
                 </button>
+                <ManualLabel id="alcohol" />
               </div>
             </div>
           </FactorButton>
@@ -388,11 +397,11 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Sport</p>
                 <select value={dailyLog.workoutIntensity} onClick={(e) => e.stopPropagation()}
-                onChange={(e) => setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value }))}
+                onChange={(e) => {setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout");}}
                 className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
                   {intensities.map((i) => <option key={i}>{i}</option>)}
                 </select>
-                {!deviceConnected && <p className="text-[9px] text-muted-foreground/60">Manuel</p>}
+                <ManualLabel id="workout" />
               </div>
             </div>
           </FactorButton>
