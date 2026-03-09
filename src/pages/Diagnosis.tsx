@@ -61,10 +61,10 @@ const zoneResults: ZoneResult[] = [
     image: zoneChin,
   },
   {
-    id: "jaw", label: "Mâchoire", score: 50, status: "warning", trend: "stable",
-    summary: "Rougeurs légères, micro-boutons épars",
-    detail: "La zone de la mâchoire montre des rougeurs modérées et quelques micro-boutons, possiblement liés à des fluctuations hormonales ou au frottement.",
-    tips: ["Soin purifiant doux au niacinamide", "Éviter de toucher cette zone", "Surveiller le lien avec le cycle hormonal"],
+    id: "jaw", label: "Mâchoire", score: 76, status: "good", trend: "up",
+    summary: "Zone saine, texture uniforme",
+    detail: "La mâchoire présente une bonne texture globale avec un grain de peau régulier. Hydratation correcte et pas d'inflammation notable.",
+    tips: ["Maintenir l'hydratation quotidienne", "Massage drainant le matin pour l'ovale"],
     image: zoneJaw,
   },
 ];
