@@ -5,6 +5,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import diagPrevious from "@/assets/diag-previous.png";
+import faceScan from "@/assets/face-scan.png";
 
 // Demo history for when no real data exists
 const demoHistory: DiagnosisResult[] = [
@@ -127,12 +129,65 @@ const Progress = () => {
             </Select>
           </motion.div>
 
+          {/* Photo comparison */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}
+            className="bg-card rounded-2xl p-4 shadow-card mb-4">
+            <h3 className="font-display font-semibold text-foreground mb-3">Comparaison visuelle</h3>
+            <div className="flex gap-3">
+              {/* Previous photo */}
+              <div className="flex-1">
+                <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-muted">
+                  <img
+                    src={diagPrevious}
+                    alt="Diagnostic précédent"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2.5">
+                    <p className="text-white text-[10px] font-medium">
+                      {format(new Date(compared.date), "d MMM yyyy", { locale: fr })}
+                    </p>
+                    <p className={`text-lg font-bold ${compared.globalScore >= 70 ? "text-emerald-400" : compared.globalScore >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                      {compared.globalScore}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Arrow */}
+              <div className="flex items-center">
+                <ArrowRight size={20} className="text-muted-foreground" />
+              </div>
+
+              {/* Latest photo */}
+              <div className="flex-1">
+                <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-muted">
+                  <img
+                    src={faceScan}
+                    alt="Diagnostic actuel"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2.5">
+                    <p className="text-white text-[10px] font-medium">
+                      {format(new Date(latest.date), "d MMM yyyy", { locale: fr })}
+                    </p>
+                    <p className={`text-lg font-bold ${latest.globalScore >= 70 ? "text-emerald-400" : latest.globalScore >= 50 ? "text-amber-400" : "text-red-400"}`}>
+                      {latest.globalScore}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-center mt-3 gap-2">
+              <ScoreChange diff={globalDiff} />
+              <span className="text-xs text-muted-foreground">pts</span>
+            </div>
+          </motion.div>
+
           {/* Global score comparison */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}
             className="bg-card rounded-2xl p-5 shadow-card mb-4">
             <h3 className="font-display font-semibold text-foreground mb-4">Score global</h3>
             <div className="flex items-center justify-between gap-4">
-              {/* Previous */}
               <div className="flex-1 text-center">
                 <p className="text-xs text-muted-foreground mb-1">
                   {format(new Date(compared.date), "d MMM", { locale: fr })}
@@ -141,13 +196,10 @@ const Progress = () => {
                   {compared.globalScore}
                 </p>
               </div>
-
               <div className="flex flex-col items-center gap-1">
                 <ArrowRight size={18} className="text-muted-foreground" />
                 <div className="text-lg"><ScoreChange diff={globalDiff} /></div>
               </div>
-
-              {/* Latest */}
               <div className="flex-1 text-center">
                 <p className="text-xs text-muted-foreground mb-1">
                   {format(new Date(latest.date), "d MMM", { locale: fr })}
