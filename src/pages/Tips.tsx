@@ -247,62 +247,81 @@ const priorityConfig = {
 };
 
 const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
+  const [open, setOpen] = useState(false);
   const config = priorityConfig[tip.priority];
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
-      className="bg-card rounded-2xl p-5 shadow-card"
+      className="bg-card rounded-2xl shadow-card overflow-hidden"
     >
-      {/* Header */}
-      <div className="flex items-start gap-3 mb-3">
+      {/* Collapsed summary — always visible */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left p-4 flex items-center gap-3"
+      >
         <div className={`w-9 h-9 rounded-xl ${config.bg} flex items-center justify-center ${config.color} flex-shrink-0`}>
           {tip.icon}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <h3 className="text-sm font-semibold text-foreground">{tip.title}</h3>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground truncate">{tip.title}</h3>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${config.bg} ${config.color} flex-shrink-0`}>
               {config.label}
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground/60 italic">{tip.source}</p>
+          <p className="text-[10px] text-muted-foreground/60 italic mt-0.5">{tip.source}</p>
         </div>
-      </div>
+        <ChevronRight size={16} className={`text-muted-foreground transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`} />
+      </button>
 
-      {/* Description */}
-      <p className="text-xs text-muted-foreground leading-relaxed mb-4">{tip.description}</p>
+      {/* Expanded details */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-0 space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">{tip.description}</p>
 
-      {/* Products */}
-      <div className="mb-3">
-        <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
-          <ShieldCheck size={12} className="text-primary" />
-          Produits recommandés
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {tip.products.map((p, i) => (
-            <span key={i} className="text-[10px] bg-accent text-foreground px-2.5 py-1 rounded-full font-medium">
-              {p}
-            </span>
-          ))}
-        </div>
-      </div>
+              {/* Products */}
+              <div>
+                <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <ShieldCheck size={12} className="text-primary" />
+                  Produits recommandés
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tip.products.map((p, i) => (
+                    <span key={i} className="text-[10px] bg-accent text-foreground px-2.5 py-1 rounded-full font-medium">
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </div>
 
-      {/* Ingredients */}
-      <div>
-        <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
-          <FlaskConical size={12} className="text-primary" />
-          Ingrédients à privilégier
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {tip.ingredients.map((ing, i) => (
-            <span key={i} className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
-              {ing}
-            </span>
-          ))}
-        </div>
-      </div>
+              {/* Ingredients */}
+              <div>
+                <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <FlaskConical size={12} className="text-primary" />
+                  Ingrédients à privilégier
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {tip.ingredients.map((ing, i) => (
+                    <span key={i} className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
