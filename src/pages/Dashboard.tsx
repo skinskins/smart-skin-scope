@@ -63,6 +63,19 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
   workout: { title: "Sport", desc: "L'exercice modéré améliore la circulation. Intense sans nettoyage = boutons." }
 };
 
+const DEFAULT_UPDATED_AGO = 18 * 60 * 60 * 1000; // 18h in ms
+
+const formatUpdatedAgo = (timestamp: number) => {
+  const diffMs = Date.now() - timestamp;
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "à l'instant";
+  if (diffMin < 60) return `il y a ${diffMin}min`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `il y a ${diffH}h`;
+  const diffD = Math.round(diffH / 24);
+  return `il y a ${diffD}j`;
+};
+
 const Dashboard = () => {
   const [dailyLog, setDailyLog] = useState(defaultDailyLog);
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
@@ -74,7 +87,21 @@ const Dashboard = () => {
   const [deviceConnected] = useState(false);
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [editingFactor, setEditingFactor] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Track last update timestamps for manual factors (default: 18h ago)
+  const [manualUpdates, setManualUpdates] = useState<Record<string, number>>(() => {
+    const defaultTime = Date.now() - DEFAULT_UPDATED_AGO;
+    return { heartStress: defaultTime, sleep: defaultTime, cycle: defaultTime, water: defaultTime, alcohol: defaultTime, workout: defaultTime };
+  });
+
+  // Temp edit values
+  const [editValues, setEditValues] = useState({ heartRate: 72, stressLevel: 3, sleepHours: 7.5 });
+
+  const markUpdated = useCallback((factorId: string) => {
+    setManualUpdates(prev => ({ ...prev, [factorId]: Date.now() }));
+  }, []);
 
   const hasTodayDiag = !!diagResult;
   const currentScore = diagResult?.globalScore ?? 74;
@@ -109,6 +136,27 @@ const Dashboard = () => {
   };
 
   const saveProducts = () => setProductsSaved(true);
+
+  const openEditDialog = (id: string) => {
+    setEditValues({ heartRate: dailyLog.heartRate, stressLevel: dailyLog.stressLevel, sleepHours: dailyLog.sleepHours });
+    setEditingFactor(id);
+  };
+
+  const saveEditFactor = () => {
+    if (!editingFactor) return;
+    setDailyLog(d => ({ ...d, heartRate: editValues.heartRate, stressLevel: editValues.stressLevel, sleepHours: editValues.sleepHours }));
+    markUpdated(editingFactor);
+    setEditingFactor(null);
+  };
+
+  const ManualLabel = ({ id }: { id: string }) => {
+    if (deviceConnected) return null;
+    return (
+      <p className="text-[9px] text-muted-foreground/60">
+        Manuel · <span className="text-primary/50">{formatUpdatedAgo(manualUpdates[id] ?? Date.now())}</span>
+      </p>
+    );
+  };
 
   const FactorButton = ({ id, children }: {id: string;children: React.ReactNode;}) =>
   <button onClick={() => setFactorOpen(id)} className="text-left w-full">
