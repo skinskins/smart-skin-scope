@@ -668,6 +668,38 @@ const Dashboard = () => {
         }>
           {productsSaved ? "✓ Enregistré" : "Enregistrer la routine"}
         </button>
+
+        {/* Feedback popup */}
+        <AnimatePresence>
+          {productFeedback && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className={`mt-3 rounded-xl p-3 border ${
+                productFeedback.positive
+                  ? "bg-primary/5 border-primary/15"
+                  : "bg-destructive/5 border-destructive/15"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                {productFeedback.positive
+                  ? <ThumbsUp size={14} className="text-primary" />
+                  : <ShieldAlert size={14} className="text-destructive" />
+                }
+                <p className={`text-xs font-semibold ${productFeedback.positive ? "text-primary" : "text-destructive"}`}>
+                  {productFeedback.message}
+                </p>
+              </div>
+              {productFeedback.tips.map((tip, i) => (
+                <p key={i} className="text-[11px] text-foreground/80 leading-relaxed ml-5">
+                  • {tip}
+                </p>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Métriques peau */}
