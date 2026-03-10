@@ -153,7 +153,72 @@ const Dashboard = () => {
     setSelected((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
   };
 
-  const saveProducts = () => setProductsSaved(true);
+  const saveProducts = () => {
+    setProductsSaved(true);
+    const sel = productTime === "am" ? amSelected : pmSelected;
+    const time = productTime;
+    
+    // Generate smart feedback
+    const feedback: { message: string; tips: string[]; positive: boolean } = { message: "", tips: [], positive: true };
+    
+    const hasSPF = sel.includes("SPF 50");
+    const hasHydratant = sel.includes("Hydratant");
+    const hasNettoyant = sel.includes("Nettoyant");
+    const hasRetinol = sel.includes("Rétinol");
+    const hasSerum = sel.includes("Sérum");
+    const hasContourYeux = sel.includes("Contour yeux");
+    
+    const hydration = skinMetrics.find(m => m.label === "Hydratation")!;
+    const redness = skinMetrics.find(m => m.label === "Rougeurs")!;
+    
+    if (time === "am") {
+      if (hasSPF && hasHydratant && hasNettoyant) {
+        feedback.message = "Routine matinale au top ! ☀️";
+        feedback.positive = true;
+      } else if (!hasSPF && dailyLog.weather.uv >= 4) {
+        feedback.message = "UV à " + dailyLog.weather.uv + " aujourd'hui !";
+        feedback.tips.push("Ajoutez un SPF pour protéger votre peau des UV.");
+        feedback.positive = false;
+      } else {
+        feedback.message = "Routine enregistrée 👍";
+        feedback.positive = true;
+      }
+      if (!hasHydratant && hydration.value < 70) {
+        feedback.tips.push("Votre hydratation est basse — pensez à ajouter un hydratant.");
+      }
+      if (hasSerum) feedback.tips.push("Bien joué pour le sérum ! 💧");
+    } else {
+      if (hasRetinol && hasSPF) {
+        feedback.message = "⚠️ Attention";
+        feedback.tips.push("Le rétinol se met le soir, pas besoin de SPF dans la routine PM.");
+        feedback.positive = false;
+      } else if (hasRetinol && hasNettoyant) {
+        feedback.message = "Excellente routine du soir ! 🌙";
+        feedback.positive = true;
+      } else {
+        feedback.message = "Routine du soir enregistrée ✓";
+        feedback.positive = true;
+      }
+      if (!hasNettoyant) {
+        feedback.tips.push("Le nettoyage du soir est essentiel pour retirer les impuretés.");
+        feedback.positive = false;
+      }
+      if (hasContourYeux) feedback.tips.push("Le contour yeux le soir, c'est parfait pour la régénération nocturne ✨");
+    }
+    
+    // Diagnosis-based reco
+    if (redness.value > 35 && !sel.includes("Lotion Tonique")) {
+      feedback.tips.push("Rougeurs détectées — une lotion tonique apaisante pourrait aider.");
+    }
+    
+    if (feedback.tips.length === 0 && feedback.positive) {
+      const compliments = ["Votre peau vous remercie ! 🌟", "Belle routine, continuez comme ça 💪", "Vos choix sont bien adaptés à votre peau ✨"];
+      feedback.tips.push(compliments[Math.floor(Math.random() * compliments.length)]);
+    }
+    
+    setProductFeedback(feedback);
+    setTimeout(() => setProductFeedback(null), 6000);
+  };
 
   const openEditDialog = (id: string) => {
     setEditValues({ heartRate: dailyLog.heartRate, stressLevel: dailyLog.stressLevel, sleepHours: dailyLog.sleepHours });
