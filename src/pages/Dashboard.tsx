@@ -790,9 +790,12 @@ const Dashboard = () => {
                 </p>
               </div>
               {productFeedback.tips.map((tip, i) => (
-                <p key={i} className="text-[11px] text-foreground/80 leading-relaxed ml-5">
-                  • {tip}
-                </p>
+                <div key={i} className="ml-5 mb-1.5">
+                  <p className="text-[11px] text-foreground/80 leading-relaxed">• {tip.text}</p>
+                  {tip.source && (
+                    <p className="text-[9px] text-muted-foreground/50 italic ml-2 mt-0.5">— {tip.source}</p>
+                  )}
+                </div>
               ))}
             </motion.div>
           )}
