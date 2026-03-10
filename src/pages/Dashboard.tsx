@@ -101,6 +101,7 @@ const Dashboard = () => {
   const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
   const [productTime, setProductTime] = useState<"am" | "pm">("am");
   const [productsSaved, setProductsSaved] = useState(false);
+  const [productFeedback, setProductFeedback] = useState<{ message: string; tips: string[]; positive: boolean } | null>(null);
   const [deviceConnected] = useState(false);
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
