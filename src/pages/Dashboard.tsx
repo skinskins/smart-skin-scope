@@ -290,6 +290,59 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Conseils personnalisés */}
+      <h2 className="text-lg font-display font-semibold text-foreground mb-3 flex items-center gap-2">
+        <Lightbulb size={18} className="text-primary" /> Conseils du jour
+      </h2>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+        className="bg-card rounded-2xl p-4 shadow-card mb-5 space-y-3">
+        {(() => {
+          const tips: { icon: React.ReactNode; text: string; priority: "high" | "medium" | "low" }[] = [];
+
+          // Tips basés sur les métriques de peau
+          const hydration = skinMetrics.find(m => m.label === "Hydratation")!;
+          const redness = skinMetrics.find(m => m.label === "Rougeurs")!;
+          const glow = skinMetrics.find(m => m.label === "Éclat")!;
+          const sebum = skinMetrics.find(m => m.label === "Sébum")!;
+          const texture = skinMetrics.find(m => m.label === "Texture")!;
+
+          if (hydration.value < 70) tips.push({ icon: <GlassWater size={16} className="text-skin-hydration" />, text: "Hydratation faible — pensez à boire davantage et appliquer un sérum hydratant.", priority: "high" });
+          if (redness.value > 35) tips.push({ icon: <ShieldAlert size={16} className="text-destructive" />, text: "Rougeurs élevées — évitez les produits agressifs et privilégiez des soins apaisants.", priority: "high" });
+          if (glow.value < 60) tips.push({ icon: <Sparkles size={16} className="text-skin-glow" />, text: "Éclat en berne — un sérum vitamine C le matin peut faire la différence.", priority: "medium" });
+          if (sebum.value > 60) tips.push({ icon: <CircleDot size={16} className="text-skin-sebum" />, text: "Excès de sébum — utilisez un nettoyant doux et évitez les crèmes trop riches.", priority: "medium" });
+          if (texture.value < 65) tips.push({ icon: <Fingerprint size={16} className="text-accent-foreground" />, text: "Texture irrégulière — une exfoliation douce 2x/semaine peut aider.", priority: "medium" });
+
+          // Tips basés sur les paramètres du jour
+          if (dailyLog.weather.uv >= 6) tips.push({ icon: <Sun size={16} className="text-skin-glow" />, text: `UV à ${dailyLog.weather.uv} — réappliquez votre SPF toutes les 2h, surtout en extérieur.`, priority: "high" });
+          if (dailyLog.weather.humidity < 40) tips.push({ icon: <Droplets size={16} className="text-skin-hydration" />, text: "Air sec aujourd'hui — renforcez l'hydratation avec un brumisateur ou une crème riche.", priority: "medium" });
+          if (dailyLog.weather.humidity > 75) tips.push({ icon: <Droplets size={16} className="text-skin-hydration" />, text: "Forte humidité — allégez votre routine pour éviter les pores bouchés.", priority: "medium" });
+          if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} className="text-muted-foreground" />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high" });
+          if (dailyLog.alcohol) tips.push({ icon: <Wine size={16} className="text-destructive" />, text: "Alcool détecté — hydratez-vous davantage pour compenser la déshydratation cutanée.", priority: "medium" });
+          if (dailyLog.waterGlasses < 5) tips.push({ icon: <GlassWater size={16} className="text-skin-hydration" />, text: `Seulement ${dailyLog.waterGlasses} verres d'eau — visez au moins 6 à 8 verres par jour.`, priority: "high" });
+          if (dailyLog.cyclePhase === "Lutéal") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase lutéale — votre peau peut être plus grasse, privilégiez un nettoyage doux.", priority: "low" });
+          if (dailyLog.cyclePhase === "Menstruel") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase menstruelle — peau sensible, optez pour des soins doux et apaisants.", priority: "low" });
+
+          // Trier par priorité et limiter à 4
+          const priorityOrder = { high: 0, medium: 1, low: 2 };
+          const sorted = tips.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 4);
+
+          if (sorted.length === 0) {
+            sorted.push({ icon: <Sparkles size={16} className="text-primary" />, text: "Tout semble bien ! Continuez votre routine actuelle. 🎉", priority: "low" });
+          }
+
+          return sorted.map((tip, i) => (
+            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
+              className={`flex items-start gap-3 rounded-xl p-3 ${
+                tip.priority === "high" ? "bg-destructive/5 border border-destructive/10" :
+                tip.priority === "medium" ? "bg-accent/50" : "bg-muted/50"
+              }`}>
+              <span className="mt-0.5 flex-shrink-0">{tip.icon}</span>
+              <p className="text-xs text-foreground/90 leading-relaxed">{tip.text}</p>
+            </motion.div>
+          ));
+        })()}
+      </motion.div>
+
       {/* Facteurs quotidiens */}
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Paramètres du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
