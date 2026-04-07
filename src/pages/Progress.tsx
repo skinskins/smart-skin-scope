@@ -138,7 +138,7 @@ const Progress = () => {
               <div className="flex-1">
                 <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-muted">
                   <img
-                    src={diagPrevious}
+                    src={compared.image || diagPrevious}
                     alt="Diagnostic précédent"
                     className="w-full h-full object-cover"
                   />
@@ -162,7 +162,7 @@ const Progress = () => {
               <div className="flex-1">
                 <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-muted">
                   <img
-                    src={faceScan}
+                    src={latest.image || faceScan}
                     alt="Diagnostic actuel"
                     className="w-full h-full object-cover"
                   />
@@ -209,44 +209,7 @@ const Progress = () => {
                 </p>
               </div>
             </div>
-          </motion.div>
-
-          {/* Zone-by-zone comparison */}
-          {zoneDiffs.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <h3 className="font-display font-semibold text-foreground mb-3">Détail par zone</h3>
-              <div className="space-y-3">
-                {zoneDiffs.map((z, i) => (
-                  <motion.div key={z.id}
-                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.12 + i * 0.05 }}
-                    className="bg-card rounded-xl p-4 shadow-card">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-foreground">{z.label}</span>
-                      <ScoreChange diff={z.diff} />
-                    </div>
-                    <div className="flex items-center gap-3 mb-1.5">
-                      <span className="text-xs text-muted-foreground w-8">{z.prevScore}</span>
-                      <div className="flex-1">
-                        <ScoreBar score={z.prevScore} color="hsl(var(--muted-foreground) / 0.3)" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-semibold w-8 ${getScoreTextClass(z.score)}`}>{z.score}</span>
-                      <div className="flex-1">
-                        <ScoreBar score={z.score} color={getScoreColor(z.score)} />
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Summary */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-            className="bg-card rounded-xl p-4 shadow-card mt-4">
-            <p className="text-sm text-foreground">
+            <p className="text-sm text-foreground text-center mt-3">
               {globalDiff > 0 ? (
                 <>Tendance : <span className="text-primary font-semibold">↑ en amélioration</span> (+{globalDiff} pts depuis le {format(new Date(compared.date), "d MMM", { locale: fr })})</>
               ) : globalDiff < 0 ? (
@@ -256,6 +219,32 @@ const Progress = () => {
               )}
             </p>
           </motion.div>
+
+          {/* Zone-by-zone comparison */}
+          {zoneDiffs.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <h3 className="font-display font-semibold text-foreground mb-3">Détail par zone</h3>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12 }}
+                className="bg-card rounded-2xl p-5 shadow-card space-y-4"
+              >
+                {zoneDiffs.map((z, i) => (
+                  <div key={z.id} className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-foreground w-28 truncate">{z.label}</span>
+                    <div className="flex-1">
+                      <ScoreBar score={z.score} color={getScoreColor(z.score)} />
+                    </div>
+                    <span className={`text-xs font-semibold w-6 text-right ${getScoreTextClass(z.score)}`}>{z.score}</span>
+                    <div className="w-12 flex justify-end">
+                      <ScoreChange diff={z.diff} />
+                    </div>
+                  </div>
+                ))}
+              </motion.div>
+            </motion.div>
+          )}
         </>
       )}
     </div>

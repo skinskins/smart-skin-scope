@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowRight, HeartPulse, Activity, Moon, Droplets, GlassWater, Flame, Coffee, Check, X } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 
 export const defaultDailyLog = {
@@ -21,6 +21,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const DailyCheckin = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const isOnboarding = location.state?.isOnboarding;
     const [data, setData] = useState({
         heartRate: 70,
         waterGlasses: 5,
@@ -63,12 +65,20 @@ const DailyCheckin = () => {
             console.error("Erreur d'enregistrement réseau", e);
         }
 
-        navigate("/");
+        if (isOnboarding) {
+            navigate("/setup-routine");
+        } else {
+            navigate("/");
+        }
     };
 
     const handleSkip = () => {
         // Keep it empty so Dashboard uses fallback
-        navigate("/");
+        if (isOnboarding) {
+            navigate("/setup-routine");
+        } else {
+            navigate("/");
+        }
     };
 
     return (
@@ -183,7 +193,7 @@ const DailyCheckin = () => {
                     onClick={handleSave}
                     className="w-full max-w-sm flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 active:scale-[0.98] transition-all"
                 >
-                    Valider et Voir ma Peau <ArrowRight size={18} />
+                    Valider<ArrowRight size={18} />
                 </button>
                 <button onClick={handleSkip} className="text-sm text-muted-foreground hover:text-foreground font-medium transition-colors">
                     Passer pour cette fois

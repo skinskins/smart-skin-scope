@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import faceScan from "@/assets/face-scan.png";
 import MetricCard from "@/components/MetricCard";
@@ -50,8 +50,7 @@ const defaultDailyLog = {
 const cyclePhases = ["Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"];
 const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 
-const amProducts = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux"];
-const pmProducts = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "Rétinol", "Masque", "Contour yeux"];
+const ALL_PRODUCTS = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux", "Rétinol", "Masque", "Huile de soin", "Exfoliant AHA/BHA", "Traitement local"];
 
 const getDayLabel = (daysAgo: number) => {
   const d = new Date();
@@ -114,8 +113,21 @@ const Dashboard = () => {
   };
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
   const diagResult = useDiagnosisResult();
-  const [amSelected, setAmSelected] = useState<string[]>(["Nettoyant", "SPF 50", "Hydratant"]);
-  const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
+  const [baseAmProducts, setBaseAmProducts] = useState<string[]>(() => {
+    const saved = localStorage.getItem("local_am_routine");
+    return saved ? JSON.parse(saved) : ["Nettoyant", "Hydratant", "SPF 50"];
+  });
+  const [basePmProducts, setBasePmProducts] = useState<string[]>(() => {
+    const saved = localStorage.getItem("local_pm_routine");
+    return saved ? JSON.parse(saved) : ["Nettoyant", "Hydratant"];
+  });
+  const [amSelected, setAmSelected] = useState<string[]>([]);
+  const [pmSelected, setPmSelected] = useState<string[]>([]);
+  const [routineSetupOpen, setRoutineSetupOpen] = useState(false);
+  const [tempAmProducts, setTempAmProducts] = useState<string[]>([]);
+  const [tempPmProducts, setTempPmProducts] = useState<string[]>([]);
+  const [customProductInput, setCustomProductInput] = useState("");
+  const [setupTimeTab, setSetupTimeTab] = useState<"am" | "pm">("am");
   const [productTime, setProductTime] = useState<"am" | "pm">("am");
   const [productsSaved, setProductsSaved] = useState(false);
   const [productFeedback, setProductFeedback] = useState<{ message: string; tips: { text: string; source?: string }[]; positive: boolean } | null>(null);
@@ -125,6 +137,7 @@ const Dashboard = () => {
   const [editingFactor, setEditingFactor] = useState<string | null>(null);
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string | null>(null);
+  const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
 
   // Check auth state and fetch remote daily checkin profile
   useEffect(() => {
@@ -150,6 +163,12 @@ const Dashboard = () => {
                 stressLevel: profile.stress_level ?? prev.stressLevel,
                 foodQuality: profile.food_quality ?? prev.foodQuality
               }));
+
+              if (profile.am_routine && Array.isArray(profile.am_routine)) setBaseAmProducts(profile.am_routine);
+              if (profile.pm_routine && Array.isArray(profile.pm_routine)) setBasePmProducts(profile.pm_routine);
+
+              const allUserRoutines = [...(profile.am_routine || []), ...(profile.pm_routine || [])];
+              setUserCustomProducts(allUserRoutines.filter((p: string) => !ALL_PRODUCTS.includes(p)));
 
               setManualUpdates(prev => ({
                 ...prev, heartStress: Date.now(), sleep: Date.now(), cycle: Date.now(), water: Date.now(), alcohol: Date.now()
@@ -206,7 +225,7 @@ const Dashboard = () => {
     }
   }, [liveWeather, weatherLoading]);
 
-  const currentProducts = productTime === "am" ? amProducts : pmProducts;
+  const currentProducts = productTime === "am" ? baseAmProducts : basePmProducts;
   const selected = productTime === "am" ? amSelected : pmSelected;
   const setSelected = productTime === "am" ? setAmSelected : setPmSelected;
 
@@ -377,6 +396,48 @@ const Dashboard = () => {
 
     setProductFeedback(feedback);
     setTimeout(() => setProductFeedback(null), 8000);
+  };
+
+  const saveRoutineConfig = async () => {
+    setBaseAmProducts(tempAmProducts);
+    setBasePmProducts(tempPmProducts);
+    localStorage.setItem("local_am_routine", JSON.stringify(tempAmProducts));
+    localStorage.setItem("local_pm_routine", JSON.stringify(tempPmProducts));
+    setRoutineSetupOpen(false);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session) {
+        // @ts-ignore
+        await supabase.from("profiles").update({
+          am_routine: tempAmProducts,
+          pm_routine: tempPmProducts
+        }).eq("id", sessionData.session.user.id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const toggleSetupProduct = (p: string) => {
+    if (setupTimeTab === "am") {
+      setTempAmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+    } else {
+      setTempPmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+    }
+  };
+
+  const addCustomSetupProduct = () => {
+    if (!customProductInput.trim()) return;
+    const p = customProductInput.trim();
+    if (setupTimeTab === "am" && !tempAmProducts.includes(p)) setTempAmProducts(prev => [...prev, p]);
+    if (setupTimeTab === "pm" && !tempPmProducts.includes(p)) setTempPmProducts(prev => [...prev, p]);
+
+    if (!ALL_PRODUCTS.includes(p) && !userCustomProducts.includes(p)) {
+      setUserCustomProducts(prev => [...prev, p]);
+    }
+
+    setCustomProductInput("");
   };
 
   const openEditDialog = (id: string) => {
@@ -813,11 +874,86 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialogue Setup Routine */}
+      <Dialog open={routineSetupOpen} onOpenChange={setRoutineSetupOpen}>
+        <DialogContent className="max-w-sm rounded-2xl h-[85vh] flex flex-col p-4">
+          <DialogHeader className="pt-2">
+            <DialogTitle className="text-foreground">Ma Routine</DialogTitle>
+            <DialogDescription>Quels produits utilisez-vous habituellement ?</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex bg-muted rounded-xl p-1 mb-2">
+            <button onClick={() => setSetupTimeTab("am")}
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${setupTimeTab === "am" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
+              ☀️ Matin
+            </button>
+            <button onClick={() => setSetupTimeTab("pm")}
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${setupTimeTab === "pm" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
+              🌙 Soir
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-1 pb-4">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Produits standards</p>
+              <div className="flex flex-col gap-1.5">
+                {Array.from(new Set([...ALL_PRODUCTS, ...userCustomProducts])).map(p => {
+                  const isActive = setupTimeTab === "am" ? tempAmProducts.includes(p) : tempPmProducts.includes(p);
+                  const isCustom = !ALL_PRODUCTS.includes(p);
+                  return (
+                    <div key={p} className="flex gap-2">
+                      <button onClick={() => toggleSetupProduct(p)} className={`flex-1 flex justify-between items-center px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-card text-foreground/80 hover:bg-accent'}`}>
+                        {p}
+                        {isActive && <Check size={14} />}
+                      </button>
+                      {isCustom && (
+                        <button onClick={() => {
+                          setUserCustomProducts(prev => prev.filter(x => x !== p));
+                          setTempAmProducts(prev => prev.filter(x => x !== p));
+                          setTempPmProducts(prev => prev.filter(x => x !== p));
+                        }} className="px-3 py-2.5 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 hover:bg-destructive/20 transition-colors">
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ajouter un produit (ex: Crème VICHY)</p>
+              <div className="flex gap-2">
+                <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Nom du produit" className="text-sm rounded-xl" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
+                <button onClick={addCustomSetupProduct} className="bg-primary text-primary-foreground px-4 rounded-xl text-sm font-semibold hover:opacity-90 transition-all">
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button onClick={saveRoutineConfig} className="w-full py-3.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground shadow-elevated hover:opacity-90 transition-opacity">
+              Valider ma configuration
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Produits utilisés */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
         className="bg-card rounded-2xl p-4 shadow-card mb-5">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">Produits utilisés</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-foreground">Ma Routine</p>
+            <button onClick={() => {
+              setTempAmProducts(baseAmProducts);
+              setTempPmProducts(basePmProducts);
+              setRoutineSetupOpen(true);
+            }} className="p-1 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-primary">
+              <Pencil size={12} />
+            </button>
+          </div>
           <div className="flex bg-muted rounded-full p-0.5">
             <button onClick={() => { setProductTime("am"); setProductsSaved(false); }}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "am" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
@@ -841,7 +977,7 @@ const Dashboard = () => {
         <button onClick={saveProducts}
           className={`w-full py-2 rounded-xl text-xs font-semibold transition-all ${productsSaved ? 'bg-accent text-primary' : 'bg-primary text-primary-foreground'}`
           }>
-          {productsSaved ? "✓ Enregistré" : "Enregistrer la routine"}
+          {productsSaved ? "✓ Routine réalisée" : "Routine réalisée"}
         </button>
 
         {/* Feedback popup */}

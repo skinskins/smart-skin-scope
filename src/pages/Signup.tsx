@@ -11,8 +11,6 @@ const Signup = () => {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [age, setAge] = useState("");
-    const [skinType, setSkinType] = useState("Mixte");
     const [step, setStep] = useState(1); // 1 = Info, 2 = Success
     const [loading, setLoading] = useState(false);
 
@@ -25,9 +23,7 @@ const Signup = () => {
             password,
             options: {
                 data: {
-                    first_name: name,
-                    age: parseInt(age) || null,
-                    skin_type: skinType
+                    first_name: name
                 }
             }
         });
@@ -41,7 +37,7 @@ const Signup = () => {
 
         setStep(2);
         setTimeout(() => {
-            navigate("/checkin");
+            navigate("/post-signup");
         }, 2500);
     };
 
@@ -115,16 +111,6 @@ const Signup = () => {
                                 onChange={(e) => setName(e.target.value)}
                                 required
                             />
-                        </div>
-                    </div>
-
-                    <div className="flex gap-4">
-                        <div className="space-y-2 relative flex-1">
-                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Âge</label>
-                            <div className="relative">
-                                <CalendarHeart className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
-                                <Input type="number" placeholder="ex: 28" min={12} max={120} className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm" value={age} onChange={(e) => setAge(e.target.value)} required />
-                            </div>
                         </div>
                     </div>
 

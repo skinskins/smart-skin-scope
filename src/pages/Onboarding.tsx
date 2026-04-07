@@ -12,7 +12,7 @@ const slides = [
     },
     {
         title: "Diagnostic en Temps Réel",
-        description: "L'appareil photo de votre smartphone devient votre meilleur dermatologue, scannez et comprenez vos imperfections.",
+        description: "L'appareil photo de votre smartphone devient votre outil, scannez et comprenez vos imperfections.",
         icon: <Camera size={64} className="text-skin-glow" />,
         color: "bg-skin-glow/10",
     },
@@ -23,8 +23,8 @@ const slides = [
         color: "bg-skin-hydration/10",
     },
     {
-        title: "Suivi Expert",
-        description: "Suivez vos progrès jour après jour et recevez des conseils dignes des plus grands experts.",
+        title: "Suivi",
+        description: "Suivez vos progrès jour après jour et recevez des conseils.",
         icon: <Stethoscope size={64} className="text-skin-texture" />,
         color: "bg-skin-texture/10",
     },

@@ -14,6 +14,8 @@ import Onboarding from "./pages/Onboarding";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import BottomNav from "./components/BottomNav";
+import PostSignup from "./pages/PostSignup";
+import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 
 import DailyCheckin from "./pages/DailyCheckin";
 
@@ -59,6 +61,8 @@ const App = () => (
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
+          <Route path="/post-signup" element={<AuthGuard><PostSignup /></AuthGuard>} />
+          <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
 
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Login />} />
