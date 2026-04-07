@@ -68,16 +68,31 @@ const ScoreBadge = ({ score }: { score: number }) => {
 };
 
 const Diagnosis = () => {
-  const [step, setStep] = useState<DiagStep>("prep");
+  // Try to load persisted session
+  const persistedRaw = localStorage.getItem("currentDiagnosisSession");
+  const persisted = persistedRaw ? JSON.parse(persistedRaw) : null;
+
+  const [step, setStep] = useState<DiagStep>(persisted?.step || "prep");
   const [selectedZone, setSelectedZone] = useState<ZoneResult | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState(0);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(persisted?.capturedImage || null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
-  const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
+  const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(persisted?.aiResult || null);
   const [aiError, setAiError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Auto-save session when result or image changes significantly
+  useEffect(() => {
+    if (step === "results" && aiResult) {
+      localStorage.setItem("currentDiagnosisSession", JSON.stringify({
+        step: "results",
+        capturedImage,
+        aiResult
+      }));
+    }
+  }, [step, aiResult, capturedImage]);
 
   const reset = () => {
     setStep("prep");
@@ -88,6 +103,7 @@ const Diagnosis = () => {
     setImageBase64(null);
     setAiResult(null);
     setAiError(null);
+    localStorage.removeItem("currentDiagnosisSession");
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -471,7 +487,7 @@ const Diagnosis = () => {
             </div>
 
             <Button onClick={reset} variant="outline" className="w-full rounded-xl py-5">
-              Nouveau diagnostic
+              Refaire un diagnostic
             </Button>
           </motion.div>
         )}

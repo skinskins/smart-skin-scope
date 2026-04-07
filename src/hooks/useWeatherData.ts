@@ -5,59 +5,98 @@ interface WeatherData {
   humidity: number;
   uv: number;
   pollution: string;
+  locationName: string;
 }
 
-// Montreuil, France coordinates
-const LAT = 48.8638;
-const LON = 2.4432;
-
 const getAirQualityLabel = (aqi: number): string => {
-  if (aqi <= 20) return "Excellent";
-  if (aqi <= 40) return "Bon";
-  if (aqi <= 60) return "Moyen";
-  if (aqi <= 80) return "Médiocre";
+  if (aqi <= 2) return "Bon";
+  if (aqi <= 3) return "Moyen";
+  if (aqi <= 4) return "Médiocre";
   return "Mauvais";
 };
 
-export const useWeatherData = () => {
-  const [weather, setWeather] = useState<WeatherData>({ temp: 0, humidity: 0, uv: 0, pollution: "..." });
+const getCoords = (): Promise<{ lat: number; lon: number }> => {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+        }),
+      () => reject()
+    );
+  });
+};
+
+export const useWeatherData = (queryLocation?: string) => {
+  const [weather, setWeather] = useState<WeatherData>({
+    temp: 0,
+    humidity: 0,
+    uv: 0,
+    pollution: "...",
+    locationName: "...",
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchWeather = async () => {
-      try {
-        // Fetch weather + air quality in parallel
-        const [weatherRes, airRes] = await Promise.all([
-          fetch(
-            `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m&daily=uv_index_max&timezone=Europe/Paris&forecast_days=1`
-          ),
-          fetch(
-            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}&current=european_aqi`
-          ),
-        ]);
+    let isMounted = true;
 
-        const weatherData = await weatherRes.json();
-        const airData = await airRes.json();
+    const fetchWeather = async () => {
+      setLoading(true);
+
+      try {
+        let q = "Paris"; // fallback Paris
+
+        if (queryLocation) {
+          q = encodeURIComponent(queryLocation);
+        } else {
+          try {
+            const coords = await getCoords();
+            q = `${coords.lat},${coords.lon}`;
+                        console.log("test", q)
+          } catch {
+            console.log("Geolocation refusée → fallback Paris");
+          }
+        }
+
+        const res = await fetch(
+          `https://api.weatherapi.com/v1/current.json?key=b83edd2e98054a7fa91100224260704&q=${q}&aqi=yes`
+        );
+
+        if (!res.ok) {
+          throw new Error("Lieu non trouvé ou erreur API");
+        }
+
+        const data = await res.json();
+
+        if (!isMounted) return;
 
         setWeather({
-          temp: Math.round(weatherData.current.temperature_2m),
-          humidity: Math.round(weatherData.current.relative_humidity_2m),
-          uv: Math.round(weatherData.daily.uv_index_max[0]),
-          pollution: getAirQualityLabel(airData.current?.european_aqi ?? 0),
+          temp: Math.round(data.current.temp_c),
+          humidity: data.current.humidity,
+          uv: data.current.uv,
+          pollution: getAirQualityLabel(
+            data.current.air_quality?.["us-epa-index"] ?? 0
+          ),
+          locationName: data.location.name,
         });
-      } catch (error) {
-        console.error("Failed to fetch weather data:", error);
-        setWeather({ temp: 0, humidity: 0, uv: 0, pollution: "N/A" });
+      } catch (err) {
+        console.error("Weather error:", err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchWeather();
-    // Refresh every 15 minutes
+
     const interval = setInterval(fetchWeather, 15 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [queryLocation]);
 
   return { weather, loading };
 };

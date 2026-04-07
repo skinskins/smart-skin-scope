@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import faceScan from "@/assets/face-scan.png";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
@@ -28,11 +29,11 @@ const trendToneForMetric = (label: string, trend?: MetricTrend): TrendTone | und
 };
 
 const skinMetrics = [
-{ label: "Hydratation", value: 72, color: "hsl(200, 60%, 55%)", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation basée sur vos apports quotidiens et l'humidité ambiante." },
-{ label: "Éclat", value: 65, color: "hsl(45, 80%, 65%)", icon: <Sun size={18} />, trend: "stable" as const, detail: "Calculé à partir du sommeil, des produits et de la luminosité du scan." },
-{ label: "Rougeurs", value: 28, color: "hsl(0, 70%, 60%)", icon: <Flame size={18} />, trend: "down" as const, detail: "Plus bas = mieux. Basé sur l'analyse du scan et les facteurs d'inflammation." },
-{ label: "Texture", value: 80, color: "hsl(280, 30%, 55%)", icon: <Fingerprint size={18} />, trend: "up" as const, detail: "Indice de lissage issu des scans et de l'utilisation de rétinol." },
-{ label: "Sébum", value: 45, color: "hsl(35, 70%, 55%)", icon: <CircleDot size={18} />, trend: "stable" as const, detail: "Production de sébum en zone T. 50 = équilibré." }];
+  { label: "Hydratation", value: 72, color: "hsl(200, 60%, 55%)", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation basée sur vos apports quotidiens et l'humidité ambiante." },
+  { label: "Éclat", value: 65, color: "hsl(45, 80%, 65%)", icon: <Sun size={18} />, trend: "stable" as const, detail: "Calculé à partir du sommeil, des produits et de la luminosité du scan." },
+  { label: "Rougeurs", value: 28, color: "hsl(0, 70%, 60%)", icon: <Flame size={18} />, trend: "down" as const, detail: "Plus bas = mieux. Basé sur l'analyse du scan et les facteurs d'inflammation." },
+  { label: "Texture", value: 80, color: "hsl(280, 30%, 55%)", icon: <Fingerprint size={18} />, trend: "up" as const, detail: "Indice de lissage issu des scans et de l'utilisation de rétinol." },
+  { label: "Sébum", value: 45, color: "hsl(35, 70%, 55%)", icon: <CircleDot size={18} />, trend: "stable" as const, detail: "Production de sébum en zone T. 50 = équilibré." }];
 
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
@@ -59,14 +60,14 @@ const getDayLabel = (daysAgo: number) => {
 };
 
 const pastDays = [
-{ label: getDayLabel(1), score: 71, hasDiag: true },
-{ label: getDayLabel(2), score: 68, hasDiag: true },
-{ label: getDayLabel(3), score: 65, hasDiag: false }];
+  { label: getDayLabel(1), score: 71, hasDiag: true },
+  { label: getDayLabel(2), score: 68, hasDiag: true },
+  { label: getDayLabel(3), score: 65, hasDiag: false }];
 
 
 // hasTodayDiag is now dynamic
 
-const factorDetails: Record<string, {title: string;desc: string;}> = {
+const factorDetails: Record<string, { title: string; desc: string; }> = {
   temp: { title: "Température", desc: "Les hautes températures augmentent le sébum. Idéal : 18–22°C." },
   humidity: { title: "Humidité", desc: "Faible humidité = peau sèche. Haute = pores obstrués. Idéal : 40–60%." },
   uv: { title: "Indice UV", desc: "UV 6+ : réappliquer SPF toutes les 2h. Cause vieillissement et taches." },
@@ -77,7 +78,7 @@ const factorDetails: Record<string, {title: string;desc: string;}> = {
   water: { title: "Hydratation", desc: "6–8 verres/jour soutiennent la barrière cutanée." },
   sleep: { title: "Sommeil", desc: "La peau se répare pendant le sommeil profond. <6h = collagène altéré." },
   alcohol: { title: "Alcool", desc: "Déshydrate la peau, dilate les vaisseaux et réduit les vitamines A & C." },
-  workout: { title: "Sport", desc: "L'exercice modéré améliore la circulation. Intense sans nettoyage = boutons." }
+  workout: { title: "Sport", desc: "L'exercice améliore la circulation. Sport sans nettoyage = boutons." }
 };
 
 const DEFAULT_UPDATED_AGO = 18 * 60 * 60 * 1000; // 18h in ms
@@ -94,8 +95,24 @@ const formatUpdatedAgo = (timestamp: number) => {
 };
 
 const Dashboard = () => {
-  const [dailyLog, setDailyLog] = useState(defaultDailyLog);
-  const { weather: liveWeather, loading: weatherLoading } = useWeatherData();
+  const [dailyLog, setDailyLog] = useState(() => {
+    const saved = localStorage.getItem("dailyCheckinData");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...defaultDailyLog, ...parsed };
+      } catch { }
+    }
+    return defaultDailyLog;
+  });
+  const [manualLocation, setManualLocationState] = useState<string | null>(() => localStorage.getItem("manualLocation"));
+
+  const setManualLocation = (loc: string | null) => {
+    setManualLocationState(loc);
+    if (loc) localStorage.setItem("manualLocation", loc);
+    else localStorage.removeItem("manualLocation");
+  };
+  const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
   const diagResult = useDiagnosisResult();
   const [amSelected, setAmSelected] = useState<string[]>(["Nettoyant", "SPF 50", "Hydratant"]);
   const [pmSelected, setPmSelected] = useState<string[]>(["Nettoyant", "Hydratant"]);
@@ -107,6 +124,51 @@ const Dashboard = () => {
   const [scoreOpen, setScoreOpen] = useState(false);
   const [editingFactor, setEditingFactor] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [userName, setUserName] = useState<string | null>(null);
+
+  // Check auth state and fetch remote daily checkin profile
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        if (session.user.user_metadata?.first_name) {
+          setUserName(session.user.user_metadata.first_name);
+        }
+
+        // Fetch remote data to ensure persistence across devices
+        // @ts-ignore
+        supabase.from('profiles').select('*').eq('id', session.user.id).single()
+          .then(({ data, error }) => {
+            if (data && !error) {
+              const profile = data as any;
+              setDailyLog(prev => ({
+                ...prev,
+                heartRate: profile.heart_rate ?? prev.heartRate,
+                sleepHours: profile.sleep_hours ?? prev.sleepHours,
+                waterGlasses: profile.water_glasses ?? prev.waterGlasses,
+                alcoholDrinks: profile.alcohol_drinks ?? prev.alcoholDrinks,
+                cyclePhase: profile.cycle_phase ?? prev.cyclePhase,
+                stressLevel: profile.stress_level ?? prev.stressLevel,
+                foodQuality: profile.food_quality ?? prev.foodQuality
+              }));
+
+              setManualUpdates(prev => ({
+                ...prev, heartStress: Date.now(), sleep: Date.now(), cycle: Date.now(), water: Date.now(), alcohol: Date.now()
+              }));
+            }
+          });
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.user_metadata?.first_name) {
+        setUserName(session.user.user_metadata.first_name);
+      } else {
+        setUserName(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Track last update timestamps for manual factors (default: 18h ago)
   const [manualUpdates, setManualUpdates] = useState<Record<string, number>>(() => {
@@ -115,7 +177,7 @@ const Dashboard = () => {
   });
 
   // Temp edit values
-  const [editValues, setEditValues] = useState({ heartRate: 72, stressLevel: 3, sleepHours: 7.5 });
+  const [editValues, setEditValues] = useState({ heartRate: 72, stressLevel: 3, sleepHours: 7.5, location: defaultDailyLog.location });
 
   const markUpdated = useCallback((factorId: string) => {
     setManualUpdates(prev => ({ ...prev, [factorId]: Date.now() }));
@@ -139,8 +201,8 @@ const Dashboard = () => {
 
   // Update dailyLog weather when live data arrives
   useEffect(() => {
-    if (!weatherLoading) {
-      setDailyLog((d) => ({ ...d, weather: liveWeather }));
+    if (!weatherLoading && liveWeather.locationName !== "...") {
+      setDailyLog((d) => ({ ...d, weather: liveWeather, location: liveWeather.locationName || d.location }));
     }
   }, [liveWeather, weatherLoading]);
 
@@ -157,10 +219,10 @@ const Dashboard = () => {
     setProductsSaved(true);
     const sel = productTime === "am" ? amSelected : pmSelected;
     const time = productTime;
-    
+
     type Tip = { text: string; source?: string };
     const feedback: { message: string; tips: Tip[]; positive: boolean } = { message: "", tips: [], positive: true };
-    
+
     const hasSPF = sel.includes("SPF 50");
     const hasHydratant = sel.includes("Hydratant");
     const hasNettoyant = sel.includes("Nettoyant");
@@ -169,13 +231,13 @@ const Dashboard = () => {
     const hasContourYeux = sel.includes("Contour yeux");
     const hasLotion = sel.includes("Lotion Tonique");
     const hasMasque = sel.includes("Masque");
-    
+
     const hydration = skinMetrics.find(m => m.label === "Hydratation")!;
     const redness = skinMetrics.find(m => m.label === "Rougeurs")!;
     const sebum = skinMetrics.find(m => m.label === "Sébum")!;
     const uv = dailyLog.weather.uv;
     const humidity = dailyLog.weather.humidity;
-    
+
     if (time === "am") {
       if (!hasSPF && uv >= 3) {
         feedback.message = "⚠️ Protection solaire manquante";
@@ -197,7 +259,7 @@ const Dashboard = () => {
         feedback.message = "Routine enregistrée ✓";
         feedback.positive = true;
       }
-      
+
       if (!hasHydratant && hydration.value < 70) {
         feedback.tips.push({
           text: "Hydratation cutanée basse. La perte insensible en eau (PIE) augmente de 25% sans hydratant, accélérant l'apparition de ridules.",
@@ -205,28 +267,28 @@ const Dashboard = () => {
         });
         feedback.positive = false;
       }
-      
+
       if (!hasNettoyant) {
         feedback.tips.push({
           text: "Le nettoyage matinal élimine le sébum nocturne et optimise la pénétration des actifs suivants. Optez pour un nettoyant doux pH 5.5.",
           source: "Skin Research & Technology"
         });
       }
-      
+
       if (hasSPF && uv >= 6) {
         feedback.tips.push({
           text: `UV élevé (${uv}). Réappliquez votre SPF toutes les 2h en exposition directe. Les UVA traversent les vitres et les nuages.`,
           source: "OMS – Recommandations UV"
         });
       }
-      
+
       if (humidity < 35 && !hasSerum) {
         feedback.tips.push({
           text: "Air sec détecté. Un sérum à l'acide hyaluronique peut retenir jusqu'à 1000× son poids en eau et compenser la faible humidité ambiante.",
           source: "Journal of Drugs in Dermatology"
         });
       }
-      
+
     } else {
       // PM routine
       if (hasRetinol && hasSPF) {
@@ -247,7 +309,7 @@ const Dashboard = () => {
         feedback.message = "Routine du soir enregistrée ✓";
         feedback.positive = true;
       }
-      
+
       if (!hasNettoyant) {
         feedback.tips.push({
           text: "Le double nettoyage du soir retire les particules fines (PM2.5) et résidus de SPF qui obstruent les pores et causent un stress oxydatif cutané.",
@@ -255,14 +317,14 @@ const Dashboard = () => {
         });
         feedback.positive = false;
       }
-      
+
       if (hasContourYeux) {
         feedback.tips.push({
           text: "La peau du contour des yeux est 10× plus fine que le reste du visage. L'application nocturne de peptides favorise la microcirculation et réduit les cernes de 35%.",
           source: "Clinical, Cosmetic & Investigational Dermatology"
         });
       }
-      
+
       if (hasRetinol && !hasHydratant) {
         feedback.tips.push({
           text: "Le rétinol peut altérer la barrière cutanée. Appliquez toujours un hydratant par-dessus pour limiter l'irritation (méthode « sandwich »).",
@@ -270,7 +332,7 @@ const Dashboard = () => {
         });
         feedback.positive = false;
       }
-      
+
       if (hasMasque) {
         feedback.tips.push({
           text: "Les masques de nuit à base de céramides restaurent la barrière cutanée. Idéal 2-3×/semaine pour une hydratation profonde sans surcharger la peau.",
@@ -278,7 +340,7 @@ const Dashboard = () => {
         });
       }
     }
-    
+
     // Diagnostic-based contextual feedback
     if (redness.value > 30) {
       if (!hasLotion) {
@@ -288,14 +350,14 @@ const Dashboard = () => {
         });
       }
     }
-    
+
     if (sebum.value > 60 && time === "am" && !hasLotion) {
       feedback.tips.push({
         text: "Production de sébum élevée. L'acide salicylique (BHA) régule la production de sébum et exfolie l'intérieur des pores, réduisant les imperfections de 52%.",
         source: "Journal of the European Academy of Dermatology"
       });
     }
-    
+
     if (diagResult?.zones) {
       const alertZones = diagResult.zones.filter(z => z.status === "alert");
       if (alertZones.length > 0 && time === "pm") {
@@ -305,27 +367,33 @@ const Dashboard = () => {
         });
       }
     }
-    
+
     if (feedback.tips.length === 0 && feedback.positive) {
       feedback.tips.push({
         text: "Routine bien équilibrée pour votre type de peau. La régularité est le facteur n°1 d'efficacité en skincare — continuez ainsi !",
         source: "American Academy of Dermatology"
       });
     }
-    
+
     setProductFeedback(feedback);
     setTimeout(() => setProductFeedback(null), 8000);
   };
 
   const openEditDialog = (id: string) => {
-    setEditValues({ heartRate: dailyLog.heartRate, stressLevel: dailyLog.stressLevel, sleepHours: dailyLog.sleepHours });
+    setEditValues({ heartRate: dailyLog.heartRate, stressLevel: dailyLog.stressLevel, sleepHours: dailyLog.sleepHours, location: manualLocation || dailyLog.location });
     setEditingFactor(id);
   };
 
   const saveEditFactor = () => {
     if (!editingFactor) return;
-    setDailyLog(d => ({ ...d, heartRate: editValues.heartRate, stressLevel: editValues.stressLevel, sleepHours: editValues.sleepHours }));
-    markUpdated(editingFactor);
+
+    if (editingFactor === "location") {
+      setManualLocation(editValues.location);
+    } else {
+      setDailyLog(d => ({ ...d, heartRate: editValues.heartRate, stressLevel: editValues.stressLevel, sleepHours: editValues.sleepHours }));
+      markUpdated(editingFactor);
+    }
+
     setEditingFactor(null);
   };
 
@@ -338,8 +406,8 @@ const Dashboard = () => {
     );
   };
 
-  const FactorButton = ({ id, children }: {id: string;children: React.ReactNode;}) =>
-  <button onClick={() => setFactorOpen(id)} className="text-left w-full">
+  const FactorButton = ({ id, children }: { id: string; children: React.ReactNode; }) =>
+    <button onClick={() => setFactorOpen(id)} className="text-left w-full">
       {children}
     </button>;
 
@@ -347,16 +415,16 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <p className="text-muted-foreground text-sm font-medium">Bonjour ✨</p>
+        <p className="text-muted-foreground text-sm font-medium">Bonjour {userName ? `${userName} ` : ""}✨</p>
         <h1 className="text-2xl font-display font-semibold text-foreground mt-1">Votre peau aujourd'hui</h1>
       </motion.div>
 
       {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-      className="bg-card rounded-3xl p-8 shadow-card mb-5 relative overflow-hidden">
+        className="bg-card rounded-3xl p-8 shadow-card mb-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-28 h-28 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
-        
+
         <div className="relative flex items-start gap-5">
           {/* Diagnostic photo + past days vertical */}
           <div className="flex-shrink-0 flex flex-col items-center gap-3">
@@ -364,36 +432,35 @@ const Dashboard = () => {
               initial={hasTodayDiag ? { scale: 0.8, opacity: 0, rotateY: 90 } : { scale: 1, opacity: 1 }}
               animate={{ scale: 1, opacity: 1, rotateY: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 18, delay: 0.3 }}
-              className={`w-24 h-24 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${
-              hasTodayDiag ? 'border-primary shadow-elevated' : 'border-muted-foreground/20 bg-muted/50'}`}
+              className={`w-24 h-24 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${hasTodayDiag ? 'border-primary shadow-elevated' : 'border-muted-foreground/20 bg-muted/50'}`}
             >
               {hasTodayDiag ?
-              <motion.img
-                src={faceScan}
-                alt="Dernier scan"
-                className="w-full h-full object-cover"
-                initial={{ scale: 1.3, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
-              /> :
-              <div className="flex flex-col items-center gap-1.5 opacity-40">
+                <motion.img
+                  src={faceScan}
+                  alt="Dernier scan"
+                  className="w-full h-full object-cover"
+                  initial={{ scale: 1.3, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
+                /> :
+                <div className="flex flex-col items-center gap-1.5 opacity-40">
                   <Camera size={24} className="text-muted-foreground" />
                   <span className="text-[9px] text-muted-foreground">Pas encore</span>
                 </div>
               }
             </motion.div>
             {pastDays.length > 0 &&
-            <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 {pastDays.map((day) =>
-              <button key={day.label}
-              className="flex items-center justify-between gap-2 bg-muted/50 hover:bg-muted rounded-lg px-2.5 py-1 transition-colors w-full"
-              onClick={() => {/* TODO: show past diagnostic */}}>
+                  <button key={day.label}
+                    className="flex items-center justify-between gap-2 bg-muted/50 hover:bg-muted rounded-lg px-2.5 py-1 transition-colors w-full"
+                    onClick={() => {/* TODO: show past diagnostic */ }}>
                     <span className="text-[9px] font-medium text-muted-foreground capitalize">{day.label}</span>
                     <span className={`text-[10px] font-semibold ${day.hasDiag ? 'text-primary' : 'text-muted-foreground/40'}`}>
                       {day.score}
                     </span>
                   </button>
-              )}
+                )}
               </div>
             }
           </div>
@@ -418,7 +485,7 @@ const Dashboard = () => {
         </div>
 
         <button onClick={() => navigate("/diagnosis")}
-        className="relative mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-5 py-3.5 shadow-elevated hover:opacity-90 transition-opacity">
+          className="relative mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-5 py-3.5 shadow-elevated hover:opacity-90 transition-opacity">
           <div className="flex items-center gap-3">
             <Stethoscope size={20} />
             <div className="text-left">
@@ -439,7 +506,7 @@ const Dashboard = () => {
           </DialogHeader>
           <div className="space-y-2">
             {skinMetrics.map((m) =>
-            <div key={m.label} className="flex items-center justify-between text-sm">
+              <div key={m.label} className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 text-muted-foreground">{m.icon}{m.label}</span>
                 <span className="font-semibold text-foreground">{m.value}</span>
               </div>
@@ -512,10 +579,9 @@ const Dashboard = () => {
 
           return sorted.map((tip, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-              className={`flex flex-col gap-2 rounded-xl p-3 ${
-                tip.priority === "high" ? "bg-destructive/5 border border-destructive/10" :
+              className={`flex flex-col gap-2 rounded-xl p-3 ${tip.priority === "high" ? "bg-destructive/5 border border-destructive/10" :
                 tip.priority === "medium" ? "bg-accent/50" : "bg-muted/50"
-              }`}>
+                }`}>
               <div className="flex items-start gap-3">
                 <span className="mt-0.5 flex-shrink-0">{tip.icon}</span>
                 <p className="text-xs text-foreground/90 leading-relaxed">{tip.text}</p>
@@ -538,48 +604,51 @@ const Dashboard = () => {
       {/* Facteurs quotidiens */}
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Paramètres du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-      className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        className="bg-card rounded-2xl p-4 shadow-card mb-4">
         {/* Location row */}
-        <FactorButton id="location">
+        <button onClick={() => openEditDialog("location")} className="text-left w-full focus:outline-none">
           <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
             <MapPin size={16} className="text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">Localisation</p>
-              <p className="text-sm font-semibold text-foreground">{dailyLog.location}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-sm font-semibold text-foreground">{dailyLog.location}</p>
+                <Pencil size={10} className="text-muted-foreground/40" />
+              </div>
             </div>
             <span className="ml-auto flex items-center gap-1 text-[9px] text-primary/60">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               En direct
             </span>
           </div>
-        </FactorButton>
+        </button>
         <div className="grid grid-cols-4 gap-3 text-center text-xs">
           {[
-          { id: "temp", icon: <Thermometer size={16} className="text-skin-redness" />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
-          { id: "humidity", icon: <Droplets size={16} className="text-skin-hydration" />, val: `${dailyLog.weather.humidity}%`, sub: "Humidité" },
-          { id: "uv", icon: <Sun size={16} className="text-skin-glow" />, val: `${dailyLog.weather.uv}`, sub: "UV" },
-          { id: "air", icon: <CloudSun size={16} className="text-muted-foreground" />, val: dailyLog.weather.pollution, sub: "Air" }].
-          map((item) =>
-          <FactorButton key={item.id} id={item.id}>
-              <div className="flex flex-col items-center gap-1 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-                {item.icon}
-                <span className="font-semibold text-foreground">{item.val}</span>
-                <span className="text-muted-foreground">{item.sub}</span>
-              </div>
-            </FactorButton>
-          )}
+            { id: "temp", icon: <Thermometer size={16} className="text-skin-redness" />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
+            { id: "humidity", icon: <Droplets size={16} className="text-skin-hydration" />, val: `${dailyLog.weather.humidity}%`, sub: "Humidité" },
+            { id: "uv", icon: <Sun size={16} className="text-skin-glow" />, val: `${dailyLog.weather.uv}`, sub: "UV" },
+            { id: "air", icon: <CloudSun size={16} className="text-muted-foreground" />, val: dailyLog.weather.pollution, sub: "Air" }].
+            map((item) =>
+              <FactorButton key={item.id} id={item.id}>
+                <div className="flex flex-col items-center gap-1 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
+                  {item.icon}
+                  <span className="font-semibold text-foreground">{item.val}</span>
+                  <span className="text-muted-foreground">{item.sub}</span>
+                </div>
+              </FactorButton>
+            )}
         </div>
       </motion.div>
 
       {/* Appareil connecté + lifestyle factors */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-      className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        className="bg-card rounded-2xl p-4 shadow-card mb-4">
         <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
           <div className="flex items-center gap-2">
             {deviceConnected ?
-            <Bluetooth size={16} className="text-primary" /> :
+              <Bluetooth size={16} className="text-primary" /> :
 
-            <BluetoothOff size={16} className="text-muted-foreground" />
+              <BluetoothOff size={16} className="text-muted-foreground" />
             }
             <div>
               <p className="text-xs font-semibold text-foreground">
@@ -601,8 +670,8 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Cycle</p>
                 <select value={dailyLog.cyclePhase} onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle");}}
-                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
+                  onChange={(e) => { setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle"); }}
+                  className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
                   {cyclePhases.map((p) => <option key={p}>{p}</option>)}
                 </select>
                 <ManualLabel id="cycle" />
@@ -629,8 +698,8 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground">Eau</p>
                 <div className="flex gap-0.5">
                   {[...Array(8)].map((_, i) =>
-                  <button key={i} onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water");}}
-                  className={`w-3 h-4 rounded-sm ${i < dailyLog.waterGlasses ? 'bg-skin-hydration' : 'bg-muted'}`} />
+                    <button key={i} onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water"); }}
+                      className={`w-3 h-4 rounded-sm ${i < dailyLog.waterGlasses ? 'bg-skin-hydration' : 'bg-muted'}`} />
                   )}
                 </div>
                 <ManualLabel id="water" />
@@ -655,8 +724,8 @@ const Dashboard = () => {
               <Wine size={16} className="text-skin-oil" />
               <div>
                 <p className="text-xs text-muted-foreground">Alcool</p>
-                <button onClick={(e) => {e.stopPropagation();setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol");}}
-                className={`text-sm font-semibold ${dailyLog.alcohol ? 'text-skin-redness' : 'text-primary'}`}>
+                <button onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol"); }}
+                  className={`text-sm font-semibold ${dailyLog.alcohol ? 'text-skin-redness' : 'text-primary'}`}>
                   {dailyLog.alcohol ? "Oui" : "Non"}
                 </button>
                 <ManualLabel id="alcohol" />
@@ -669,8 +738,8 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground">Sport</p>
                 <select value={dailyLog.workoutIntensity} onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout");}}
-                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
+                  onChange={(e) => { setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout"); }}
+                  className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
                   {intensities.map((i) => <option key={i}>{i}</option>)}
                 </select>
                 <ManualLabel id="workout" />
@@ -695,11 +764,22 @@ const Dashboard = () => {
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              {editingFactor === "heartStress" ? "Cœur & Stress" : "Sommeil"}
+              {editingFactor === "heartStress" ? "Cœur & Stress" : editingFactor === "sleep" ? "Sommeil" : "Localisation"}
             </DialogTitle>
             <DialogDescription>Modifiez vos données manuellement</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {editingFactor === "location" && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Ville ou code postal</label>
+                <div className="flex gap-2">
+                  <Input type="text" value={editValues.location} onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))} placeholder="Ex: Paris, 75001" autoFocus />
+                  <button onClick={() => { setManualLocation(null); setEditingFactor(null); }} className="px-3 rounded-xl bg-muted text-foreground/80 text-xs font-medium hover:bg-accent transition-colors" title="Me localiser automatiquement">
+                    <MapPin size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
             {editingFactor === "heartStress" && (
               <>
                 <div>
@@ -709,7 +789,7 @@ const Dashboard = () => {
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">Niveau de stress (1-5)</label>
                   <div className="flex gap-2">
-                    {[1,2,3,4,5].map(n => (
+                    {[1, 2, 3, 4, 5].map(n => (
                       <button key={n} onClick={() => setEditValues(v => ({ ...v, stressLevel: n }))}
                         className={`w-10 h-10 rounded-xl text-sm font-semibold transition-colors ${editValues.stressLevel === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                         {n}
@@ -735,34 +815,32 @@ const Dashboard = () => {
 
       {/* Produits utilisés */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-      className="bg-card rounded-2xl p-4 shadow-card mb-5">
+        className="bg-card rounded-2xl p-4 shadow-card mb-5">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-foreground">Produits utilisés</p>
           <div className="flex bg-muted rounded-full p-0.5">
-            <button onClick={() => {setProductTime("am");setProductsSaved(false);}}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "am" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
+            <button onClick={() => { setProductTime("am"); setProductsSaved(false); }}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "am" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
               ☀️ Matin
             </button>
-            <button onClick={() => {setProductTime("pm");setProductsSaved(false);}}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "pm" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
+            <button onClick={() => { setProductTime("pm"); setProductsSaved(false); }}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "pm" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
               🌙 Soir
             </button>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mb-3">
           {currentProducts.map((p) =>
-          <button key={p} onClick={() => toggleProduct(p)}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-          selected.includes(p) ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'}`
-          }>
+            <button key={p} onClick={() => toggleProduct(p)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selected.includes(p) ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'}`
+              }>
               {selected.includes(p) && <Check size={10} className="inline mr-1" />}{p}
             </button>
           )}
         </div>
         <button onClick={saveProducts}
-        className={`w-full py-2 rounded-xl text-xs font-semibold transition-all ${
-        productsSaved ? 'bg-accent text-primary' : 'bg-primary text-primary-foreground'}`
-        }>
+          className={`w-full py-2 rounded-xl text-xs font-semibold transition-all ${productsSaved ? 'bg-accent text-primary' : 'bg-primary text-primary-foreground'}`
+          }>
           {productsSaved ? "✓ Enregistré" : "Enregistrer la routine"}
         </button>
 
@@ -774,11 +852,10 @@ const Dashboard = () => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className={`mt-3 rounded-xl p-3 border ${
-                productFeedback.positive
-                  ? "bg-primary/5 border-primary/15"
-                  : "bg-destructive/5 border-destructive/15"
-              }`}
+              className={`mt-3 rounded-xl p-3 border ${productFeedback.positive
+                ? "bg-primary/5 border-primary/15"
+                : "bg-destructive/5 border-destructive/15"
+                }`}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 {productFeedback.positive

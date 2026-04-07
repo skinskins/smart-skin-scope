@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, ChevronRight, Droplets, Sun, Moon, Flame, Fingerprint, CircleDot, FlaskConical, ShieldCheck, Leaf, AlertTriangle, CheckCircle2, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,21 +12,31 @@ interface Question {
 }
 
 const questions: Question[] = [
-  { id: "water", text: "Combien de verres d'eau aujourd'hui ?", options: [
-    { label: "0–2", value: 1 }, { label: "3–5", value: 2 }, { label: "6–8", value: 3 }, { label: "8+", value: 4 }
-  ]},
-  { id: "sunscreen", text: "Avez-vous appliqué de la crème solaire ?", options: [
-    { label: "Non", value: 1 }, { label: "Une fois", value: 2 }, { label: "Réappliqué", value: 4 }
-  ]},
-  { id: "sleep", text: "Heures de sommeil cette nuit ?", options: [
-    { label: "<5h", value: 1 }, { label: "5–6h", value: 2 }, { label: "7–8h", value: 3 }, { label: "8+", value: 4 }
-  ]},
-  { id: "stress", text: "Niveau de stress aujourd'hui ?", options: [
-    { label: "Élevé", value: 1 }, { label: "Modéré", value: 2 }, { label: "Faible", value: 3 }, { label: "Aucun", value: 4 }
-  ]},
-  { id: "diet", text: "Qualité de votre alimentation ?", options: [
-    { label: "Mauvaise", value: 1 }, { label: "Correcte", value: 2 }, { label: "Bonne", value: 3 }, { label: "Excellente", value: 4 }
-  ]},
+  {
+    id: "water", text: "Combien de verres d'eau aujourd'hui ?", options: [
+      { label: "0–2", value: 1 }, { label: "3–5", value: 2 }, { label: "6–8", value: 3 }, { label: "8+", value: 4 }
+    ]
+  },
+  {
+    id: "sunscreen", text: "Avez-vous appliqué de la crème solaire ?", options: [
+      { label: "Non", value: 1 }, { label: "Une fois", value: 2 }, { label: "Réappliqué", value: 4 }
+    ]
+  },
+  {
+    id: "sleep", text: "Heures de sommeil cette nuit ?", options: [
+      { label: "<5h", value: 1 }, { label: "5–6h", value: 2 }, { label: "7–8h", value: 3 }, { label: "8+", value: 4 }
+    ]
+  },
+  {
+    id: "stress", text: "Niveau de stress aujourd'hui ?", options: [
+      { label: "Élevé", value: 1 }, { label: "Modéré", value: 2 }, { label: "Faible", value: 3 }, { label: "Aucun", value: 4 }
+    ]
+  },
+  {
+    id: "diet", text: "Qualité de votre alimentation ?", options: [
+      { label: "Mauvaise", value: 1 }, { label: "Correcte", value: 2 }, { label: "Bonne", value: 3 }, { label: "Excellente", value: 4 }
+    ]
+  },
 ];
 
 /* ─── Dashboard metrics (simulated — same as Dashboard.tsx) ─── */
@@ -328,10 +338,17 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
 
 /* ─── Main component ─── */
 const Tips = () => {
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [done, setDone] = useState(false);
+  const persistedRaw = localStorage.getItem("currentTipsSession");
+  const persisted = persistedRaw ? JSON.parse(persistedRaw) : null;
+
+  const [step, setStep] = useState(persisted?.step || 0);
+  const [answers, setAnswers] = useState<Record<string, number>>(persisted?.answers || {});
+  const [done, setDone] = useState(persisted?.done || false);
   const diagResult = useDiagnosisResult();
+
+  useEffect(() => {
+    localStorage.setItem("currentTipsSession", JSON.stringify({ step, answers, done }));
+  }, [step, answers, done]);
 
   const current = questions[step];
 
@@ -349,7 +366,12 @@ const Tips = () => {
   const quizScore = done ? Math.round((Object.values(answers).reduce((a, b) => a + b, 0) / (questions.length * 4)) * 100) : 0;
   const highCount = tips.filter(t => t.priority === "high").length;
 
-  const restart = () => { setStep(0); setAnswers({}); setDone(false); };
+  const restart = () => {
+    setStep(0);
+    setAnswers({});
+    setDone(false);
+    localStorage.removeItem("currentTipsSession");
+  };
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
@@ -364,9 +386,8 @@ const Tips = () => {
       {/* Progress bar */}
       <div className="flex gap-1 mb-6">
         {questions.map((_, i) => (
-          <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${
-            i < step || done ? 'bg-primary' : i === step && !done ? 'bg-primary/40' : 'bg-muted'
-          }`} />
+          <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < step || done ? 'bg-primary' : i === step && !done ? 'bg-primary/40' : 'bg-muted'
+            }`} />
         ))}
       </div>
 
@@ -379,11 +400,10 @@ const Tips = () => {
               <div className="space-y-2">
                 {current.options.map(opt => (
                   <button key={opt.label} onClick={() => answer(current.id, opt.value)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${
-                      answers[current.id] === opt.value
-                        ? 'border-primary bg-accent text-primary'
-                        : 'border-border text-foreground hover:border-primary/40'
-                    }`}>
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${answers[current.id] === opt.value
+                      ? 'border-primary bg-accent text-primary'
+                      : 'border-border text-foreground hover:border-primary/40'
+                      }`}>
                     <div className="flex items-center justify-between">
                       {opt.label}
                       <ChevronRight size={16} className="text-muted-foreground" />
