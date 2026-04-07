@@ -1,16 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { saveDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { motion, AnimatePresence } from "framer-motion";
-import { Stethoscope, ChevronRight, Sun, Droplets, Sparkles, ShieldCheck, Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, Info } from "lucide-react";
+import { Stethoscope, ChevronRight, Sun, Droplets, Sparkles, ShieldCheck, Loader2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle2, Info, Camera, Upload, FlaskRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import zoneForehead from "@/assets/zone-forehead.jpg";
-import zoneLeftCheek from "@/assets/zone-left-cheek.jpg";
-import zoneRightCheek from "@/assets/zone-right-cheek.jpg";
-import zoneTzone from "@/assets/zone-tzone.jpg";
-import zoneChin from "@/assets/zone-chin.jpg";
-import zoneJaw from "@/assets/zone-jaw.jpg";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ZoneResult {
   id: string;
@@ -21,55 +17,15 @@ interface ZoneResult {
   summary: string;
   detail: string;
   tips: string[];
-  image: string;
 }
 
-const zoneResults: ZoneResult[] = [
-  {
-    id: "forehead", label: "Front", score: 62, status: "warning", trend: "down",
-    summary: "Rides d'expression visibles, peau déshydratée",
-    detail: "Des rides horizontales marquées sont visibles sur le front, signe de tensions musculaires répétées et d'une hydratation insuffisante. Le grain de peau reste correct mais manque de souplesse.",
-    tips: ["Sérum à l'acide hyaluronique matin et soir", "Soin anti-rides ciblé au rétinol (le soir)", "Massage frontal pour détendre les muscles"],
-    image: zoneForehead,
-  },
-  {
-    id: "left-cheek", label: "Joue gauche", score: 45, status: "alert", trend: "down",
-    summary: "Rougeurs marquées, boutons inflammatoires",
-    detail: "Rougeurs diffuses importantes et micro-boutons inflammatoires détectés. Possible réaction de sensibilité ou rosacée débutante. La barrière cutanée semble fragilisée sur cette zone.",
-    tips: ["Crème apaisante au centella asiatica", "Éviter les exfoliants agressifs sur cette zone", "Consulter un dermatologue si les rougeurs persistent"],
-    image: zoneLeftCheek,
-  },
-  {
-    id: "right-cheek", label: "Joue droite", score: 48, status: "alert", trend: "stable",
-    summary: "Rougeurs et imperfections similaires",
-    detail: "Même profil que la joue gauche avec des rougeurs et quelques imperfections. La peau montre des signes d'irritation et de sensibilité accrue.",
-    tips: ["Nettoyant très doux sans sulfates", "Brumisation d'eau thermale pour calmer", "Taie d'oreiller en soie pour réduire les frottements"],
-    image: zoneRightCheek,
-  },
-  {
-    id: "tzone", label: "Zone T / Nez", score: 40, status: "alert", trend: "down",
-    summary: "Pores très dilatés, points noirs, excès de sébum",
-    detail: "Les pores sont très visibles sur l'arête et les ailes du nez avec une concentration importante de points noirs et filaments sébacés. La brillance indique une surproduction de sébum significative.",
-    tips: ["Double nettoyage le soir (huile + gel doux)", "BHA (Acide Salicylique 2%) 3x/semaine", "Masque à l'argile verte 1x/semaine", "Ne pas presser les points noirs manuellement"],
-    image: zoneTzone,
-  },
-  {
-    id: "chin", label: "Menton", score: 78, status: "good", trend: "up",
-    summary: "Zone saine, texture uniforme",
-    detail: "La zone autour de la bouche et du menton présente une bonne texture avec un grain de peau régulier. Pas d'imperfection majeure détectée, hydratation correcte.",
-    tips: ["Maintenir la routine actuelle", "Baume à lèvres hydratant pour protéger le contour"],
-    image: zoneChin,
-  },
-  {
-    id: "jaw", label: "Mâchoire", score: 76, status: "good", trend: "up",
-    summary: "Zone saine, texture uniforme",
-    detail: "La mâchoire présente une bonne texture globale avec un grain de peau régulier. Hydratation correcte et pas d'inflammation notable.",
-    tips: ["Maintenir l'hydratation quotidienne", "Massage drainant le matin pour l'ovale"],
-    image: zoneJaw,
-  },
-];
-
-const globalScore = Math.round(zoneResults.reduce((sum, z) => sum + z.score, 0) / zoneResults.length);
+interface AIAnalysisResult {
+  globalScore: number;
+  summary: string;
+  zones: ZoneResult[];
+  correlations?: string[];
+  ingredients?: string[];
+}
 
 const prepChecklist = [
   { icon: <Sun size={18} />, text: "Placez-vous dans une zone bien éclairée (lumière naturelle idéale)" },
@@ -87,7 +43,7 @@ const analysisSteps = [
   "Calcul du score global…",
 ];
 
-type DiagStep = "prep" | "position" | "analyzing" | "results";
+type DiagStep = "prep" | "capture" | "analyzing" | "results";
 
 const statusConfig = {
   good: { color: "text-primary", bg: "bg-primary/10", icon: <CheckCircle2 size={14} />, label: "Bon" },
@@ -116,57 +72,154 @@ const Diagnosis = () => {
   const [selectedZone, setSelectedZone] = useState<ZoneResult | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [currentAnalysisStep, setCurrentAnalysisStep] = useState(0);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const reset = () => { setStep("prep"); setSelectedZone(null); setAnalysisProgress(0); setCurrentAnalysisStep(0); };
+  const reset = () => {
+    setStep("prep");
+    setSelectedZone(null);
+    setAnalysisProgress(0);
+    setCurrentAnalysisStep(0);
+    setCapturedImage(null);
+    setImageBase64(null);
+    setAiResult(null);
+    setAiError(null);
+  };
 
-  useEffect(() => {
-    if (step !== "analyzing") return;
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Format non supporté", description: "Veuillez sélectionner une image (JPG, PNG)", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Image trop lourde", description: "La taille maximum est 10 Mo", variant: "destructive" });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setCapturedImage(dataUrl);
+      setImageBase64(dataUrl.split(",")[1]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const startAnalysis = async () => {
+    if (!imageBase64) return;
+    setStep("analyzing");
+    setAiError(null);
+
+    // Start progress animation
     setAnalysisProgress(0);
     setCurrentAnalysisStep(0);
 
-    const totalDuration = 4000;
-    const stepInterval = totalDuration / analysisSteps.length;
-    const progressInterval = 50;
-    const progressIncrement = 100 / (totalDuration / progressInterval);
-
+    const progressInterval = 80;
+    let progress = 0;
     const progressTimer = setInterval(() => {
-      setAnalysisProgress(prev => {
-        if (prev >= 100) { clearInterval(progressTimer); return 100; }
-        return Math.min(prev + progressIncrement, 100);
-      });
+      progress += 0.8;
+      if (progress >= 95) {
+        clearInterval(progressTimer);
+        progress = 95;
+      }
+      setAnalysisProgress(progress);
     }, progressInterval);
 
     const stepTimer = setInterval(() => {
-      setCurrentAnalysisStep(prev => {
-        if (prev >= analysisSteps.length - 1) { clearInterval(stepTimer); return prev; }
+      setCurrentAnalysisStep((prev) => {
+        if (prev >= analysisSteps.length - 2) {
+          clearInterval(stepTimer);
+          return prev;
+        }
         return prev + 1;
       });
-    }, stepInterval);
+    }, 2000);
 
-    const doneTimer = setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke("skin-analysis", {
+        body: {
+          imageBase64,
+          formData: {
+            sleep: 7,
+            hydration: 7,
+            cycle: "none",
+            pollution: 5,
+            humidity: 50,
+            uv: 3,
+          },
+        },
+      });
+
+      clearInterval(progressTimer);
+      clearInterval(stepTimer);
+
+      if (error) {
+        throw new Error(error.message || "Erreur lors de l'analyse");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      setAnalysisProgress(100);
+      setCurrentAnalysisStep(analysisSteps.length - 1);
+
+      const result = data as AIAnalysisResult;
+      setAiResult(result);
+
+      // Save to history
       saveDiagnosisResult(
-        globalScore,
-        zoneResults.map(z => ({ id: z.id, label: z.label, score: z.score, status: z.status }))
+        result.globalScore,
+        result.zones.map((z) => ({ id: z.id, label: z.label, score: z.score, status: z.status }))
       );
-      setStep("results");
-    }, totalDuration + 300);
 
-    return () => { clearInterval(progressTimer); clearInterval(stepTimer); clearTimeout(doneTimer); };
-  }, [step]);
+      setTimeout(() => setStep("results"), 500);
+    } catch (err: any) {
+      clearInterval(progressTimer);
+      clearInterval(stepTimer);
+      console.error("Analysis error:", err);
+      setAiError(err.message || "Erreur lors de l'analyse IA");
+      toast({
+        title: "Erreur d'analyse",
+        description: err.message || "Impossible d'analyser la photo. Réessayez.",
+        variant: "destructive",
+      });
+      setStep("capture");
+    }
+  };
 
-  const goodCount = zoneResults.filter(z => z.status === "good").length;
-  const warningCount = zoneResults.filter(z => z.status === "warning").length;
-  const alertCount = zoneResults.filter(z => z.status === "alert").length;
+  const globalScore = aiResult?.globalScore ?? 0;
+  const zones = aiResult?.zones ?? [];
+  const goodCount = zones.filter((z) => z.status === "good").length;
+  const warningCount = zones.filter((z) => z.status === "warning").length;
+  const alertCount = zones.filter((z) => z.status === "alert").length;
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="flex items-center gap-2 mb-1">
           <Stethoscope size={20} className="text-primary" />
-          <h1 className="text-2xl font-display font-semibold text-foreground">Diagnostic</h1>
+          <h1 className="text-2xl font-display font-semibold text-foreground">Diagnostic IA</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-5">Analysez votre peau zone par zone</p>
+        <p className="text-sm text-muted-foreground mb-5">Analysez votre peau avec l'intelligence artificielle</p>
       </motion.div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
 
       <AnimatePresence mode="wait">
         {/* Step 1: Preparation checklist */}
@@ -187,39 +240,88 @@ const Diagnosis = () => {
                 ))}
               </div>
             </div>
-            <Button onClick={() => setStep("position")} className="rounded-full px-8 py-5 bg-primary text-primary-foreground shadow-elevated w-full">
+            <Button onClick={() => setStep("capture")} className="rounded-full px-8 py-5 bg-primary text-primary-foreground shadow-elevated w-full">
               Je suis prêt(e)
             </Button>
           </motion.div>
         )}
 
-        {/* Step 2: Position face */}
-        {step === "position" && (
-          <motion.div key="position" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+        {/* Step 2: Capture photo */}
+        {step === "capture" && (
+          <motion.div key="capture" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="flex flex-col items-center">
-            <div className="relative w-56 h-56 mb-6">
-              <div className="absolute inset-0 rounded-[50%] border-[3px] border-dashed border-primary/40" />
-              <div className="absolute inset-4 rounded-[50%] border-2 border-primary/20" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-4xl mb-2">👤</div>
-                  <p className="text-xs text-muted-foreground">Placez votre visage ici</p>
+
+            {capturedImage ? (
+              <div className="relative w-full mb-5">
+                <img
+                  src={capturedImage}
+                  alt="Votre photo"
+                  className="w-full h-64 object-cover rounded-2xl shadow-card"
+                />
+                <button
+                  onClick={() => { setCapturedImage(null); setImageBase64(null); }}
+                  className="absolute top-3 right-3 bg-background/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium text-foreground"
+                >
+                  Changer
+                </button>
+              </div>
+            ) : (
+              <div className="w-full mb-5">
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-64 bg-card rounded-2xl shadow-card border-2 border-dashed border-primary/30 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/60 transition-colors"
+                >
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Camera size={28} className="text-primary" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">Prenez un selfie ou uploadez une photo</p>
+                  <p className="text-xs text-muted-foreground">JPG, PNG • Max 10 Mo</p>
+                </div>
+
+                <div className="flex gap-3 mt-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 rounded-xl py-4"
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.removeAttribute("capture");
+                        fileInputRef.current.click();
+                      }
+                    }}
+                  >
+                    <Upload size={16} className="mr-2" />
+                    Galerie
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 rounded-xl py-4"
+                    onClick={() => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.setAttribute("capture", "user");
+                        fileInputRef.current.click();
+                      }
+                    }}
+                  >
+                    <Camera size={16} className="mr-2" />
+                    Caméra
+                  </Button>
                 </div>
               </div>
-              <motion.div
-                className="absolute left-4 right-4 h-0.5 bg-primary/40 rounded-full"
-                animate={{ top: ["20%", "80%", "20%"] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground text-center mb-2">
-              Tenez le téléphone à <span className="font-semibold text-foreground">30 cm</span> de votre visage
-            </p>
-            <p className="text-xs text-muted-foreground/60 text-center mb-6">
-              Regardez droit devant, expression neutre
-            </p>
-            <Button onClick={() => setStep("analyzing")} className="rounded-full px-8 py-5 bg-primary text-primary-foreground shadow-elevated w-full">
-              <Stethoscope size={18} className="mr-2" />Lancer l'analyse
+            )}
+
+            {aiError && (
+              <div className="w-full bg-destructive/10 border border-destructive/20 rounded-xl p-3 mb-4">
+                <p className="text-xs text-destructive">{aiError}</p>
+              </div>
+            )}
+
+            <Button
+              onClick={startAnalysis}
+              disabled={!imageBase64}
+              className="rounded-full px-8 py-5 bg-primary text-primary-foreground shadow-elevated w-full disabled:opacity-50"
+            >
+              <Stethoscope size={18} className="mr-2" />
+              Lancer l'analyse IA
             </Button>
             <button onClick={() => setStep("prep")} className="mt-3 text-xs text-muted-foreground underline">
               Retour
@@ -231,10 +333,21 @@ const Diagnosis = () => {
         {step === "analyzing" && (
           <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="flex flex-col items-center py-10">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="mb-6">
-              <Loader2 size={48} className="text-primary" />
+            {capturedImage && (
+              <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4 shadow-card">
+                <img src={capturedImage} alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-primary/10 animate-pulse" />
+                <motion.div
+                  className="absolute left-0 right-0 h-0.5 bg-primary/60 rounded-full"
+                  animate={{ top: ["10%", "90%", "10%"] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </div>
+            )}
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="mb-4">
+              <Loader2 size={36} className="text-primary" />
             </motion.div>
-            <p className="text-lg font-display font-semibold text-foreground mb-2">Analyse en cours</p>
+            <p className="text-lg font-display font-semibold text-foreground mb-2">Analyse IA en cours</p>
             <p className="text-sm text-primary font-medium mb-6">{analysisSteps[currentAnalysisStep]}</p>
             <div className="w-full max-w-xs mb-3">
               <Progress value={analysisProgress} className="h-2" />
@@ -244,27 +357,29 @@ const Diagnosis = () => {
         )}
 
         {/* Step 4: Results */}
-        {step === "results" && (
+        {step === "results" && aiResult && (
           <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
 
-            {/* Global score hero */}
+            {/* Photo + global score hero */}
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               className="bg-card rounded-3xl p-6 shadow-card mb-4 text-center relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="absolute bottom-0 left-0 w-20 h-20 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
               <div className="relative">
-                <p className="text-xs text-muted-foreground mb-2 font-medium">Score global</p>
+                {capturedImage && (
+                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3 shadow-card border-2 border-primary/20">
+                    <img src={capturedImage} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mb-2 font-medium">Score global IA</p>
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <span className={`text-5xl font-display font-bold ${globalScore >= 70 ? 'text-primary' : globalScore >= 50 ? 'text-skin-oil' : 'text-destructive'}`}>
                     {globalScore}
                   </span>
                   <span className="text-lg text-muted-foreground font-medium">/100</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {globalScore >= 70 ? "Votre peau est en bonne santé ✨" : globalScore >= 50 ? "Quelques zones nécessitent attention 🔍" : "Plusieurs zones à traiter 🩹"}
-                </p>
+                <p className="text-sm text-muted-foreground">{aiResult.summary}</p>
 
-                {/* Status summary chips */}
                 <div className="flex items-center justify-center gap-2 mt-4">
                   {goodCount > 0 && (
                     <span className="flex items-center gap-1 bg-primary/10 text-primary text-[11px] font-semibold px-2.5 py-1 rounded-full">
@@ -285,10 +400,41 @@ const Diagnosis = () => {
               </div>
             </motion.div>
 
+            {/* Correlations */}
+            {aiResult.correlations && aiResult.correlations.length > 0 && (
+              <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+                <p className="text-xs font-semibold text-foreground mb-2">🔗 Corrélations détectées</p>
+                <div className="space-y-1.5">
+                  {aiResult.correlations.map((c, i) => (
+                    <p key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                      <span className="text-primary mt-0.5">•</span>{c}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recommended ingredients */}
+            {aiResult.ingredients && aiResult.ingredients.length > 0 && (
+              <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+                <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <FlaskRound size={14} className="text-primary" />
+                  Ingrédients recommandés
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {aiResult.ingredients.map((ing, i) => (
+                    <span key={i} className="bg-primary/10 text-primary text-[11px] font-medium px-2.5 py-1 rounded-full">
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Zone cards */}
             <h2 className="text-sm font-display font-semibold text-foreground mb-3">Détail par zone</h2>
             <div className="space-y-2.5 mb-5">
-              {zoneResults.map((zone, i) => {
+              {zones.map((zone, i) => {
                 const config = statusConfig[zone.status];
                 return (
                   <motion.button
@@ -348,22 +494,6 @@ const Diagnosis = () => {
             </DialogTitle>
             <DialogDescription className="pt-2">{selectedZone?.detail}</DialogDescription>
           </DialogHeader>
-          {selectedZone && (
-            <div className="relative w-full h-40 rounded-xl overflow-hidden">
-              <img
-                src={selectedZone.image}
-                alt={`Analyse de la zone ${selectedZone.label}`}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
-              <div className="absolute bottom-2 left-3 flex items-center gap-2">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${statusConfig[selectedZone.status].bg} ${statusConfig[selectedZone.status].color}`}>
-                  {statusConfig[selectedZone.status].label}
-                </span>
-                <span className="text-xs text-white/80 font-medium">Scan zone {selectedZone.label}</span>
-              </div>
-            </div>
-          )}
           {selectedZone && (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
