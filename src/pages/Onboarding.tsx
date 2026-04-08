@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 const slides = [
     {
-        title: "Votre Peau, Comprise",
+        title: "Votre Peau, comprise",
         description: "La peau est influencé par de nombreux facteurs internes comme externes. Apprenez à les comprendre et à en prendre soin grâce à notre analyse personnalisée.",
         icon: <Sparkles size={64} className="text-primary" />,
         color: "bg-primary/10",
@@ -90,7 +90,7 @@ const Onboarding = () => {
                     onClick={nextSlide}
                     className="w-full max-w-sm flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 transition-opacity active:scale-[0.98]"
                 >
-                    {currentSlide === slides.length - 1 ? "Commencer maintenant" : "Continuer"}
+                    {currentSlide === slides.length - 1 ? "Commencer" : "Continuer"}
                     <ChevronRight size={18} />
                 </button>
 

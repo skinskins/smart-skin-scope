@@ -33,9 +33,10 @@ const Signup = () => {
     const [profession, setProfession] = useState("");
     const [usedChannels, setUsedChannels] = useState<string[]>([]);
 
-    // Step 3: Âge et Poids
+    // Step 3: Âge et Poids et Sexe
     const [age, setAge] = useState("");
     const [weight, setWeight] = useState("");
+    const [gender, setGender] = useState("");
 
     // Step 4: Type de peau et problemes
     const [skinType, setSkinType] = useState("");
@@ -73,7 +74,7 @@ const Signup = () => {
             if (usedChannels.includes("Autre") && !otherChannel) return;
             setStep(3);
         } else if (step === 3) {
-            if (!age || !weight) return;
+            if (!age || !weight || !gender) return;
             setStep(4);
         } else if (step === 4) {
 
@@ -86,6 +87,7 @@ const Signup = () => {
                 used_channels: usedChannels.map(c => c === "Autre" ? `Autre: ${otherChannel}` : c),
                 age: parseInt(age),
                 weight: parseFloat(weight),
+                gender,
                 skin_type: skinType,
                 skin_problems: skinProblems
             };
@@ -271,6 +273,17 @@ const Signup = () => {
                                         <Input type="number" placeholder="Ex: 65" required min="30" max="300"
                                             className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
                                             value={weight} onChange={(e) => setWeight(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="space-y-2 pt-2 border-t border-border/50">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Sexe</label>
+                                    <div className="flex gap-2">
+                                        {["Femme", "Homme", "Autre"].map(g => (
+                                            <button type="button" key={g} onClick={() => setGender(g)}
+                                                className={`flex-1 py-3 px-2 rounded-2xl text-xs font-semibold transition-all border ${gender === g ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                                {g}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

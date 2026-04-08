@@ -1,8 +1,97 @@
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Info, Droplets, Moon, Flame, Activity, ChevronRight, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Info, CheckCircle2 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import skincareMatrix from "@/data/skincare_matrix.json";
 
+// ─── Types ───────────────────────────────────────────────────
+interface AdviceItem {
+    iconStr: string;
+    title: string;
+    text: string;
+    tip: string;
+    group: "g1" | "g2" | "g3";
+}
+
+interface Context {
+    skinType: string;
+    uvIndex: number;
+    tempC: number;
+    humidity: number;
+    aqi: number;
+    sleepHours: number;
+    stressLevel: number;
+    alcoholLastNight: number;
+    removedMakeupLastNight: boolean;
+    didSportToday: boolean;
+    cycleDay: number | null;
+}
+
+// ─── Moteur de matching ──────────────────────────────────────
+type TriggerCondition = boolean | { gte?: number; lte?: number };
+
+function evaluateTrigger(ctx: Context, trigger: Record<string, TriggerCondition>): boolean {
+    for (const [key, cond] of Object.entries(trigger)) {
+        const val = ctx[key as keyof Context];
+
+        if (typeof cond === "boolean") {
+            if (val !== cond) return false;
+        } else if (typeof cond === "object" && cond !== null) {
+            const numVal = val as number;
+            if (numVal === null || numVal === undefined) return false;
+            if (cond.gte !== undefined && numVal < cond.gte) return false;
+            if (cond.lte !== undefined && numVal > cond.lte) return false;
+        }
+    }
+    return true;
+}
+
+function getActiveAdvice(ctx: Context): AdviceItem[] {
+    const results: AdviceItem[] = [];
+    const skinType = ctx.skinType as "dry" | "oily" | "combo" | "normal";
+
+    // G3 en priorité (scénarios combinés)
+    for (const scenario of skincareMatrix.groups.g3.scenarios) {
+        if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
+            const spec = scenario.advice[skinType];
+            if (spec) {
+                results.push({ iconStr: scenario.icon, title: spec.title, text: spec.body, tip: spec.tip, group: "g3" });
+            }
+        }
+    }
+
+    // G1 — facteurs auto-détectés (API météo / qualité air)
+    for (const scenario of skincareMatrix.groups.g1.scenarios) {
+        if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
+            const spec = scenario.advice[skinType];
+            if (spec) {
+                results.push({ iconStr: scenario.icon, title: spec.title, text: spec.body, tip: spec.tip, group: "g1" });
+            }
+        }
+    }
+
+    // G2 — facteurs déclarés par l'utilisatrice
+    for (const scenario of skincareMatrix.groups.g2.scenarios) {
+        if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
+            const spec = scenario.advice[skinType];
+            if (spec) {
+                results.push({ iconStr: scenario.icon, title: spec.title, text: spec.body, tip: spec.tip, group: "g3" });
+            }
+        }
+    }
+
+    return results;
+}
+
+// ─── Mapping type de peau UI → clé JSON ─────────────────────
+const SKIN_TYPE_MAP: Record<string, string> = {
+    "Sèche": "dry",
+    "Grasse": "oily",
+    "Mixte": "combo",
+    "Normale": "normal",
+};
+
+// ─── Composant principal ─────────────────────────────────────
 const CheckinAdvice = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -10,91 +99,63 @@ const CheckinAdvice = () => {
     const firstName = location.state?.firstName || "";
 
     const [isSuccessStep, setIsSuccessStep] = useState(isOnboarding);
-    const [adviceList, setAdviceList] = useState<{ icon: any, text: string, title: string, color: string }[]>([]);
+    const [adviceList, setAdviceList] = useState<AdviceItem[]>([]);
 
+    // Transition onboarding → conseils
     useEffect(() => {
         if (isSuccessStep) {
-            const timer = setTimeout(() => {
-                setIsSuccessStep(false);
-            }, 3000);
+            const timer = setTimeout(() => setIsSuccessStep(false), 3000);
             return () => clearTimeout(timer);
         }
     }, [isSuccessStep]);
 
+    // Calcul des conseils depuis les données du check-in
     useEffect(() => {
         const dataStr = localStorage.getItem("dailyCheckinData");
-        if (dataStr) {
-            try {
-                const data = JSON.parse(dataStr);
-                const advice = [];
+        const guestStr = localStorage.getItem("guestProfile");
+        if (!dataStr) return;
 
-                if (data.waterGlasses < 6) {
-                    advice.push({
-                        icon: Droplets,
-                        title: "Hydratation Insuffisante",
-                        text: "Votre peau risque d'être plus sèche aujourd'hui. Pensez à boire régulièrement pour maintenir son élasticité et son éclat.",
-                        color: "text-blue-500"
-                    });
-                } else {
-                    advice.push({
-                        icon: Droplets,
-                        title: "Bonne Hydratation",
-                        text: "Super ! Continuez à bien vous hydrater, c'est le secret #1 d'une peau lumineuse.",
-                        color: "text-blue-500"
-                    });
-                }
+        try {
+            const data = JSON.parse(dataStr);
+            const guest = guestStr ? JSON.parse(guestStr) : {};
 
-                if (data.sleepHours < 7) {
-                    advice.push({
-                        icon: Moon,
-                        title: "Manque de Sommeil",
-                        text: "La nuit a été courte. N'hésitez pas à utiliser un contour des yeux drainant ou frais pour réduire les signes de fatigue.",
-                        color: "text-indigo-400"
-                    });
-                }
+            const skinType = SKIN_TYPE_MAP[guest.skin_type] ?? "normal";
 
-                if (data.stressLevel >= 4) {
-                    advice.push({
-                        icon: Flame,
-                        title: "Pic de Stress",
-                        text: "Le stress augmente la production de sébum et les inflammations. Prenez 5 minutes pour respirer profondément.",
-                        color: "text-rose-500"
-                    });
-                }
+            const ctx: Context = {
+                skinType,
+                uvIndex: data.weather?.uv ?? 0,
+                tempC: data.weather?.temp ?? 20,
+                humidity: data.weather?.humidity ?? 50,
+                aqi: data.weather?.aqiScore ?? 25,
+                sleepHours: data.sleepHours ?? 8,
+                stressLevel: data.stressLevel ?? 1,
+                alcoholLastNight: data.alcoholDrinks ?? 0,
+                removedMakeupLastNight: data.makeupRemoved ?? true,
+                didSportToday: data.didSport ?? ((data.workoutMinutes ?? 0) > 0),
+                cycleDay: data.cyclePhase === "Menstruel" ? 2 : null,
+            };
 
-                if (data.cyclePhase === "Lutéal" || data.cyclePhase === "Menstruel") {
-                    advice.push({
-                        icon: Activity,
-                        title: "Sensibilité Hormonale",
-                        text: "La période est propice aux petites imperfections ou à la sensibilité. Évitez les gommages trop agressifs.",
-                        color: "text-purple-400"
-                    });
-                }
+            console.log("✅ Skin Matrix Context:", ctx);
 
-                if (advice.length === 0) {
-                    advice.push({
-                        icon: Info,
-                        title: "Tout va bien",
-                        text: "Vos indicateurs sont au vert ! Maintenez votre belle routine actuelle.",
-                        color: "text-green-500"
-                    });
-                }
+            const advice = getActiveAdvice(ctx);
 
-                setAdviceList(advice);
-            } catch (e) {
-                console.error("Error parsing checkin data", e);
+            if (advice.length === 0) {
+                advice.push({
+                    iconStr: "✨",
+                    title: "Tout va bien",
+                    text: "Vos indicateurs sont au vert ! Maintenez votre belle routine actuelle.",
+                    tip: "Continuez de bien hydrater votre peau chaque matin.",
+                    group: "g1",
+                });
             }
+
+            setAdviceList(advice);
+        } catch (e) {
+            console.error("Erreur parsing check-in data", e);
         }
     }, []);
 
-    const handleContinue = () => {
-        if (isOnboarding) {
-            navigate("/setup-routine");
-        } else {
-            navigate("/dashboard");
-        }
-    };
-
+    // ── Écran de chargement (onboarding) ──
     if (isSuccessStep) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -109,7 +170,9 @@ const CheckinAdvice = () => {
                         <CheckCircle2 size={40} className="text-primary" />
                     </div>
                     <h2 className="text-2xl font-display font-bold text-foreground mb-2">Analyse en cours...</h2>
-                    <p className="text-muted-foreground text-sm">Merci {firstName}. <br></br> Vos conseils sont en cours de préparation.</p>
+                    <p className="text-muted-foreground text-sm">
+                        Merci {firstName}.<br />Vos conseils sont en cours de préparation.
+                    </p>
                     <div className="mt-8 relative w-full h-1 bg-muted rounded-full overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
@@ -124,10 +187,12 @@ const CheckinAdvice = () => {
         );
     }
 
+    // ── Écran des conseils ──
     return (
         <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
             <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/3" />
 
+            {/* Header */}
             <div className="p-6 relative z-10 flex items-center justify-between">
                 <motion.button
                     initial={{ opacity: 0, x: -20 }}
@@ -145,43 +210,56 @@ const CheckinAdvice = () => {
                 className="flex-1 flex flex-col p-6 z-10 max-w-md mx-auto w-full pb-32"
             >
                 <div className="mb-6">
-                    <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Vos Conseils du Jour</h1>
+                    <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">
+                        Vos Conseils du Jour
+                    </h1>
                     <p className="text-muted-foreground text-sm">Basés sur vos réponses d'aujourd'hui</p>
                 </div>
 
+                {/* Cartes de conseils */}
                 <div className="space-y-4 flex-1">
                     {adviceList.map((advice, idx) => {
-                        const Icon = advice.icon;
                         return (
                             <motion.div
                                 key={idx}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="bg-card p-5 rounded-3xl shadow-sm border border-border/50 flex gap-4"
+                                className="bg-card p-5 rounded-3xl shadow-sm border border-border/50"
                             >
-                                <div className="flex-shrink-0 pt-1">
-                                    <Icon className={advice.color} size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold mb-1">{advice.title}</h3>
-                                    <p className="text-sm text-muted-foreground leading-relaxed">
-                                        {advice.text}
-                                    </p>
+
+                                <div className="flex gap-4">
+                                    {/* Icône */}
+                                    <div className="flex-shrink-0 text-3xl leading-none pt-0.5">
+                                        {advice.iconStr}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        {/* Titre */}
+                                        <h3 className="font-semibold text-foreground mb-1 leading-snug">
+                                            {advice.title}
+                                        </h3>
+
+                                        {/* Corps du conseil */}
+                                        <p className="text-sm text-muted-foreground leading-relaxed">
+                                            {advice.text}
+                                        </p>
+
+                                        {/* Tip */}
+                                        {advice.tip && (
+                                            <div className="mt-3 bg-primary/5 p-3 rounded-xl border border-primary/20">
+                                                <p className="text-xs text-foreground font-medium flex gap-2 items-start">
+                                                    <Info size={14} className="text-primary flex-shrink-0 mt-0.5" />
+                                                    {advice.tip}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </motion.div>
                         );
                     })}
                 </div>
-
-                {/* <div className="pt-6">
-                    <button
-                        onClick={handleContinue}
-                        className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 active:scale-[0.98] transition-all"
-                    >
-                        Continuer <ChevronRight size={18} />
-                    </button>
-                </div> */}
             </motion.div>
         </div>
     );

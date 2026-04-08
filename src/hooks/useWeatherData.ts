@@ -5,6 +5,7 @@ interface WeatherData {
   humidity: number;
   uv: number;
   pollution: string;
+  aqiScore: number;
   locationName: string;
 }
 
@@ -18,11 +19,7 @@ const getAirQualityLabel = (aqi: number): string => {
 const getCoords = (): Promise<{ lat: number; lon: number }> => {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        resolve({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-        }),
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
       () => reject()
     );
   });
@@ -34,6 +31,7 @@ export const useWeatherData = (queryLocation?: string) => {
     humidity: 0,
     uv: 0,
     pollution: "...",
+    aqiScore: 0,
     locationName: "...",
   });
 
@@ -54,7 +52,6 @@ export const useWeatherData = (queryLocation?: string) => {
           try {
             const coords = await getCoords();
             q = `${coords.lat},${coords.lon}`;
-                        console.log("test", q)
           } catch {
             console.log("Geolocation refusée → fallback Paris");
           }
@@ -72,13 +69,24 @@ export const useWeatherData = (queryLocation?: string) => {
 
         if (!isMounted) return;
 
+        // map weatherapi us-epa index (1-6) to a simulated 0-500 scale for aqi?
+        // or just pass it directly if we assume aqi > 80 means AQI scale (0-500) 
+        // Weatherapi us-epa-index: 1=Good, 2=Moderate, 3=Unhealthy for sensitive, 4=Unhealthy, 5=Very Unhealthy, 6=Hazardous
+        // We can map 1 -> 25, 2 -> 75, 3 -> 125, 4 -> 175, 5 -> 250, 6 -> 350
+        const epaIndex = data.current.air_quality?.["us-epa-index"] ?? 1;
+        let mappedAqi = 0;
+        if (epaIndex <= 1) mappedAqi = 25;
+        else if (epaIndex === 2) mappedAqi = 75;
+        else if (epaIndex === 3) mappedAqi = 125;
+        else if (epaIndex === 4) mappedAqi = 175;
+        else if (epaIndex >= 5) mappedAqi = 250;
+
         setWeather({
           temp: Math.round(data.current.temp_c),
           humidity: data.current.humidity,
           uv: data.current.uv,
-          pollution: getAirQualityLabel(
-            data.current.air_quality?.["us-epa-index"] ?? 0
-          ),
+          pollution: getAirQualityLabel(epaIndex),
+          aqiScore: mappedAqi,
           locationName: data.location.name,
         });
       } catch (err) {
@@ -89,7 +97,6 @@ export const useWeatherData = (queryLocation?: string) => {
     };
 
     fetchWeather();
-
     const interval = setInterval(fetchWeather, 15 * 60 * 1000);
 
     return () => {
