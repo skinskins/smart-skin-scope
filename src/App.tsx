@@ -18,6 +18,7 @@ import PostSignup from "./pages/PostSignup";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 
 import DailyCheckin from "./pages/DailyCheckin";
+import CheckinAdvice from "./pages/CheckinAdvice";
 
 const queryClient = new QueryClient();
 
@@ -42,7 +43,9 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     return <div className="h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  if (!session) {
+  const isGuest = localStorage.getItem('guestProfile') !== null;
+
+  if (!session && !isGuest) {
     return <Navigate to="/onboarding" />;
   }
 
@@ -56,8 +59,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
+          <Route path="/" element={<Navigate to="/onboarding" replace />} />
+          <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/checkin" element={<AuthGuard><DailyCheckin /></AuthGuard>} />
+          <Route path="/checkin-advice" element={<AuthGuard><CheckinAdvice /></AuthGuard>} />
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />

@@ -951,7 +951,7 @@ const Dashboard = () => {
               setTempPmProducts(basePmProducts);
               setRoutineSetupOpen(true);
             }} className="p-1 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-primary">
-              <Pencil size={12} />
+              <Pencil size={14} />
             </button>
           </div>
           <div className="flex bg-muted rounded-full p-0.5">

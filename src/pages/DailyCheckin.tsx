@@ -46,29 +46,45 @@ const DailyCheckin = () => {
             food: Date.now()
         }));
 
-        // Envoi au Cloud (Supabase) si connecté
+        // Envoi au Cloud (Supabase)
         try {
-            const { data: sessionData } = await supabase.auth.getSession();
-            if (sessionData?.session) {
-                // @ts-ignore
-                await supabase.from("profiles").update({
-                    heart_rate: data.heartRate,
-                    sleep_hours: data.sleepHours,
-                    water_glasses: data.waterGlasses,
-                    alcohol_drinks: data.alcoholDrinks,
-                    cycle_phase: data.cyclePhase,
-                    stress_level: data.stressLevel,
-                    food_quality: data.foodQuality
-                }).eq("id", sessionData.session.user.id);
+            const guestProfileStr = localStorage.getItem("guestProfile");
+            if (guestProfileStr) {
+                const guestProfile = JSON.parse(guestProfileStr);
+                if (guestProfile.id) {
+                    // @ts-ignore
+                    await supabase.from("guest_checkins").insert({
+                        guest_id: guestProfile.id,
+                        sleep_hours: data.sleepHours,
+                        water_glasses: data.waterGlasses,
+                        stress_level: data.stressLevel,
+                        cycle_phase: data.cyclePhase,
+                        diet_quality: data.foodQuality
+                    });
+                }
+            } else {
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData?.session) {
+                    // @ts-ignore
+                    await supabase.from("profiles").update({
+                        heart_rate: data.heartRate,
+                        sleep_hours: data.sleepHours,
+                        water_glasses: data.waterGlasses,
+                        alcohol_drinks: data.alcoholDrinks,
+                        cycle_phase: data.cyclePhase,
+                        stress_level: data.stressLevel,
+                        food_quality: data.foodQuality
+                    }).eq("id", sessionData.session.user.id);
+                }
             }
         } catch (e) {
             console.error("Erreur d'enregistrement réseau", e);
         }
 
         if (isOnboarding) {
-            navigate("/setup-routine");
+            navigate("/checkin-advice", { state: { ...location.state } });
         } else {
-            navigate("/");
+            navigate("/checkin-advice");
         }
     };
 
@@ -194,9 +210,6 @@ const DailyCheckin = () => {
                     className="w-full max-w-sm flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 active:scale-[0.98] transition-all"
                 >
                     Valider<ArrowRight size={18} />
-                </button>
-                <button onClick={handleSkip} className="text-sm text-muted-foreground hover:text-foreground font-medium transition-colors">
-                    Passer pour cette fois
                 </button>
             </div>
 

@@ -102,24 +102,6 @@ const Login = () => {
                     </button>
                 </form>
 
-                <div className="mt-10 text-center relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-border"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                        <span className="bg-background px-4 text-muted-foreground">Où continuez avec</span>
-                    </div>
-                </div>
-
-                <div className="flex gap-4 mt-6">
-                    <button type="button" className="flex-1 bg-card py-3.5 rounded-2xl font-medium shadow-sm hover:bg-accent/50 transition-colors border border-transparent">
-                        Apple
-                    </button>
-                    <button type="button" className="flex-1 bg-card py-3.5 rounded-2xl font-medium shadow-sm hover:bg-accent/50 transition-colors border border-transparent">
-                        Google
-                    </button>
-                </div>
-
                 <p className="text-center text-sm text-muted-foreground mt-auto pt-8">
                     Pas encore de compte ?{" "}
                     <button onClick={() => navigate("/signup")} className="text-primary font-semibold hover:underline">

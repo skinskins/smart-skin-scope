@@ -142,7 +142,7 @@ const RoutineSetupOnboarding = () => {
                             disabled={loading}
                             className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-elevated flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-[0.98]"
                         >
-                            {loading ? "Création..." : "Valider et Voir ma Peau"} <ArrowRight size={18} />
+                            {loading ? "Création..." : "Valider et voir ma Peau"} <ArrowRight size={18} />
                         </button>
                         <button
                             onClick={handleSkip}

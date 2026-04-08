@@ -6,15 +6,9 @@ import { useNavigate } from "react-router-dom";
 const slides = [
     {
         title: "Votre Peau, Comprise",
-        description: "Découvrez les secrets de votre peau grâce à notre analyse par intelligence artificielle personnalisée.",
+        description: "La peau est influencé par de nombreux facteurs internes comme externes. Apprenez à les comprendre et à en prendre soin grâce à notre analyse personnalisée.",
         icon: <Sparkles size={64} className="text-primary" />,
         color: "bg-primary/10",
-    },
-    {
-        title: "Diagnostic en Temps Réel",
-        description: "L'appareil photo de votre smartphone devient votre outil, scannez et comprenez vos imperfections.",
-        icon: <Camera size={64} className="text-skin-glow" />,
-        color: "bg-skin-glow/10",
     },
     {
         title: "Routine Adaptée au Climat",
@@ -22,12 +16,18 @@ const slides = [
         icon: <Droplets size={64} className="text-skin-hydration" />,
         color: "bg-skin-hydration/10",
     },
-    {
-        title: "Suivi",
-        description: "Suivez vos progrès jour après jour et recevez des conseils.",
-        icon: <Stethoscope size={64} className="text-skin-texture" />,
-        color: "bg-skin-texture/10",
-    },
+    // {
+    //     title: "Diagnostic en Temps Réel",
+    //     description: "L'appareil photo de votre smartphone devient votre outil, scannez et comprenez vos imperfections.",
+    //     icon: <Camera size={64} className="text-skin-glow" />,
+    //     color: "bg-skin-glow/10",
+    // },
+    // {
+    //     title: "Suivi",
+    //     description: "Suivez vos progrès jour après jour et recevez des conseils.",
+    //     icon: <Stethoscope size={64} className="text-skin-texture" />,
+    //     color: "bg-skin-texture/10",
+    // },
 ];
 
 const Onboarding = () => {
@@ -95,12 +95,12 @@ const Onboarding = () => {
                 </button>
 
                 {/* Login Link */}
-                <p className="text-sm text-muted-foreground">
+                {/* <p className="text-sm text-muted-foreground">
                     Déjà un compte ?{" "}
                     <button onClick={() => navigate("/login")} className="text-primary font-semibold hover:underline">
                         Se connecter
                     </button>
-                </p>
+                </p> */}
             </div>
         </div>
     );

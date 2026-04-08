@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const skinTypes = ["Mixte", "Normale", "Sèche", "Grasse", "Sensible"];
-const skinProblemsList = ["Acné", "Rides", "Taches brunes", "Rougeurs", "Points noirs", "Eczéma", "Rosacée", "Teint terne"];
+const skinProblemsList = ["Acné", "Rides", "Taches brunes", "Rougeurs", "Points noirs", "Eczéma", "Rosacée", "Teint terne", "Aucun"];
 const professions = [
     "Étudiant(e)",
     "Domaine Médical",
