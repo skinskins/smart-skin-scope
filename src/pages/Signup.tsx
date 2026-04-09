@@ -392,7 +392,7 @@ const Signup = () => {
                                     <div className="grid grid-cols-2 gap-3 mb-2">
                                         {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
                                             <button type="button" key={type} onClick={() => { setSkinType(type); setQuizStarted(false); }}
-                                                className={`py-6 px-2 rounded-2xl text-sm font-semibold transition-all border ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary shadow-elevated scale-[1.02]' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                                className={`py-6 px-2 rounded-2xl text-sm font-semibold transition-all border ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
                                                 {type}
                                             </button>
                                         ))}
@@ -523,7 +523,7 @@ const Signup = () => {
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Réduire les taches", "Resserrer les pores", "Anti-cernes"].map(goal => (
                                         <button type="button" key={goal} onClick={() => toggleGoal(goal)}
-                                            className={`py-3 px-5 rounded-full text-sm font-semibold transition-all border ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-105' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                            className={`py-3 px-5 rounded-full text-sm font-semibold transition-all border ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
                                             {goal}
                                         </button>
                                     ))}
@@ -552,7 +552,7 @@ const Signup = () => {
                                 (step === 4 && !skinType) ||
                                 (step === 5 && skinGoals.length === 0)
                             }
-                            className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+                            className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 transition-all disabled:opacity-50"
                         >
                             {loading ? "Enregistrement..." : step === 5 ? "Terminer" : "Suivant"} <ChevronRight size={18} />
                         </button>
