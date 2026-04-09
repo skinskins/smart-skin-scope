@@ -1,8 +1,19 @@
-import { motion } from "framer-motion";
-import { ArrowLeft, Info, CheckCircle2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    ArrowLeft, Info, CheckCircle2, FlaskRound, Sun, Droplets, CloudSun, Moon,
+    Wine, Dumbbell, Heart, FlaskConical, Pencil, Sparkles, Thermometer, MapPin,
+    Stethoscope, Lightbulb, BluetoothOff, Bluetooth, Check, ChevronRight,
+    Salad, Waves, ShieldCheck, LogOut, Calendar
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import skincareMatrix from "@/data/skincare_matrix.json";
+import SkinScoreRing from "@/components/SkinScoreRing";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useWeatherData } from "@/hooks/useWeatherData";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────
 interface AdviceItem {
@@ -11,6 +22,8 @@ interface AdviceItem {
     text: string;
     tip: string;
     group: "g1" | "g2" | "g3";
+    priority: "high" | "medium" | "low";
+    ingredients?: string[];
 }
 
 interface Context {
@@ -39,8 +52,9 @@ function evaluateTrigger(ctx: Context, trigger: Record<string, TriggerCondition>
         } else if (typeof cond === "object" && cond !== null) {
             const numVal = val as number;
             if (numVal === null || numVal === undefined) return false;
-            if (cond.gte !== undefined && numVal < cond.gte) return false;
-            if (cond.lte !== undefined && numVal > cond.lte) return false;
+            const triggerObj = cond as { gte?: number; lte?: number };
+            if (triggerObj.gte !== undefined && numVal < triggerObj.gte) return false;
+            if (triggerObj.lte !== undefined && numVal > triggerObj.lte) return false;
         }
     }
     return true;
@@ -50,48 +64,59 @@ function getActiveAdvice(ctx: Context): AdviceItem[] {
     const results: AdviceItem[] = [];
     const skinType = ctx.skinType as "dry" | "oily" | "combo" | "normal";
 
-    // G3 en priorité (scénarios combinés)
-    for (const scenario of skincareMatrix.groups.g3.scenarios) {
-        if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
-            const spec = scenario.advice[skinType];
-            if (spec) {
-                results.push({ iconStr: scenario.icon, title: spec.title, text: spec.body, tip: spec.tip, group: "g3" });
+    const processGroup = (groupKey: "g1" | "g2" | "g3", priority: "high" | "medium" | "low") => {
+        // @ts-ignore
+        for (const scenario of skincareMatrix.groups[groupKey].scenarios) {
+            if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
+                // @ts-ignore
+                const spec = scenario.advice[skinType] as { title: string; body: string; tip: string; ingredients?: string[] };
+                if (spec) {
+                    results.push({
+                        iconStr: scenario.icon,
+                        title: spec.title,
+                        text: spec.body,
+                        tip: spec.tip,
+                        group: groupKey,
+                        priority: groupKey === "g3" ? "high" : (groupKey === "g1" ? "medium" : "low"),
+                        ingredients: spec.ingredients || []
+                    });
+                }
             }
         }
-    }
+    };
 
-    // G1 — facteurs auto-détectés (API météo / qualité air)
-    for (const scenario of skincareMatrix.groups.g1.scenarios) {
-        if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
-            const spec = scenario.advice[skinType];
-            if (spec) {
-                results.push({ iconStr: scenario.icon, title: spec.title, text: spec.body, tip: spec.tip, group: "g1" });
-            }
-        }
-    }
+    processGroup("g3", "high");
+    processGroup("g1", "medium");
+    processGroup("g2", "low");
 
-    // G2 — facteurs déclarés par l'utilisatrice
-    for (const scenario of skincareMatrix.groups.g2.scenarios) {
-        if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
-            const spec = scenario.advice[skinType];
-            if (spec) {
-                results.push({ iconStr: scenario.icon, title: spec.title, text: spec.body, tip: spec.tip, group: "g3" });
-            }
-        }
-    }
-
-    return results;
+    return results.sort((a, b) => {
+        const order = { high: 0, medium: 1, low: 2 };
+        return order[a.priority] - order[b.priority];
+    }).slice(0, 5);
 }
 
-// ─── Mapping type de peau UI → clé JSON ─────────────────────
 const SKIN_TYPE_MAP: Record<string, string> = {
+    "Sensible": "dry",
     "Sèche": "dry",
     "Grasse": "oily",
     "Mixte": "combo",
     "Normale": "normal",
 };
 
-// ─── Composant principal ─────────────────────────────────────
+const cyclePhases = ["Je ne sais pas", "Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"];
+const workoutIntensities = ["Non", "Léger", "Modéré", "Intense"];
+const STRESS_LABELS = ["", "Zen", "Calme", "Modéré", "Élevé", "Extrême"];
+
+const FactorButton = ({ icon, label, value, onClick }: { icon: React.ReactNode, label: string, value: string | number, onClick: () => void }) => (
+    <button onClick={onClick} className="flex flex-col items-center gap-1.5 hover:bg-accent/50 rounded-2xl p-3 transition-all border border-transparent hover:border-primary/20">
+        <div className="p-2 rounded-xl bg-muted/50 text-primary">
+            {icon}
+        </div>
+        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</span>
+        <span className="text-sm font-bold text-foreground">{value}</span>
+    </button>
+);
+
 const CheckinAdvice = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -99,9 +124,209 @@ const CheckinAdvice = () => {
     const firstName = location.state?.firstName || "";
 
     const [isSuccessStep, setIsSuccessStep] = useState(isOnboarding);
-    const [adviceList, setAdviceList] = useState<AdviceItem[]>([]);
 
-    // Transition onboarding → conseils
+    // Factors state
+    const [factors, setFactors] = useState(() => {
+        const saved = localStorage.getItem("dailyCheckinData");
+        if (saved) return JSON.parse(saved);
+        return {};
+    });
+
+    const [guest, setGuest] = useState(() => {
+        const saved = localStorage.getItem("guestProfile");
+        if (saved) return JSON.parse(saved);
+        return {};
+    });
+
+    const [editingFactor, setEditingFactor] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState<any>(null);
+    const [locationInput, setLocationInput] = useState("");
+
+    const [dbCheckinDone, setDbCheckinDone] = useState(false);
+
+    const currentHour = new Date().getHours();
+    const greeting = (currentHour >= 5 && currentHour < 16) ? "Bonjour" : "Bonsoir";
+    const factorSectionTitle = (currentHour >= 0 && currentHour < 16)
+        ? "Bilan des dernières 24h"
+        : "Bilan de votre journée";
+
+    const isAllFactorsDone = useMemo(() => {
+        const required = ['sleepHours', 'stressLevel', 'waterStatus', 'alcoholDrinks', 'cyclePhase', 'didSport', 'makeupRemoved', 'foodQuality'];
+        return required.every(key => factors[key] !== undefined && factors[key] !== null && factors[key] !== "");
+    }, [factors]);
+
+    const isCheckinDoneToday = isAllFactorsDone;
+
+    const syncFactorToSupabase = async (key: string, value: any) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const updates: any = {
+            last_checkin_date: todayStr
+        };
+
+        if (key === 'sleep') updates.sleep_hours = value;
+        if (key === 'stress') updates.stress_level = value;
+        if (key === 'water') updates.water_glasses = value === "Trop" ? 12 : (value === "Suffisamment" ? 8 : 4);
+        if (key === 'alcohol') updates.alcohol_drinks = value;
+        if (key === 'cycle') updates.cycle_phase = value;
+        if (key === 'sport') updates.did_sport = value;
+        if (key === 'makeup') updates.makeup_removed = value;
+        if (key === 'alimentation') updates.food_quality = value;
+        if (key === 'location') updates.manual_location = value;
+
+        console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
+        const { error } = await supabase.from("profiles").update(updates).eq("id", session.user.id);
+        if (error) {
+            console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
+            toast.error("Erreur de sauvegarde : Vérifiez la base de données.");
+        } else {
+            console.log(`[CheckinAdvice] Multi-sync successful for ${key}.`);
+        }
+    };
+
+    const [manualLocation, setManualLocationState] = useState<string | null>(() => localStorage.getItem("manualLocation"));
+    const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || factors.location || undefined);
+
+    const setManualLocation = async (loc: string | null) => {
+        setManualLocationState(loc);
+        if (loc) {
+            localStorage.setItem("manualLocation", loc);
+            const newFactors = { ...factors, location: loc };
+            setFactors(newFactors);
+            localStorage.setItem("dailyCheckinData", JSON.stringify(newFactors));
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.from("profiles").update({ manual_location: loc }).eq("id", session.user.id);
+            }
+        } else {
+            localStorage.removeItem("manualLocation");
+        }
+    };
+
+    // Update factors when live weather arrives
+    useEffect(() => {
+        if (!weatherLoading && liveWeather.locationName !== "...") {
+            setFactors(f => ({
+                ...f,
+                weather: liveWeather,
+                location: liveWeather.locationName || f.location
+            }));
+            localStorage.setItem("dailyCheckinData", JSON.stringify({
+                ...factors,
+                weather: liveWeather,
+                location: liveWeather.locationName || factors.location
+            }));
+        }
+    }, [liveWeather, weatherLoading]);
+
+    // Score calculations
+    const skinScore = useMemo(() => {
+        // Mock score logic based on factors if no diag exists
+        let score = 75;
+        if (factors.sleepHours < 7) score -= 5;
+        if (factors.stressLevel > 3) score -= 5;
+        if (factors.alcoholDrinks > 1) score -= 5;
+        if (factors.waterStatus === "Pas assez") score -= 5;
+        if (factors.weather?.uv > 6) score -= 2;
+        return Math.max(0, Math.min(100, score));
+    }, [factors]);
+
+    const adviceList = useMemo(() => {
+        if (!isCheckinDoneToday) return [];
+        if (!factors.weather) return [];
+        const skinType = SKIN_TYPE_MAP[guest.skin_type] ?? "normal";
+        const ctx: Context = {
+            skinType,
+            uvIndex: factors.weather?.uv ?? 0,
+            tempC: factors.weather?.temp ?? 20,
+            humidity: factors.weather?.humidity ?? 50,
+            aqi: factors.weather?.aqiScore ?? 25,
+            sleepHours: factors.sleepHours ?? 8,
+            stressLevel: factors.stressLevel ?? 1,
+            alcoholLastNight: factors.alcoholDrinks ?? 0,
+            removedMakeupLastNight: factors.makeupRemoved ?? true,
+            didSportToday: factors.didSport ?? ((factors.workoutMinutes ?? 0) > 0),
+            cycleDay: factors.cyclePhase === "Menstruel" ? 2 : (factors.cyclePhase === "Je ne sais pas" || factors.cyclePhase === "Folliculaire" ? null : (factors.cyclePhase === "Lutéal" ? 20 : null))
+        };
+        const advice = getActiveAdvice(ctx);
+        if (advice.length === 0) {
+            advice.push({
+                iconStr: "✨",
+                title: "Tout va bien",
+                text: "Vos indicateurs sont au vert ! Maintenez votre belle routine actuelle.",
+                tip: "Continuez de bien hydrater votre peau chaque matin.",
+                group: "g1",
+                priority: "low"
+            });
+        }
+        return advice;
+    }, [factors, guest]);
+
+    useEffect(() => {
+        const fetchCheckinStatus = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (profile) {
+                    const profileData = profile as any;
+                    setGuest(profileData);
+
+                    // Sync location
+                    if (profileData.manual_location) {
+                        setManualLocationState(profileData.manual_location);
+                        localStorage.setItem("manualLocation", profileData.manual_location);
+                    }
+
+                    // Simple check: if last_checkin_date is today
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const isToday = profileData.last_checkin_date === todayStr;
+
+                    console.log("[CheckinAdvice] Profile loaded:", {
+                        last_checkin_date: profileData.last_checkin_date,
+                        todayStr,
+                        isToday
+                    });
+
+                    if (isToday) {
+                        setDbCheckinDone(true);
+                        localStorage.setItem("lastCheckinDate", todayStr);
+
+                        // Sync factors from DB
+                        setFactors((f: any) => ({
+                            ...f,
+                            sleepHours: profileData.sleep_hours,
+                            stressLevel: profileData.stress_level,
+                            waterStatus: profileData.water_glasses === 12 ? "Trop" : (profileData.water_glasses === 8 ? "Suffisamment" : (profileData.water_glasses === 4 ? "Pas assez" : profileData.water_glasses)),
+                            alcoholDrinks: profileData.alcohol_drinks,
+                            cyclePhase: profileData.cycle_phase,
+                            didSport: profileData.did_sport,
+                            makeupRemoved: profileData.makeup_removed,
+                            foodQuality: profileData.food_quality,
+                            location: profileData.manual_location || f.location
+                        }));
+                    } else {
+                        console.log("[CheckinAdvice] New day detected or no data today. Resetting factors.");
+                        // Reset for new day
+                        setDbCheckinDone(false);
+                        localStorage.removeItem("lastCheckinDate");
+                        localStorage.removeItem("dailyCheckinData");
+                        setFactors({});
+                    }
+                }
+            }
+        };
+
+        fetchCheckinStatus();
+    }, []);
+
     useEffect(() => {
         if (isSuccessStep) {
             const timer = setTimeout(() => setIsSuccessStep(false), 3000);
@@ -109,159 +334,470 @@ const CheckinAdvice = () => {
         }
     }, [isSuccessStep]);
 
-    // Calcul des conseils depuis les données du check-in
-    useEffect(() => {
-        const dataStr = localStorage.getItem("dailyCheckinData");
-        const guestStr = localStorage.getItem("guestProfile");
-        if (!dataStr) return;
+    const saveEdit = async () => {
+        if (!editingFactor) return;
 
-        try {
-            const data = JSON.parse(dataStr);
-            const guest = guestStr ? JSON.parse(guestStr) : {};
-
-            const skinType = SKIN_TYPE_MAP[guest.skin_type] ?? "normal";
-
-            const ctx: Context = {
-                skinType,
-                uvIndex: data.weather?.uv ?? 0,
-                tempC: data.weather?.temp ?? 20,
-                humidity: data.weather?.humidity ?? 50,
-                aqi: data.weather?.aqiScore ?? 25,
-                sleepHours: data.sleepHours ?? 8,
-                stressLevel: data.stressLevel ?? 1,
-                alcoholLastNight: data.alcoholDrinks ?? 0,
-                removedMakeupLastNight: data.makeupRemoved ?? true,
-                didSportToday: data.didSport ?? ((data.workoutMinutes ?? 0) > 0),
-                cycleDay: data.cyclePhase === "Menstruel" ? 2 : null,
-            };
-
-            console.log("✅ Skin Matrix Context:", ctx);
-
-            const advice = getActiveAdvice(ctx);
-
-            if (advice.length === 0) {
-                advice.push({
-                    iconStr: "✨",
-                    title: "Tout va bien",
-                    text: "Vos indicateurs sont au vert ! Maintenez votre belle routine actuelle.",
-                    tip: "Continuez de bien hydrater votre peau chaque matin.",
-                    group: "g1",
-                });
-            }
-
-            setAdviceList(advice);
-        } catch (e) {
-            console.error("Erreur parsing check-in data", e);
+        const newFactors = { ...factors };
+        if (editingFactor === 'location') setManualLocation(locationInput);
+        if (editingFactor === 'sleep') newFactors.sleepHours = editValue;
+        if (editingFactor === 'stress') newFactors.stressLevel = editValue;
+        if (editingFactor === 'water') newFactors.waterStatus = editValue;
+        if (editingFactor === 'alcohol') {
+            newFactors.hasAlcohol = editValue > 0;
+            newFactors.alcoholDrinks = editValue;
         }
-    }, []);
+        if (editingFactor === 'cycle') newFactors.cyclePhase = editValue;
+        if (editingFactor === 'sport') newFactors.didSport = editValue;
+        if (editingFactor === 'makeup') newFactors.makeupRemoved = editValue;
+        if (editingFactor === 'alimentation') newFactors.foodQuality = editValue;
 
-    // ── Écran de chargement (onboarding) ──
+        setFactors(newFactors);
+        localStorage.setItem("dailyCheckinData", JSON.stringify(newFactors));
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        localStorage.setItem("lastCheckinDate", todayStr);
+        setDbCheckinDone(true);
+
+        // Sync with Supabase
+        syncFactorToSupabase(editingFactor, editValue);
+        setEditingFactor(null);
+    };
+
     if (isSuccessStep) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
                 <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/2" />
-                <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                    className="bg-card p-8 rounded-3xl shadow-card z-10 flex flex-col items-center text-center max-w-sm w-full"
-                >
+                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card p-8 rounded-3xl shadow-card z-10 flex flex-col items-center text-center max-w-sm w-full">
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
                         <CheckCircle2 size={40} className="text-primary" />
                     </div>
                     <h2 className="text-2xl font-display font-bold text-foreground mb-2">Analyse en cours...</h2>
-                    <p className="text-muted-foreground text-sm">
-                        Merci {firstName}.<br />Vos conseils sont en cours de préparation.
-                    </p>
+                    <p className="text-muted-foreground text-sm">Merci {firstName}.<br />Vos conseils personnalisés sont prêts.</p>
                     <div className="mt-8 relative w-full h-1 bg-muted rounded-full overflow-hidden">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: "100%" }}
-                            transition={{ duration: 2.2, ease: "linear" }}
-                            className="absolute top-0 left-0 bottom-0 bg-primary"
-                        />
+                        <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 2.2 }} className="absolute bg-primary h-full" />
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-3">Génération des conseils...</p>
                 </motion.div>
             </div>
         );
     }
 
-    // ── Écran des conseils ──
     return (
-        <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/3" />
+        <div className="min-h-screen bg-background flex flex-col p-6 pb-32 max-w-lg mx-auto overflow-x-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-            {/* Header */}
-            <div className="p-6 relative z-10 flex items-center justify-between">
-                <motion.button
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    onClick={() => navigate(-1)}
-                    className="w-10 h-10 flex items-center justify-center bg-muted/50 rounded-full"
-                >
-                    <ArrowLeft size={20} className="text-foreground" />
-                </motion.button>
-            </div>
-
-            <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex-1 flex flex-col p-6 z-10 max-w-md mx-auto w-full pb-32"
-            >
-                <div className="mb-6">
-                    <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">
-                        Vos Conseils du Jour
-                    </h1>
-                    <p className="text-muted-foreground text-sm">Basés sur vos réponses d'aujourd'hui</p>
+            <header className="flex items-center justify-between mb-8 z-10">
+                <button onClick={() => navigate("/dashboard")} className="p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors">
+                    <ArrowLeft size={20} />
+                </button>
+                <div className="text-center">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Conseils & Facteurs</p>
+                    <h1 className="text-xl font-display font-bold">{greeting} {guest.first_name || firstName}</h1>
                 </div>
+                <div className="w-10" /> {/* Spacer */}
+            </header>
 
-                {/* Cartes de conseils */}
-                <div className="space-y-4 flex-1">
-                    {adviceList.map((advice, idx) => {
-                        return (
+
+
+            {/* Advice Section */}
+            <section className="mb-10">
+                <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
+                    <Lightbulb size={20} className="text-primary" /> Conseils du jour
+                </h2>
+                <div className="space-y-4">
+                    {!isCheckinDoneToday && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="p-6 bg-primary/5 border border-primary/10 rounded-[2.5rem] flex flex-col items-center gap-3 text-center"
+                        >
+                            <div className="p-3 bg-primary/10 rounded-full">
+                                <Droplets size={24} className="text-primary" />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-sm font-bold">Check-in du jour manquant</p>
+                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                    Complétez vos facteurs de vie ci-dessous pour débloquer vos conseils personnalisés.
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+                    <AnimatePresence mode="popLayout">
+                        {adviceList.map((advice, idx) => (
                             <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                key={advice.title}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className="bg-card p-5 rounded-3xl shadow-sm border border-border/50"
+                                className={`p-5 rounded-3xl shadow-card border border-border/40 ${advice.priority === "high" ? 'bg-primary/5 border-primary/20' : 'bg-card'}`}
                             >
-
                                 <div className="flex gap-4">
-                                    {/* Icône */}
-                                    <div className="flex-shrink-0 text-3xl leading-none pt-0.5">
-                                        {advice.iconStr}
-                                    </div>
+                                    <div className="text-3xl flex-shrink-0">{advice.iconStr}</div>
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-base mb-1">{advice.title}</h3>
+                                        <p className="text-sm text-muted-foreground leading-relaxed mb-3">{advice.text}</p>
 
-                                    <div className="flex-1 min-w-0">
-                                        {/* Titre */}
-                                        <h3 className="font-semibold text-foreground mb-1 leading-snug">
-                                            {advice.title}
-                                        </h3>
+                                        {advice.ingredients && advice.ingredients.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                                {advice.ingredients.map(ing => (
+                                                    <span key={ing} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                                                        {ing}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
 
-                                        {/* Corps du conseil */}
-                                        <p className="text-sm text-muted-foreground leading-relaxed">
-                                            {advice.text}
-                                        </p>
-
-                                        {/* Tip */}
                                         {advice.tip && (
-                                            <div className="mt-3 bg-primary/5 p-3 rounded-xl border border-primary/20">
-                                                <p className="text-xs text-foreground font-medium flex gap-2 items-start">
-                                                    <Info size={14} className="text-primary flex-shrink-0 mt-0.5" />
-                                                    {advice.tip}
-                                                </p>
+                                            <div className="flex gap-2 p-3 rounded-2xl bg-muted/30 border border-border/50">
+                                                <Info size={14} className="text-primary shrink-0 mt-0.5" />
+                                                <p className="text-[11px] font-medium leading-normal">{advice.tip}</p>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </motion.div>
-                        );
-                    })}
+                        ))}
+                    </AnimatePresence>
                 </div>
-            </motion.div>
-        </div>
+            </section>
+
+            {/* Environment Grid */}
+            <section className="mb-10">
+                <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
+                    <CloudSun size={20} className="text-primary" /> Paramètres du jour
+                </h2>
+                <div className="bg-card rounded-[2.5rem] p-5 shadow-card border border-border/40">
+                    {/* Location row */}
+                    <button onClick={() => { setEditingFactor('location'); setEditValue(factors.location || "Paris"); setLocationInput(factors.location || "Paris"); }} className="text-left w-full focus:outline-none">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/60 hover:bg-accent/50 rounded-2xl p-2 transition-colors">
+                            <MapPin size={18} className="text-primary" />
+                            <div>
+                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Localisation</p>
+                                <div className="flex items-center gap-1">
+                                    <p className="text-sm font-bold text-foreground">{factors.location || "Paris"}</p>
+                                    <Pencil size={12} className="text-muted-foreground/30" />
+                                </div>
+                            </div>
+                            <span className="ml-auto flex items-center gap-1 text-[10px] text-primary/60 font-bold uppercase tracking-tighter">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                En direct
+                            </span>
+                        </div>
+                    </button>
+
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                        {[
+                            { id: "temp", icon: <Thermometer size={18} className="text-skin-redness" />, val: `${factors.weather?.temp ?? 20}°C`, sub: "Temp" },
+                            { id: "humidity", icon: <Droplets size={18} className="text-skin-hydration" />, val: `${factors.weather?.humidity ?? 50}%`, sub: "Humidité" },
+                            { id: "uv", icon: <Sun size={18} className="text-skin-glow" />, val: factors.weather?.uv ?? 0, sub: "UV" },
+                            { id: "air", icon: <CloudSun size={18} className="text-muted-foreground" />, val: factors.weather?.pollution ?? "Bon", sub: "Air" }
+                        ].map((item) => (
+                            <div key={item.id} className="flex flex-col items-center gap-1.5 p-1">
+                                <div className="p-2 rounded-xl bg-muted/30 text-primary/80">
+                                    {item.icon}
+                                </div>
+                                <span className="text-sm font-bold text-foreground leading-tight">{item.val}</span>
+                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">{item.sub}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Lifestyle Grid */}
+            <section className="bg-card rounded-2xl p-6 shadow-card mb-4 border border-border/40">
+                <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Pencil size={18} className="text-primary" />
+                        <h3 className="text-lg font-display font-bold text-foreground">
+                            {isCheckinDoneToday ? factorSectionTitle : "Mes facteurs de vie"}
+                        </h3>
+                    </div>
+                    {!isCheckinDoneToday && (
+                        <p className="text-xs text-muted-foreground leading-relaxed italic">
+                            Prenez un moment pour renseigner vos habitudes récentes.
+                        </p>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    {/* Cycle */}
+                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group relative">
+                        <Calendar size={16} className={`text-rose-400 ${isCheckinDoneToday ? '' : 'grayscale opacity-50'}`} />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Cycle</p>
+                            <select
+                                value={factors.cyclePhase || ""}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFactors(f => ({ ...f, cyclePhase: val }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, cyclePhase: val }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('cycle', val);
+                                }}
+                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                            >
+                                <option value="" disabled>N/A</option>
+                                {cyclePhases.map((p) => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Stress */}
+                    <button onClick={() => { setEditingFactor('stress'); setEditValue(factors.stressLevel ?? 3); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                        <Heart size={16} className="text-skin-redness" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Stress</p>
+                            <div className="flex items-center gap-1">
+                                <p className="text-sm font-semibold text-foreground truncate">
+                                    {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5` : "N/A"}
+                                </p>
+                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Eau */}
+                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
+                        <Droplets size={16} className="text-skin-hydration" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Consommation d'eau</p>
+                            <select
+                                value={factors.waterStatus || ""}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFactors(f => ({ ...f, waterStatus: val }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, waterStatus: val }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('water', val);
+                                }}
+                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                            >
+                                <option value="" disabled>N/A</option>
+                                <option value="Pas assez">🏜️ Pas assez</option>
+                                <option value="Suffisamment">💧 Suffisamment</option>
+                                <option value="Trop">🌊 Trop</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Sommeil */}
+                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                        <Moon size={16} className="text-skin-texture" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Sommeil</p>
+                            <div className="flex items-center gap-1">
+                                <p className="text-sm font-semibold text-foreground">
+                                    {factors.sleepHours !== undefined && factors.sleepHours !== null ? `${factors.sleepHours}h` : "N/A"}
+                                </p>
+                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Alcool */}
+                    <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
+                        <Wine size={16} className="text-skin-oil" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Alcool</p>
+                            <div className="flex items-center gap-1">
+                                <p className={`text-sm font-semibold transition-colors ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null && factors.alcoholDrinks > 0 ? 'text-foreground' : 'text-primary'}`}>
+                                    {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `Oui (${factors.alcoholDrinks} v.)` : "Non") : "N/A"}
+                                </p>
+                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Sport */}
+                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                        <Dumbbell size={16} className="text-primary" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Sport</p>
+                            <select
+                                value={factors.didSport === undefined || factors.didSport === null ? "" : (factors.didSport ? "Modéré" : "Non")}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const didSport = val !== "Non" && val !== "";
+                                    setFactors(f => ({ ...f, didSport }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, didSport }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('sport', didSport);
+                                }}
+                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                            >
+                                <option value="" disabled>N/A</option>
+                                {workoutIntensities.map((i) => <option key={i} value={i}>{i}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                        <Sparkles size={16} className={`text-skin-glow ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? '' : 'grayscale opacity-50'}`} />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Nettoyage</p>
+                            <div className="flex items-center gap-1">
+                                <p className={`text-sm font-semibold transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (factors.makeupRemoved ? 'text-primary' : 'text-foreground') : 'text-muted-foreground'}`}>
+                                    {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (factors.makeupRemoved ? "Fait" : "Pas fait") : "N/A"}
+                                </p>
+                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Alimentation */}
+                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
+                        <Salad size={16} className={`text-orange-400 ${factors.foodQuality ? '' : 'grayscale opacity-50'}`} />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Alimentation</p>
+                            <select
+                                value={factors.foodQuality || ""}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFactors(f => ({ ...f, foodQuality: val }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, foodQuality: val }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('alimentation', val);
+                                }}
+                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                            >
+                                <option value="" disabled>N/A</option>
+                                <option value="bien">Saine</option>
+                                <option value="moyen">Moyenne</option>
+                                <option value="mauvais">Lourde / Sucrée</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Edit Dialog */}
+            < Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
+                <DialogContent className="max-w-sm rounded-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Modifier le facteur</DialogTitle>
+                        <DialogDescription>Ajustez vos données pour voir l'impact sur vos conseils.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-6">
+                        {editingFactor === 'location' && (
+                            <div className="space-y-4">
+                                <p className="text-sm font-bold">Entrez votre ville :</p>
+                                <Input
+                                    value={locationInput}
+                                    onChange={(e) => setLocationInput(e.target.value)}
+                                    placeholder="Ex: Paris"
+                                    className="rounded-2xl"
+                                />
+                            </div>
+                        )}
+                        {editingFactor === 'sleep' && (
+                            <div className="space-y-4">
+                                <label className="text-sm font-bold">Heures de sommeil : {editValue}h</label>
+                                <input type="range" min="0" max="15" step="0.5" value={editValue} onChange={(e) => setEditValue(parseFloat(e.target.value))} className="w-full h-2 bg-muted rounded-full appearance-none accent-primary" />
+                            </div>
+                        )}
+                        {editingFactor === 'stress' && (
+                            <div className="space-y-6">
+                                <div className="flex flex-col items-center gap-2 py-4">
+                                    <span className="text-4xl font-bold text-primary">{editValue}</span>
+                                    <span className="text-lg font-semibold text-foreground">{STRESS_LABELS[editValue]}</span>
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {[1, 2, 3, 4, 5].map(v => (
+                                        <button key={v} onClick={() => setEditValue(v)} className={`py-4 rounded-2xl border transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>
+                                            {v}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex justify-between px-1">
+                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Zen</span>
+                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Extrême</span>
+                                </div>
+                            </div>
+                        )}
+                        {editingFactor === 'cycle' && (
+                            <div className="flex flex-col gap-3">
+                                {["Je ne sais pas", "Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"].map(v => (
+                                    <button key={v} onClick={() => setEditValue(v)} className={`py-4 px-6 rounded-2xl border text-left font-bold transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>
+                                        {v}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {editingFactor === 'alcohol' && (
+                            <div className="space-y-6">
+                                <div className="flex gap-2">
+                                    <button onClick={() => setEditValue(editValue > 0 ? editValue : 1)} className={`flex-1 py-4 rounded-2xl border font-bold transition-all ${editValue > 0 ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border'}`}>Oui</button>
+                                    <button onClick={() => setEditValue(0)} className={`flex-1 py-4 rounded-2xl border font-bold transition-all ${editValue === 0 ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border'}`}>Non</button>
+                                </div>
+                                {editValue > 0 && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex justify-between items-end">
+                                            <label className="text-sm font-bold">Nombre de verres</label>
+                                            <span className="text-2xl font-bold text-primary">{editValue}</span>
+                                        </div>
+                                        <input type="range" min="1" max="10" step="1" value={editValue} onChange={(e) => setEditValue(parseInt(e.target.value))} className="w-full h-2 bg-muted rounded-full appearance-none accent-primary" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {editingFactor === 'bpm' && (
+                            <div className="space-y-4">
+                                <label className="text-sm font-bold">Rythme Cardiaque : {editValue} bpm</label>
+                                <input type="range" min="40" max="180" step="1" value={editValue} onChange={(e) => setEditValue(parseInt(e.target.value))} className="w-full h-2 bg-muted rounded-full appearance-none accent-primary" />
+                            </div>
+                        )}
+                        {editingFactor === 'sport' && (
+                            <div className="flex gap-2">
+                                <button onClick={() => setEditValue(true)} className={`flex-1 py-4 rounded-2xl border ${editValue === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border'}`}>Oui</button>
+                                <button onClick={() => setEditValue(false)} className={`flex-1 py-4 rounded-2xl border ${editValue === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border'}`}>Non</button>
+                            </div>
+                        )}
+                        {editingFactor === 'makeup' && (
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                    Nous parlons ici d'un double nettoyage : démaquillage suivi d'un nettoyage doux du visage.
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={() => setEditValue(true)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>Nettoyage fait</button>
+                                    <button onClick={() => setEditValue(false)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>Pas fait</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <button onClick={saveEdit} className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-sm">
+                        Enregistrer les modifications
+                    </button>
+                </DialogContent>
+            </Dialog >
+
+            <div className="mt-12 mb-8 flex flex-col items-center gap-4">
+                <button
+                    onClick={() => navigate("/rgpd")}
+                    className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 uppercase tracking-widest font-bold"
+                >
+                    <ShieldCheck size={12} /> Confidentialité & RGPD
+                </button>
+
+                <button
+                    onClick={async () => {
+                        await supabase.auth.signOut();
+                        localStorage.removeItem("guestProfile");
+                        localStorage.removeItem("lastCheckinDate");
+                        localStorage.removeItem("dailyCheckinData");
+                        localStorage.removeItem("manualLocation");
+                        navigate("/onboarding");
+                        toast.success("Déconnexion réussie");
+                    }}
+                    className="text-[10px] text-red-500/70 hover:text-red-500 transition-colors flex items-center gap-1 uppercase tracking-widest font-bold"
+                >
+                    <LogOut size={12} /> Se déconnecter
+                </button>
+            </div>
+        </div >
     );
 };
 

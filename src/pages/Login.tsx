@@ -29,7 +29,19 @@ const Login = () => {
         }
 
         toast.success("Bon retour parmi nous !");
-        navigate("/checkin");
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+            const profile = data as any;
+            if (profile && profile.skin_goals && (profile.skin_goals as any).length > 0) {
+                navigate("/checkin-advice");
+            } else {
+                navigate("/signup");
+            }
+        } else {
+            navigate("/checkin-advice");
+        }
     };
 
     return (

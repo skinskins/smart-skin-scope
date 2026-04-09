@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, HeartPulse, Activity, Moon, Droplets, GlassWater, Flame, Coffee, Check, X, MapPin, Pencil, Thermometer, CloudSun, Sun, Sparkles, Dumbbell } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, ArrowRight, HeartPulse, Moon, Droplets, GlassWater, Flame, Check, X, MapPin, Pencil, Thermometer, CloudSun, Sun, Sparkles, Dumbbell, Salad, Waves } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { useWeatherData } from "@/hooks/useWeatherData";
 
 export const defaultDailyLog = {
-    heartRate: 72,
     stressLevel: 3,
     sleepHours: 7.5,
     cyclePhase: "Folliculaire",
@@ -26,8 +25,8 @@ const DailyCheckin = () => {
     const location = useLocation();
     const isOnboarding = location.state?.isOnboarding;
     const [data, setData] = useState({
-        heartRate: 70,
-        waterGlasses: 5,
+        waterStatus: "Suffisamment" as "Pas assez" | "Suffisamment" | "Trop",
+        hasAlcohol: false,
         alcoholDrinks: 0,
         sleepHours: 7,
         cyclePhase: "Folliculaire",
@@ -58,12 +57,31 @@ const DailyCheckin = () => {
         }
     }, [liveWeather, weatherLoading]);
 
+    // Check if already checked in today unless it's the first onboarding checkin
+    useEffect(() => {
+        const lastCheckin = localStorage.getItem("lastCheckinDate");
+        const today = new Date().toISOString().split('T')[0];
+
+        if (lastCheckin === today && !isOnboarding) {
+            navigate("/checkin-advice", { replace: true });
+        }
+    }, [isOnboarding, navigate]);
+
     const handleSave = async () => {
+        // Mapping for backward compatibility or database expectations
+        const mappedWaterGlasses = data.waterStatus === "Pas assez" ? 4 : data.waterStatus === "Suffisamment" ? 8 : 12;
+        const finalAlcoholDrinks = data.hasAlcohol ? data.alcoholDrinks : 0;
+
         // Cache local immédiat
-        const payload = { ...data, makeupRemoved };
+        const payload = {
+            ...data,
+            waterGlasses: mappedWaterGlasses,
+            alcoholDrinks: finalAlcoholDrinks,
+            makeupRemoved
+        };
         localStorage.setItem("dailyCheckinData", JSON.stringify(payload));
         localStorage.setItem("manualUpdates", JSON.stringify({
-            heartStress: Date.now(),
+            stress: Date.now(),
             sleep: Date.now(),
             cycle: Date.now(),
             water: Date.now(),
@@ -82,7 +100,7 @@ const DailyCheckin = () => {
                     await supabase.from("guest_checkins").insert({
                         guest_id: guestProfile.id,
                         sleep_hours: data.sleepHours,
-                        water_glasses: data.waterGlasses,
+                        water_glasses: mappedWaterGlasses,
                         stress_level: data.stressLevel,
                         cycle_phase: data.cyclePhase,
                         diet_quality: data.foodQuality,
@@ -98,10 +116,9 @@ const DailyCheckin = () => {
                 if (sessionData?.session) {
                     // @ts-ignore
                     await supabase.from("profiles").update({
-                        heart_rate: data.heartRate,
                         sleep_hours: data.sleepHours,
-                        water_glasses: data.waterGlasses,
-                        alcohol_drinks: data.alcoholDrinks,
+                        water_glasses: mappedWaterGlasses,
+                        alcohol_drinks: finalAlcoholDrinks,
                         cycle_phase: data.cyclePhase,
                         stress_level: data.stressLevel,
                         food_quality: data.foodQuality,
@@ -110,6 +127,9 @@ const DailyCheckin = () => {
                     }).eq("id", sessionData.session.user.id);
                 }
             }
+
+            // Mark as checked in today
+            localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
         } catch (e) {
             console.error("Erreur d'enregistrement réseau", e);
         }
@@ -121,14 +141,9 @@ const DailyCheckin = () => {
         }
     };
 
-    const handleSkip = () => {
-        // Keep it empty so Dashboard uses fallback
-        if (isOnboarding) {
-            navigate("/setup-routine");
-        } else {
-            navigate("/");
-        }
-    };
+    const hour = new Date().getHours();
+    const isMorning = hour >= 5 && hour < 16;
+    const timeRef = isMorning ? "ces dernières 24 heures" : "votre journée passée";
 
     return (
         <div className="min-h-screen bg-background flex flex-col relative overflow-hidden pb-32">
@@ -157,7 +172,7 @@ const DailyCheckin = () => {
             >
                 <div className="mb-6">
                     <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Check-in Quotidien</h1>
-                    <p className="text-muted-foreground text-sm">Comment vous sentez-vous aujourd'hui ?</p>
+                    <p className="text-muted-foreground text-sm">Comment s'est passée {timeRef} ?</p>
                 </div>
 
                 <div className="space-y-8 flex-1">
@@ -194,20 +209,6 @@ const DailyCheckin = () => {
                                     </button>
                                 </div>
                             )}
-                            <div className="grid grid-cols-4 gap-3 text-center text-xs">
-                                {[
-                                    { id: "temp", icon: <Thermometer size={16} className="text-skin-redness" />, val: `${data.weather.temp}°C`, sub: "Temp" },
-                                    { id: "humidity", icon: <Droplets size={16} className="text-skin-hydration" />, val: `${data.weather.humidity}%`, sub: "Humidité" },
-                                    { id: "uv", icon: <Sun size={16} className="text-skin-glow" />, val: `${data.weather.uv}`, sub: "UV" },
-                                    { id: "air", icon: <CloudSun size={16} className="text-muted-foreground" />, val: data.weather.pollution, sub: "Air" }
-                                ].map((item) => (
-                                    <div key={item.id} className="flex flex-col items-center gap-1 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-                                        {item.icon}
-                                        <span className="font-semibold text-foreground">{item.val}</span>
-                                        <span className="text-muted-foreground mx-[-5px]">{item.sub}</span>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     </motion.section>
 
@@ -233,23 +234,24 @@ const DailyCheckin = () => {
                         </div>
                     </motion.section>
 
-                    {/* Coeur & Stress */}
+                    {/* Stress */}
                     <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-4">
-                        <h2 className="text-lg font-semibold flex items-center gap-2"><HeartPulse className="text-skin-glow" size={20} /> Rythme & Stress</h2>
-                        <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50 space-y-6">
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-sm font-medium">BPM</label>
-                                    <span className="text-sm font-bold text-primary">{data.heartRate} bpm</span>
-                                </div>
-                                <Slider value={[data.heartRate]} min={40} max={180} step={1} onValueChange={(v) => setData({ ...data, heartRate: v[0] })} />
+                        <h2 className="text-lg font-semibold flex items-center gap-2"><HeartPulse className="text-skin-glow" size={20} /> Stress</h2>
+                        <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50 space-y-4">
+                            <div className="grid grid-cols-5 gap-2">
+                                {[1, 2, 3, 4, 5].map(v => (
+                                    <button
+                                        key={v}
+                                        onClick={() => setData({ ...data, stressLevel: v })}
+                                        className={`py-4 rounded-2xl border transition-all ${data.stressLevel === v ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}
+                                    >
+                                        {v}
+                                    </button>
+                                ))}
                             </div>
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-sm font-medium">Niveau de Stress</label>
-                                    <span className="text-sm font-bold text-primary">{data.stressLevel} / 5</span>
-                                </div>
-                                <Slider value={[data.stressLevel]} min={1} max={5} step={1} onValueChange={(v) => setData({ ...data, stressLevel: v[0] })} />
+                            <div className="flex justify-between px-1">
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">Zen</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-bold">Extrême</span>
                             </div>
                         </div>
                     </motion.section>
@@ -268,7 +270,7 @@ const DailyCheckin = () => {
 
                     {/* Cycle */}
                     <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
-                        <h2 className="text-lg font-semibold flex items-center gap-2"><Activity className="text-rose-400" size={20} /> Cycle Menstruel</h2>
+                        <h2 className="text-lg font-semibold flex items-center gap-2"><Waves className="text-rose-400" size={20} /> Cycle Menstruel</h2>
                         <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50">
                             <p className="text-sm font-medium mb-3">Phase actuelle</p>
                             <div className="grid grid-cols-2 gap-2">
@@ -281,13 +283,19 @@ const DailyCheckin = () => {
                                         {p}
                                     </button>
                                 ))}
+                                <button
+                                    onClick={() => setData({ ...data, cyclePhase: "Je ne sais pas" })}
+                                    className={`col-span-2 py-3 px-2 rounded-2xl text-xs font-semibold transition-all border ${data.cyclePhase === "Je ne sais pas" ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}
+                                >
+                                    🤷‍♀️ Je ne sais pas
+                                </button>
                             </div>
                         </div>
                     </motion.section>
 
                     {/* Alimentation & Alcool */}
                     <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="space-y-4">
-                        <h2 className="text-lg font-semibold flex items-center gap-2"><Coffee className="text-orange-400" size={20} /> Alimentation & Alcool</h2>
+                        <h2 className="text-lg font-semibold flex items-center gap-2"><Salad className="text-orange-400" size={20} /> Alimentation & Alcool</h2>
                         <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50 space-y-6">
                             <div>
                                 <p className="text-sm font-medium mb-3">Qualité de l'alimentation (hier)</p>
@@ -304,11 +312,35 @@ const DailyCheckin = () => {
                                 </div>
                             </div>
                             <div className="border-t border-border/50 pt-6">
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-sm font-medium">Verres d'alcool</label>
-                                    <span className="text-sm font-bold text-primary">{data.alcoholDrinks}</span>
+                                <p className="text-sm font-medium mb-3">Consommation d'alcool ({isMorning ? "hier" : "aujourd'hui"})</p>
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => setData({ ...data, hasAlcohol: true })}
+                                        className={`py-3 px-2 rounded-2xl text-sm font-semibold transition-all border ${data.hasAlcohol === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}
+                                    >
+                                        Oui
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setData({ ...data, hasAlcohol: false })}
+                                        className={`py-3 px-2 rounded-2xl text-sm font-semibold transition-all border ${data.hasAlcohol === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}
+                                    >
+                                        Non
+                                    </button>
                                 </div>
-                                <Slider value={[data.alcoholDrinks]} min={0} max={10} step={1} onValueChange={(v) => setData({ ...data, alcoholDrinks: v[0] })} />
+
+                                <AnimatePresence>
+                                    {data.hasAlcohol && (
+                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="pt-2 overflow-hidden">
+                                            <div className="flex justify-between mb-8">
+                                                <label className="text-sm font-medium">Nombre de verres</label>
+                                                <span className="text-sm font-bold text-primary">{data.alcoholDrinks}</span>
+                                            </div>
+                                            <Slider value={[data.alcoholDrinks]} min={1} max={10} step={1} onValueChange={(v) => setData({ ...data, alcoholDrinks: v[0] })} />
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </div>
                     </motion.section>
@@ -316,13 +348,19 @@ const DailyCheckin = () => {
                     {/* Hydratation */}
                     <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="space-y-4">
                         <h2 className="text-lg font-semibold flex items-center gap-2"><Droplets className="text-blue-400" size={20} /> Hydratation</h2>
-                        <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50 space-y-6">
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <label className="text-sm font-medium">Verres d'eau</label>
-                                    <span className="text-sm font-bold text-primary">{data.waterGlasses}</span>
-                                </div>
-                                <Slider value={[data.waterGlasses]} min={0} max={15} step={1} onValueChange={(v) => setData({ ...data, waterGlasses: v[0] })} />
+                        <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50">
+                            <p className="text-sm font-medium mb-3">Comment avez-vous bu {isMorning ? "hier" : "aujourd'hui"} ?</p>
+                            <div className="flex flex-col gap-2">
+                                {["Pas assez", "Suffisamment", "Trop"].map(opt => (
+                                    <button
+                                        key={opt}
+                                        type="button"
+                                        onClick={() => setData({ ...data, waterStatus: opt as any })}
+                                        className={`py-4 px-4 rounded-2xl text-sm font-semibold transition-all border ${data.waterStatus === opt ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}
+                                    >
+                                        {opt === "Pas assez" ? "🏜️ Pas assez suffisement" : opt === "Suffisamment" ? "💧 Suffisamment" : "🌊 Trop"}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </motion.section>
@@ -331,7 +369,7 @@ const DailyCheckin = () => {
                     <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="space-y-4">
                         <h2 className="text-lg font-semibold flex items-center gap-2"><Dumbbell className="text-emerald-500" size={20} /> Activité Physique</h2>
                         <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50">
-                            <p className="text-sm font-medium mb-3">Avez-vous fait du sport aujourd'hui ?</p>
+                            <p className="text-sm font-medium mb-3">Avez-vous fait du sport aujourd'hui, ou prévoyez-vous d'en faire ?</p>
                             <div className="grid grid-cols-2 gap-2 mb-4">
                                 <button
                                     onClick={() => setData({ ...data, didSport: true })}

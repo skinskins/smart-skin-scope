@@ -95,12 +95,12 @@ const Onboarding = () => {
                 </button>
 
                 {/* Login Link */}
-                {/* <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                     Déjà un compte ?{" "}
                     <button onClick={() => navigate("/login")} className="text-primary font-semibold hover:underline">
                         Se connecter
                     </button>
-                </p> */}
+                </p>
             </div>
         </div>
     );

@@ -12,7 +12,7 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/checkin-advice", "/"];
+  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/checkin-advice", "/rgpd", "/"];
   if (hiddenRoutes.includes(location.pathname)) return null;
 
   return (
