@@ -3,7 +3,7 @@ import {
     ArrowLeft, Info, CheckCircle2, FlaskRound, Sun, Droplets, CloudSun, Moon,
     Wine, Dumbbell, Heart, FlaskConical, Pencil, Sparkles, Thermometer, MapPin,
     Stethoscope, Lightbulb, BluetoothOff, Bluetooth, Check, ChevronRight,
-    Salad, Waves, ShieldCheck, LogOut, Calendar
+    Salad, Waves, ShieldCheck, LogOut, Calendar, User, AlertCircle
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
@@ -107,6 +107,10 @@ const cyclePhases = ["Je ne sais pas", "Menstruel", "Folliculaire", "Ovulatoire"
 const workoutIntensities = ["Non", "Léger", "Modéré", "Intense"];
 const STRESS_LABELS = ["", "Zen", "Calme", "Modéré", "Élevé", "Extrême"];
 
+const SKIN_TYPES = ["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"];
+const SKIN_CONCERNS = ["Acné", "Rougeurs", "Taches brunes", "Points noirs", "Déshydratation", "Rides fixes", "Cernes / Poches", "Eczéma", "Rosacée", "Sensibilité extrême"];
+const SKIN_GOALS = ["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Réduire les taches", "Resserrer les pores", "Anti-cernes"];
+
 const FactorButton = ({ icon, label, value, onClick }: { icon: React.ReactNode, label: string, value: string | number, onClick: () => void }) => (
     <button onClick={onClick} className="flex flex-col items-center gap-1.5 hover:bg-accent/50 rounded-2xl p-3 transition-all border border-transparent hover:border-primary/20">
         <div className="p-2 rounded-xl bg-muted/50 text-primary">
@@ -125,11 +129,23 @@ const CheckinAdvice = () => {
 
     const [isSuccessStep, setIsSuccessStep] = useState(isOnboarding);
 
+    // Clear onboarding state from location history so it doesn't reappear on reload
+    useEffect(() => {
+        if (isOnboarding) {
+            navigate(location.pathname, { replace: true, state: { ...location.state, isOnboarding: false } });
+        }
+    }, [isOnboarding, location.pathname, location.state, navigate]);
+
     // Factors state
     const [factors, setFactors] = useState(() => {
         const saved = localStorage.getItem("dailyCheckinData");
-        if (saved) return JSON.parse(saved);
-        return {};
+        const factors = saved ? JSON.parse(saved) : {};
+        // Ensure manualLocation is always present in factors if it exists
+        const manualLocSnippet = localStorage.getItem("manualLocation");
+        if (manualLocSnippet && !factors.location) {
+            factors.location = manualLocSnippet;
+        }
+        return factors;
     });
 
     const [guest, setGuest] = useState(() => {
@@ -139,7 +155,9 @@ const CheckinAdvice = () => {
     });
 
     const [editingFactor, setEditingFactor] = useState<string | null>(null);
+    const [editingProfile, setEditingProfile] = useState<'skin_type' | 'skin_problems' | 'skin_goals' | null>(null);
     const [editValue, setEditValue] = useState<any>(null);
+    const [editProfileValue, setEditProfileValue] = useState<any>(null);
     const [locationInput, setLocationInput] = useState("");
 
     const [dbCheckinDone, setDbCheckinDone] = useState(false);
@@ -174,7 +192,12 @@ const CheckinAdvice = () => {
         if (key === 'sport') updates.did_sport = value;
         if (key === 'makeup') updates.makeup_removed = value;
         if (key === 'alimentation') updates.food_quality = value;
-        if (key === 'location') updates.manual_location = value;
+        if (key === 'location') {
+            updates.manual_location = value;
+            // Also update long-term storage
+            localStorage.setItem("manualLocation", value);
+            setManualLocationState(value);
+        }
 
         console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
         const { error } = await supabase.from("profiles").update(updates).eq("id", session.user.id);
@@ -317,8 +340,32 @@ const CheckinAdvice = () => {
                         // Reset for new day
                         setDbCheckinDone(false);
                         localStorage.removeItem("lastCheckinDate");
-                        localStorage.removeItem("dailyCheckinData");
-                        setFactors({});
+
+                        // User specifically wants to reset: cycle, stress, nettoyage, sommeil, alcool, sport
+                        // We preserve: location (as requested before) and by default we'll also preserve water/food 
+                        // as they weren't in the "reset only these" list.
+                        const loc = profileData.manual_location || manualLocation;
+                        const preservedFactors = {
+                            location: loc,
+                            waterStatus: profileData.water_glasses ? (profileData.water_glasses >= 12 ? "Trop" : (profileData.water_glasses >= 8 ? "Suffisamment" : "Pas assez")) : undefined,
+                            foodQuality: profileData.food_quality || undefined
+                        };
+
+                        setFactors(preservedFactors);
+                        localStorage.setItem("dailyCheckinData", JSON.stringify(preservedFactors));
+
+                        // Also clear the daily columns in Supabase for the new day
+                        supabase.from("profiles").update({
+                            cycle_phase: null,
+                            stress_level: null,
+                            makeup_removed: null,
+                            sleep_hours: null,
+                            alcohol_drinks: null,
+                            did_sport: null,
+                            last_checkin_date: todayStr
+                        }).eq("id", session.user.id).then(({ error }) => {
+                            if (error) console.error("[CheckinAdvice] Error resetting daily fields in DB:", error);
+                        });
                     }
                 }
             }
@@ -338,7 +385,12 @@ const CheckinAdvice = () => {
         if (!editingFactor) return;
 
         const newFactors = { ...factors };
-        if (editingFactor === 'location') setManualLocation(locationInput);
+        let syncValue = editValue;
+
+        if (editingFactor === 'location') {
+            syncValue = locationInput;
+            newFactors.location = locationInput;
+        }
         if (editingFactor === 'sleep') newFactors.sleepHours = editValue;
         if (editingFactor === 'stress') newFactors.stressLevel = editValue;
         if (editingFactor === 'water') newFactors.waterStatus = editValue;
@@ -359,8 +411,29 @@ const CheckinAdvice = () => {
         setDbCheckinDone(true);
 
         // Sync with Supabase
-        syncFactorToSupabase(editingFactor, editValue);
+        syncFactorToSupabase(editingFactor, syncValue);
         setEditingFactor(null);
+    };
+
+    const saveProfileEdit = async () => {
+        if (!editingProfile) return;
+
+        const updates: any = {};
+        if (editingProfile === 'skin_type') updates.skin_type = editProfileValue;
+        if (editingProfile === 'skin_problems') updates.skin_problems = editProfileValue;
+        if (editingProfile === 'skin_goals') updates.skin_goals = editProfileValue;
+
+        // Update local state
+        setGuest((prev: any) => ({ ...prev, ...updates }));
+
+        // Sync with Supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            await supabase.from("profiles").update(updates).eq("id", session.user.id);
+            toast.success("Profil mis à jour !");
+        }
+
+        setEditingProfile(null);
     };
 
     if (isSuccessStep) {
@@ -371,8 +444,8 @@ const CheckinAdvice = () => {
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
                         <CheckCircle2 size={40} className="text-primary" />
                     </div>
-                    <h2 className="text-2xl font-display font-bold text-foreground mb-2">Analyse en cours...</h2>
-                    <p className="text-muted-foreground text-sm">Merci {firstName}.<br />Vos conseils personnalisés sont prêts.</p>
+                    <h2 className="text-2xl font-display font-bold text-foreground mb-2">Votre profil est crée !</h2>
+                    <p className="text-muted-foreground text-sm">Bienvenue sur Nacre</p>
                     <div className="mt-8 relative w-full h-1 bg-muted rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 2.2 }} className="absolute bg-primary h-full" />
                     </div>
@@ -385,18 +458,101 @@ const CheckinAdvice = () => {
         <div className="min-h-screen bg-background flex flex-col p-6 pb-32 max-w-lg mx-auto overflow-x-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
 
-            <header className="flex items-center justify-between mb-8 z-10">
-                <button onClick={() => navigate("/dashboard")} className="p-2.5 rounded-2xl bg-muted/50 hover:bg-muted transition-colors">
-                    <ArrowLeft size={20} />
-                </button>
-                <div className="text-center">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Conseils & Facteurs</p>
-                    <h1 className="text-xl font-display font-bold">{greeting} {guest.first_name || firstName}</h1>
+            {/* Consolidated Identity Header */}
+            <section className="mb-10 relative group/card">
+                <div className="bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-primary/10 rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 opacity-30" />
+
+                    {/* Top Row: Greeting & Logout */}
+                    <div className="flex items-center justify-between mb-5 relative z-10">
+                        <div>
+                            <h2 className="text-2xl font-display font-bold text-foreground">
+                                {greeting}, <span className="text-primary">{guest.first_name || firstName}</span>
+                            </h2>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                await supabase.auth.signOut();
+                                localStorage.removeItem("guestProfile");
+                                localStorage.removeItem("lastCheckinDate");
+                                localStorage.removeItem("dailyCheckinData");
+                                localStorage.removeItem("manualLocation");
+                                navigate("/onboarding");
+                                toast.success("Déconnexion réussie");
+                            }}
+                            className="p-3 bg-white/60 backdrop-blur-md rounded-2xl text-red-400 hover:text-red-500 hover:bg-white transition-all shadow-sm border border-white"
+                        >
+                            <LogOut size={18} />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-primary/5">
+                        {/* Nature de la Peau */}
+                        <div className="relative group/edit flex flex-col justify-center">
+                            <button
+                                onClick={() => { setEditingProfile('skin_type'); setEditProfileValue(guest.skin_type); }}
+                                className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                            >
+                                <Pencil size={10} className="text-primary" />
+                            </button>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 italic">Nature</p>
+                            <p className="text-xl font-display font-bold text-foreground">
+                                {guest.skin_type || "Pure"}
+                            </p>
+                        </div>
+
+                        {/* Focus Section */}
+                        <div className="relative group/edit flex flex-col justify-center border-l md:border-l border-primary/5 pl-6">
+                            <button
+                                onClick={() => { setEditingProfile('skin_problems'); setEditProfileValue(guest.skin_problems); }}
+                                className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                            >
+                                <Pencil size={10} className="text-primary" />
+                            </button>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1">Focus</p>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                                {guest.skin_problems && guest.skin_problems.length > 0 ? (
+                                    <>
+                                        {guest.skin_problems.slice(0, 2).map((prob: string) => (
+                                            <span key={prob} className="text-[9px] font-bold text-foreground/70 bg-white/50 px-2 py-0.5 rounded-lg border border-white/80">
+                                                {prob}
+                                            </span>
+                                        ))}
+                                        {guest.skin_problems.length > 2 && <span className="text-[10px] text-muted-foreground font-bold">...</span>}
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] text-muted-foreground/60 italic font-medium">Non défini</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Objectifs Section */}
+                        <div className="relative group/edit flex flex-col justify-center border-l border-primary/5 pl-6">
+                            <button
+                                onClick={() => { setEditingProfile('skin_goals'); setEditProfileValue(guest.skin_goals); }}
+                                className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                            >
+                                <Pencil size={10} className="text-primary" />
+                            </button>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1">Objectifs</p>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                                {guest.skin_goals && guest.skin_goals.length > 0 ? (
+                                    <>
+                                        {guest.skin_goals.slice(0, 2).map((goal: string) => (
+                                            <span key={goal} className="text-[9px] font-bold text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">
+                                                {goal}
+                                            </span>
+                                        ))}
+                                        {guest.skin_goals.length > 2 && <span className="text-[10px] text-primary font-bold">...</span>}
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] text-muted-foreground/60 italic font-medium">Non défini</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="w-10" /> {/* Spacer */}
-            </header>
-
-
+            </section>
 
             {/* Advice Section */}
             <section className="mb-10">
@@ -418,6 +574,13 @@ const CheckinAdvice = () => {
                                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                                     Complétez vos facteurs de vie ci-dessous pour débloquer vos conseils personnalisés.
                                 </p>
+                                <button
+                                    onClick={() => document.getElementById('lifestyle-factors')?.scrollIntoView({ behavior: 'smooth' })}
+                                    className="mt-2 px-4 py-2 bg-primary text-primary-foreground text-[11px] font-bold rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-2 mx-auto"
+                                >
+                                    Compléter maintenant
+                                    <ChevronRight size={14} />
+                                </button>
                             </div>
                         </motion.div>
                     )}
@@ -462,7 +625,7 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Environment Grid */}
-            <section className="mb-10">
+            <section className="mb-4">
                 <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
                     <CloudSun size={20} className="text-primary" /> Paramètres du jour
                 </h2>
@@ -470,15 +633,17 @@ const CheckinAdvice = () => {
                     {/* Location row */}
                     <button onClick={() => { setEditingFactor('location'); setEditValue(factors.location || "Paris"); setLocationInput(factors.location || "Paris"); }} className="text-left w-full focus:outline-none">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/60 hover:bg-accent/50 rounded-2xl p-2 transition-colors">
-                            <MapPin size={18} className="text-primary" />
+                            <MapPin size={18} className="text-foreground" />
                             <div>
-                                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Localisation</p>
+                                <p className="text-[10px] text-foreground font-bold uppercase tracking-wider">Localisation</p>
                                 <div className="flex items-center gap-1">
-                                    <p className="text-sm font-bold text-foreground">{factors.location || "Paris"}</p>
-                                    <Pencil size={12} className="text-muted-foreground/30" />
+                                    <p className={`text-sm font-bold ${factors.location ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                                        {factors.location || "Paris"}
+                                    </p>
+                                    <Pencil size={12} className="text-foreground/30" />
                                 </div>
                             </div>
-                            <span className="ml-auto flex items-center gap-1 text-[10px] text-primary/60 font-bold uppercase tracking-tighter">
+                            <span className="ml-auto flex items-center gap-1 text-[10px] text-foreground font-bold uppercase tracking-tighter">
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                                 En direct
                             </span>
@@ -490,14 +655,14 @@ const CheckinAdvice = () => {
                             { id: "temp", icon: <Thermometer size={18} className="text-skin-redness" />, val: `${factors.weather?.temp ?? 20}°C`, sub: "Temp" },
                             { id: "humidity", icon: <Droplets size={18} className="text-skin-hydration" />, val: `${factors.weather?.humidity ?? 50}%`, sub: "Humidité" },
                             { id: "uv", icon: <Sun size={18} className="text-skin-glow" />, val: factors.weather?.uv ?? 0, sub: "UV" },
-                            { id: "air", icon: <CloudSun size={18} className="text-muted-foreground" />, val: factors.weather?.pollution ?? "Bon", sub: "Air" }
+                            { id: "air", icon: <CloudSun size={18} className="text-foreground" />, val: factors.weather?.pollution ?? "Bon", sub: "Air" }
                         ].map((item) => (
                             <div key={item.id} className="flex flex-col items-center gap-1.5 p-1">
-                                <div className="p-2 rounded-xl bg-muted/30 text-primary/80">
+                                <div className="p-2 rounded-xl bg-muted/30 text-foreground">
                                     {item.icon}
                                 </div>
                                 <span className="text-sm font-bold text-foreground leading-tight">{item.val}</span>
-                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide">{item.sub}</span>
+                                <span className="text-[10px] text-foreground font-bold uppercase tracking-wide">{item.sub}</span>
                             </div>
                         ))}
                     </div>
@@ -505,17 +670,17 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Lifestyle Grid */}
-            <section className="bg-card rounded-2xl p-6 shadow-card mb-4 border border-border/40">
+            <section id="lifestyle-factors" className="bg-card rounded-2xl p-6 shadow-card mb-4 border border-border/40">
                 <div className="mb-6">
                     <div className="flex items-center gap-2 mb-1">
                         <Pencil size={18} className="text-primary" />
                         <h3 className="text-lg font-display font-bold text-foreground">
-                            {isCheckinDoneToday ? factorSectionTitle : "Mes facteurs de vie"}
+                            {factorSectionTitle}
                         </h3>
                     </div>
                     {!isCheckinDoneToday && (
                         <p className="text-xs text-muted-foreground leading-relaxed italic">
-                            Prenez un moment pour renseigner vos habitudes récentes.
+                            Prenez un moment pour renseigner vos dernières actions.
                         </p>
                     )}
                 </div>
@@ -523,9 +688,9 @@ const CheckinAdvice = () => {
                 <div className="grid grid-cols-2 gap-3">
                     {/* Cycle */}
                     <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group relative">
-                        <Calendar size={16} className={`text-rose-400 ${isCheckinDoneToday ? '' : 'grayscale opacity-50'}`} />
+                        <Calendar size={16} className="text-rose-400" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Cycle</p>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Cycle</p>
                             <select
                                 value={factors.cyclePhase || ""}
                                 onChange={(e) => {
@@ -536,7 +701,7 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('cycle', val);
                                 }}
-                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${!factors.cyclePhase ? 'text-muted-foreground/50' : 'text-foreground'}`}
                             >
                                 <option value="" disabled>N/A</option>
                                 {cyclePhases.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -548,12 +713,39 @@ const CheckinAdvice = () => {
                     <button onClick={() => { setEditingFactor('stress'); setEditValue(factors.stressLevel ?? 3); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
                         <Heart size={16} className="text-skin-redness" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Stress</p>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Stress</p>
                             <div className="flex items-center gap-1">
-                                <p className="text-sm font-semibold text-foreground truncate">
+                                <p className={`text-sm font-semibold truncate ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
                                     {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5` : "N/A"}
                                 </p>
-                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
+                            </div>
+                        </div>
+                    </button>
+
+                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                        <Sparkles size={16} className="text-skin-glow" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Nettoyage</p>
+                            <div className="flex items-center gap-1">
+                                <p className={`text-sm font-semibold transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                                    {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (factors.makeupRemoved ? "Fait" : "Pas fait") : "N/A"}
+                                </p>
+                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
+                            </div>
+                        </div>
+                    </button>
+
+                    {/* Sommeil */}
+                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                        <Moon size={16} className="text-skin-texture" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Sommeil</p>
+                            <div className="flex items-center gap-1">
+                                <p className={`text-sm font-semibold ${factors.sleepHours !== undefined && factors.sleepHours !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                                    {factors.sleepHours !== undefined && factors.sleepHours !== null ? `${factors.sleepHours}h` : "N/A"}
+                                </p>
+                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
                             </div>
                         </div>
                     </button>
@@ -562,7 +754,7 @@ const CheckinAdvice = () => {
                     <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
                         <Droplets size={16} className="text-skin-hydration" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Consommation d'eau</p>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Consommation d'eau</p>
                             <select
                                 value={factors.waterStatus || ""}
                                 onChange={(e) => {
@@ -573,9 +765,9 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('water', val);
                                 }}
-                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${!factors.waterStatus ? 'text-muted-foreground/50' : 'text-foreground'}`}
                             >
-                                <option value="" disabled>N/A</option>
+                                <option value="" disabled className="text-muted-foreground/50">N/A</option>
                                 <option value="Pas assez">🏜️ Pas assez</option>
                                 <option value="Suffisamment">💧 Suffisamment</option>
                                 <option value="Trop">🌊 Trop</option>
@@ -583,39 +775,50 @@ const CheckinAdvice = () => {
                         </div>
                     </div>
 
-                    {/* Sommeil */}
-                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Moon size={16} className="text-skin-texture" />
+                    {/* Alimentation */}
+                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
+                        <Salad size={16} className="text-orange-400" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Sommeil</p>
-                            <div className="flex items-center gap-1">
-                                <p className="text-sm font-semibold text-foreground">
-                                    {factors.sleepHours !== undefined && factors.sleepHours !== null ? `${factors.sleepHours}h` : "N/A"}
-                                </p>
-                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                            </div>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Alimentation</p>
+                            <select
+                                value={factors.foodQuality || ""}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFactors(f => ({ ...f, foodQuality: val }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, foodQuality: val }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('alimentation', val);
+                                }}
+                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${!factors.foodQuality ? 'text-muted-foreground/50' : 'text-foreground'}`}
+                            >
+                                <option value="" disabled>N/A</option>
+                                <option value="bien">Saine</option>
+                                <option value="moyen">Moyenne</option>
+                                <option value="mauvais">Lourde / Sucrée</option>
+                            </select>
                         </div>
-                    </button>
+                    </div>
 
                     {/* Alcool */}
                     <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
                         <Wine size={16} className="text-skin-oil" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Alcool</p>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Alcool</p>
                             <div className="flex items-center gap-1">
-                                <p className={`text-sm font-semibold transition-colors ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null && factors.alcoholDrinks > 0 ? 'text-foreground' : 'text-primary'}`}>
+                                <p className={`text-sm font-semibold ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
                                     {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `Oui (${factors.alcoholDrinks} v.)` : "Non") : "N/A"}
                                 </p>
-                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
                             </div>
                         </div>
                     </button>
 
                     {/* Sport */}
                     <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Dumbbell size={16} className="text-primary" />
+                        <Dumbbell size={16} className="text-foreground" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Sport</p>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Sport</p>
                             <select
                                 value={factors.didSport === undefined || factors.didSport === null ? "" : (factors.didSport ? "Modéré" : "Non")}
                                 onChange={(e) => {
@@ -627,50 +830,14 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('sport', didSport);
                                 }}
-                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
+                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${(factors.didSport === undefined || factors.didSport === null) ? 'text-muted-foreground/50' : 'text-foreground'}`}
                             >
                                 <option value="" disabled>N/A</option>
                                 {workoutIntensities.map((i) => <option key={i} value={i}>{i}</option>)}
                             </select>
                         </div>
                     </div>
-                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Sparkles size={16} className={`text-skin-glow ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? '' : 'grayscale opacity-50'}`} />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Nettoyage</p>
-                            <div className="flex items-center gap-1">
-                                <p className={`text-sm font-semibold transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (factors.makeupRemoved ? 'text-primary' : 'text-foreground') : 'text-muted-foreground'}`}>
-                                    {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (factors.makeupRemoved ? "Fait" : "Pas fait") : "N/A"}
-                                </p>
-                                <Pencil size={10} className="text-muted-foreground/40 group-hover:text-primary transition-colors" />
-                            </div>
-                        </div>
-                    </button>
 
-                    {/* Alimentation */}
-                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
-                        <Salad size={16} className={`text-orange-400 ${factors.foodQuality ? '' : 'grayscale opacity-50'}`} />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Alimentation</p>
-                            <select
-                                value={factors.foodQuality || ""}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setFactors(f => ({ ...f, foodQuality: val }));
-                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, foodQuality: val }));
-                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
-                                    setDbCheckinDone(true);
-                                    syncFactorToSupabase('alimentation', val);
-                                }}
-                                className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer"
-                            >
-                                <option value="" disabled>N/A</option>
-                                <option value="bien">Saine</option>
-                                <option value="moyen">Moyenne</option>
-                                <option value="mauvais">Lourde / Sucrée</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -774,30 +941,73 @@ const CheckinAdvice = () => {
                 </DialogContent>
             </Dialog >
 
-            <div className="mt-12 mb-8 flex flex-col items-center gap-4">
+            {/* Profile Edit Dialog */}
+            <Dialog open={!!editingProfile} onOpenChange={() => setEditingProfile(null)}>
+                <DialogContent className="max-w-sm rounded-[2rem]">
+                    <DialogHeader>
+                        <DialogTitle>Mise à jour du profil</DialogTitle>
+                        <DialogDescription>
+                            {editingProfile === 'skin_type' ? "Modifiez votre nature de peau." :
+                                editingProfile === 'skin_problems' ? "Choisissez vos préoccupations prioritaires." :
+                                    "Définissez vos objectifs cutanés."}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-6">
+                        {editingProfile === 'skin_type' && (
+                            <div className="grid grid-cols-2 gap-2">
+                                {SKIN_TYPES.map(type => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setEditProfileValue(type)}
+                                        className={`p-3 rounded-2xl border transition-all text-sm font-bold ${editProfileValue === type ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card border-border hover:bg-accent'}`}
+                                    >
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {(editingProfile === 'skin_problems' || editingProfile === 'skin_goals') && (
+                            <div className="flex flex-wrap gap-2 max-h-[40vh] overflow-y-auto p-1">
+                                {(editingProfile === 'skin_problems' ? SKIN_CONCERNS : SKIN_GOALS).map(item => (
+                                    <button
+                                        key={item}
+                                        onClick={() => {
+                                            const current = editProfileValue || [];
+                                            if (current.includes(item)) {
+                                                setEditProfileValue(current.filter((c: string) => c !== item));
+                                            } else {
+                                                setEditProfileValue([...current, item]);
+                                            }
+                                        }}
+                                        className={`px-3 py-2 rounded-full border transition-all text-xs font-bold ${editProfileValue?.includes(item) ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card border-border hover:bg-accent'}`}
+                                    >
+                                        {item}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button onClick={() => setEditingProfile(null)} className="flex-1 py-4 text-sm font-bold text-foreground bg-muted/20 rounded-2xl hover:bg-muted/30 transition-colors">Annuler</button>
+                        <button onClick={saveProfileEdit} className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-md hover:opacity-90 transition-opacity">Enregistrer</button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+
+            {/* RGPD Link */}
+            <div className="mt-4 text-center">
                 <button
                     onClick={() => navigate("/rgpd")}
-                    className="text-[10px] text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 uppercase tracking-widest font-bold"
+                    className="text-[10px] text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer uppercase tracking-widest font-bold"
                 >
-                    <ShieldCheck size={12} /> Confidentialité & RGPD
-                </button>
-
-                <button
-                    onClick={async () => {
-                        await supabase.auth.signOut();
-                        localStorage.removeItem("guestProfile");
-                        localStorage.removeItem("lastCheckinDate");
-                        localStorage.removeItem("dailyCheckinData");
-                        localStorage.removeItem("manualLocation");
-                        navigate("/onboarding");
-                        toast.success("Déconnexion réussie");
-                    }}
-                    className="text-[10px] text-red-500/70 hover:text-red-500 transition-colors flex items-center gap-1 uppercase tracking-widest font-bold"
-                >
-                    <LogOut size={12} /> Se déconnecter
+                    Politique de confidentialité & RGPD
                 </button>
             </div>
-        </div >
+        </div>
     );
 };
 

@@ -296,7 +296,7 @@ const Signup = () => {
                     {step === 2 && (
                         <>
                             <div className="mb-6">
-                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Votre Profil Professionnel</h1>
+                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Votre Profil Professionnel <span className="text-sm font-normal text-muted-foreground">(Optionnel)</span></h1>
                                 <p className="text-muted-foreground text-sm">Ces informations sont récoltées uniquement à des fins informatives pour nous aider à mieux vous comprendre.</p>
                             </div>
                             <div className="space-y-4 flex-1">
@@ -308,9 +308,8 @@ const Signup = () => {
                                             className="w-full pl-11 py-3 h-[52px] bg-card rounded-2xl border-transparent focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm text-sm appearance-none"
                                             value={profession}
                                             onChange={(e) => setProfession(e.target.value)}
-                                            required
                                         >
-                                            <option value="" disabled className="text-muted-foreground">Sélectionner une catégorie</option>
+                                            <option value="" className="text-muted-foreground">Sélectionner une catégorie (Optionnel)</option>
                                             {professions.map(prof => (
                                                 <option key={prof} value={prof}>{prof}</option>
                                             ))}
@@ -338,7 +337,6 @@ const Signup = () => {
                                                     value={otherChannel}
                                                     onChange={(e) => setOtherChannel(e.target.value)}
                                                     className="bg-card rounded-xl border-border/50 focus-visible:ring-primary/30"
-                                                    required
                                                 />
                                             </motion.div>
                                         )}
@@ -359,7 +357,7 @@ const Signup = () => {
                                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Âge</label>
                                     <div className="relative">
                                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
-                                        <Input type="number" placeholder="Ex: 28" required min="10" max="120"
+                                        <Input type="number" placeholder="Ex: 28" min="10" max="120"
                                             className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
                                             value={age} onChange={(e) => setAge(e.target.value)} />
                                     </div>
@@ -535,12 +533,21 @@ const Signup = () => {
                     )}
 
                     <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background to-transparent z-20">
+                        {step === 2 && (
+                            <button
+                                type="button"
+                                onClick={() => setStep(step + 1)}
+                                className="w-full text-center mb-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-2 uppercase tracking-widest"
+                            >
+                                Passer cette étape
+                            </button>
+                        )}
                         <button
                             type="submit"
                             disabled={
                                 (loading) ||
                                 (step === 1 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password))) ||
-                                (step === 2 && (usedChannels.includes('Autre') && !otherChannel)) ||
+                                (step === 2 && usedChannels.includes('Autre') && !otherChannel) ||
                                 (step === 3 && (!age || !gender)) ||
                                 (step === 4 && !skinType) ||
                                 (step === 5 && skinGoals.length === 0)

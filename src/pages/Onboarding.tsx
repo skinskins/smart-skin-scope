@@ -10,12 +10,12 @@ const slides = [
         icon: <Sparkles size={64} className="text-primary" />,
         color: "bg-primary/10",
     },
-    {
-        title: "Routine Adaptée au Climat",
-        description: "Nous adaptons chaque jour nos recommandations selon la météo et la qualité de l'air de votre localisation.",
-        icon: <Droplets size={64} className="text-skin-hydration" />,
-        color: "bg-skin-hydration/10",
-    },
+    // {
+    //     title: "Routine Adaptée au Climat",
+    //     description: "Nous adaptons chaque jour nos recommandations selon la météo et la qualité de l'air de votre localisation.",
+    //     icon: <Droplets size={64} className="text-skin-hydration" />,
+    //     color: "bg-skin-hydration/10",
+    // },
     // {
     //     title: "Diagnostic en Temps Réel",
     //     description: "L'appareil photo de votre smartphone devient votre outil, scannez et comprenez vos imperfections.",
@@ -75,7 +75,7 @@ const Onboarding = () => {
             {/* Navigation and Actions */}
             <div className="absolute bottom-0 left-0 right-0 p-6 pb-10 z-20 flex flex-col items-center gap-6">
                 {/* Indicators */}
-                <div className="flex gap-2 mb-2">
+                {/* <div className="flex gap-2 mb-2">
                     {slides.map((_, i) => (
                         <motion.div
                             key={i}
@@ -83,7 +83,7 @@ const Onboarding = () => {
                             layoutId={`indicator-${i}`}
                         />
                     ))}
-                </div>
+                </div> */}
 
                 {/* Action Button */}
                 <button
