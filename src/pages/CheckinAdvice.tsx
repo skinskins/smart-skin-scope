@@ -210,7 +210,7 @@ const CheckinAdvice = () => {
     };
 
     const [manualLocation, setManualLocationState] = useState<string | null>(() => localStorage.getItem("manualLocation"));
-    const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || factors.location || undefined);
+    const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
 
     const setManualLocation = async (loc: string | null) => {
         setManualLocationState(loc);
@@ -232,16 +232,15 @@ const CheckinAdvice = () => {
     // Update factors when live weather arrives
     useEffect(() => {
         if (!weatherLoading && liveWeather.locationName !== "...") {
-            setFactors(f => ({
-                ...f,
-                weather: liveWeather,
-                location: liveWeather.locationName || f.location
-            }));
-            localStorage.setItem("dailyCheckinData", JSON.stringify({
-                ...factors,
-                weather: liveWeather,
-                location: liveWeather.locationName || factors.location
-            }));
+            setFactors(f => {
+                const updated = {
+                    ...f,
+                    weather: liveWeather,
+                    location: liveWeather.locationName || f.location
+                };
+                localStorage.setItem("dailyCheckinData", JSON.stringify(updated));
+                return updated;
+            });
         }
     }, [liveWeather, weatherLoading]);
 
