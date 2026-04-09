@@ -842,11 +842,33 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Edit Dialog */}
-            < Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
+            <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
                 <DialogContent className="max-w-sm rounded-3xl">
                     <DialogHeader>
-                        <DialogTitle>Modifier le facteur</DialogTitle>
-                        <DialogDescription>Ajustez vos données pour voir l'impact sur vos conseils.</DialogDescription>
+                        <DialogTitle>
+                            {editingFactor === 'alcohol' && "Alcool"}
+                            {editingFactor === 'sleep' && "Sommeil"}
+                            {editingFactor === 'stress' && "Stress"}
+                            {editingFactor === 'makeup' && "Nettoyage"}
+                            {editingFactor === 'location' && "Localisation"}
+                            {editingFactor === 'cycle' && "Cycle"}
+                            {editingFactor === 'sport' && "Sport"}
+                            {editingFactor === 'alimentation' && "Alimentation"}
+                            {editingFactor === 'water' && "Eau"}
+                            {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Modifier le facteur"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingFactor === 'alcohol' && "Avez-vous bu de l'alcool ?"}
+                            {editingFactor === 'sleep' && "Combien d'heures avez-vous dormi la nuit dernière ?"}
+                            {editingFactor === 'stress' && "Quel est votre niveau de stress ?"}
+                            {editingFactor === 'makeup' && "Nous parlons ici d'un double nettoyage : démaquillage suivi d'un nettoyage doux du visage."}
+                            {editingFactor === 'location' && "Ajustez votre ville pour mettre à jour la météo et la pollution."}
+                            {editingFactor === 'cycle' && "À quelle étape de votre cycle êtes-vous ?"}
+                            {editingFactor === 'sport' && "Avez-vous pratiqué une activité physique ?"}
+                            {editingFactor === 'alimentation' && "Évaluez la qualité de votre alimentation aujourd'hui."}
+                            {editingFactor === 'water' && "Est-ce que vous vous êtes bien hydraté(e) ?"}
+                            {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Ajustez vos données pour voir l'impact sur vos conseils."}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="py-6">
                         {editingFactor === 'location' && (
@@ -925,9 +947,6 @@ const CheckinAdvice = () => {
                         )}
                         {editingFactor === 'makeup' && (
                             <div className="space-y-4">
-                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                    Nous parlons ici d'un double nettoyage : démaquillage suivi d'un nettoyage doux du visage.
-                                </p>
                                 <div className="flex flex-col gap-3">
                                     <button onClick={() => setEditValue(true)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>Nettoyage fait</button>
                                     <button onClick={() => setEditValue(false)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>Pas fait</button>

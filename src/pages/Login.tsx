@@ -44,6 +44,25 @@ const Login = () => {
         }
     };
 
+    const handleForgotPassword = async () => {
+        if (!email) {
+            toast.error("Veuillez entrer votre email pour réinitialiser votre mot de passe.");
+            return;
+        }
+
+        setLoading(true);
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+        });
+        setLoading(false);
+
+        if (error) {
+            toast.error(error.message);
+        } else {
+            toast.success("Un email de réinitialisation vous a été envoyé.");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background p-6 flex flex-col relative overflow-hidden">
             {/* Decorative Blur Backgrounds */}
@@ -102,7 +121,14 @@ const Login = () => {
                     </div>
 
                     <div className="flex justify-end mt-2">
-                        <button type="button" className="text-xs text-primary font-medium hover:underline">Mot de passe oublié ?</button>
+                        <button
+                            type="button"
+                            onClick={handleForgotPassword}
+                            disabled={loading}
+                            className="text-xs text-primary font-medium hover:underline disabled:opacity-50"
+                        >
+                            Mot de passe oublié ?
+                        </button>
                     </div>
 
                     <button

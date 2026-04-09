@@ -15,6 +15,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import BottomNav from "./components/BottomNav";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
+import ResetPassword from "./pages/ResetPassword";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import CheckinAdvice from "./pages/CheckinAdvice";
@@ -129,6 +130,7 @@ const App = () => (
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />
           <Route path="/signup" element={<PublicOnlyGuard><Signup /></PublicOnlyGuard>} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/rgpd" element={<RGPD />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
