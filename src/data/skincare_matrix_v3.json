@@ -12,19 +12,6 @@
       "description": "Données récupérées automatiquement via API météo et qualité de l'air. Ces 4 facteurs conditionnent le conseil dès l'ouverture de l'app, sans aucune action de l'utilisatrice.",
       "scenarios": [
         {
-          "id": "uv_high",
-          "factor": "UV élevés",
-          "icon": "☀️",
-          "source": "api",
-          "trigger": { "uvIndex": { "gte": 3 } },
-          "advice": {
-            "dry":    { "title": "La protection solaire, mais la bonne texture",      "body": "Les UV aggravent la déshydratation des peaux sèches et fragilisent le film lipidique. Choisir une crème solaire à texture riche, ou mieux : une crème teintée SPF 50 qui hydrate et protège en un geste.", "tip": "Pas besoin de crème + SPF séparés. Une crème hydratante avec SPF intégré simplifie et protège aussi bien." },
-            "oily":   { "title": "SPF léger, sans surcharge",                         "body": "Les UV stimulent la production de sébum — contre-intuitif mais réel. Opter pour une brume solaire SPF 50 ou un gel solaire à texture eau : protection maximale sans couche grasse.", "tip": "La brume solaire peut se réappliquer par-dessus le maquillage sans abîmer le résultat — un vrai game changer pour la journée." },
-            "combo":  { "title": "SPF global, texture fluide",                        "body": "La zone T réagit plus vite aux UV en surproduisant du sébum. Appliquer un SPF fluide sur tout le visage, puis tamponner un papier matifiant sur le nez et le front après pose.", "tip": "Un SPF minéral (oxyde de zinc) matifie légèrement et ne bouche pas les pores — idéal pour les zones mixtes." },
-            "normal": { "title": "SPF intégré, ça suffit",                            "body": "La peau normale supporte la plupart des textures de protection. C'est l'occasion de choisir un SPF qui unifie le teint — BB cream SPF 30+ ou fond de teint avec filtre intégré.", "tip": "Même sous les nuages, 80% des UV passent. Le SPF quotidien n'est pas réservé aux jours de canicule." }
-          }
-        },
-        {
           "id": "heat_humidity",
           "factor": "Chaleur + humidité",
           "icon": "🌡️",
@@ -108,7 +95,7 @@
           "questionText": "Est-ce que tu as retiré ton maquillage hier soir ?",
           "trigger": { "removedMakeupLastNight": false },
           "advice": {
-            "dry":    { "title": "Réparer sans agresser",                             "body": "Le maquillage laissé toute la nuit s'oxyde et génère des radicaux libres — particulièrement néfaste pour les peaux sèches dont la barrière est déjà fragile. Ce matin : baume démaquillant doux (pas de micelles avec alcool), puis hydratation renforcée.", "tip": "Si ça t'arrive souvent, garde des disques en coton + huile démaquillante sur ta table de nuit. La friction zéro est essentielle pour les peaux sèches sensibles." },
+            "dry":    { "title": "Réparer sans agresser",                             "body": "Le maquillage laissé toute la nuit s'oxyde et génère des radicaux libres — particulièrement néfaste pour les peaux sèches dont la barrière est déjà fragile. Ce matin : baume démaquillant doux (pas d'eau micellaire avec alcool), puis hydratation renforcée.", "tip": "Si ça t'arrive souvent, garde des disques en coton + huile démaquillante sur ta table de nuit. La friction zéro est essentielle pour les peaux sèches sensibles." },
             "oily":   { "title": "Double nettoyage ce matin, sans frotter",           "body": "Fond de teint oxydé + sébum toute la nuit = terrain fertile pour les comédons. Prendre le temps d'un double nettoyage : huile ou baume pour dissoudre, puis gel purifiant doux. Ne pas frotter — masser en cercles.", "tip": "La méthode 60 secondes — masser le nettoyant pendant une minute entière avant de rincer — améliore significativement le nettoyage sans agresser." },
             "combo":  { "title": "Deux étapes, tout le visage",                       "body": "Double nettoyage complet ce matin. Insister sur la T-zone en douceur. Terminer par un toner hydratant pour ne pas assécher les joues après la purification.", "tip": "Le coton plat est bien plus doux que le coton boule pour la peau mixte. Moins de friction = moins de réactivité sur les joues." },
             "normal": { "title": "Récupération en 2 étapes, sans sur-compenser",      "body": "La bonne nouvelle : la peau normale récupère vite. Un bon démaquillage + un sérum vitamine C ce matin suffisent à relancer l'éclat. Résister à l'envie de superposer les soins pour 'compenser'.", "tip": "À éviter ce matin : sur-exfolier pour 'nettoyer plus'. Ça fragilise inutilement une peau déjà sollicitée." }
@@ -243,13 +230,13 @@
       "isSPF": true,
       "scenarios": [
         {
-          "id": "uv_0_2",
-          "factor": "UV 0–2",
+          "id": "uv_1_2",
+          "factor": "UV 1–2",
           "icon": "☀️",
           "source": "spf",
           "uvColor": "#4CAF50",
           "uvLevel": "Faible",
-          "trigger": { "uvIndex": { "gte": 0, "lte": 2 } },
+          "trigger": { "uvIndex": { "gte": 1, "lte": 2 } },
           "spfData": {
             "spf": "SPF 30",
             "qty": "1 ligne (index tendu)",

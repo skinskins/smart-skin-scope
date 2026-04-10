@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
-import skincareMatrix from "@/data/skincare_matrix.json";
+import skincareMatrix from "@/data/skincare_matrix_v3.json";
 import SkinScoreRing from "@/components/SkinScoreRing";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,10 @@ interface AdviceItem {
     title: string;
     text: string;
     tip: string;
-    group: "g1" | "g2" | "g3";
+    group: "g1" | "g2" | "g3" | "g4";
     priority: "high" | "medium" | "low";
     ingredients?: string[];
+    spfData?: any;
 }
 
 interface Context {
@@ -64,9 +65,12 @@ function getActiveAdvice(ctx: Context): AdviceItem[] {
     const results: AdviceItem[] = [];
     const skinType = ctx.skinType as "dry" | "oily" | "combo" | "normal";
 
-    const processGroup = (groupKey: "g1" | "g2" | "g3", priority: "high" | "medium" | "low") => {
+    const processGroup = (groupKey: "g1" | "g2" | "g3" | "g4", priority: "high" | "medium" | "low") => {
         // @ts-ignore
-        for (const scenario of skincareMatrix.groups[groupKey].scenarios) {
+        const group = skincareMatrix.groups[groupKey];
+        if (!group) return;
+
+        for (const scenario of group.scenarios) {
             if (evaluateTrigger(ctx, scenario.trigger as Record<string, TriggerCondition>)) {
                 // @ts-ignore
                 const spec = scenario.advice[skinType] as { title: string; body: string; tip: string; ingredients?: string[] };
@@ -77,8 +81,10 @@ function getActiveAdvice(ctx: Context): AdviceItem[] {
                         text: spec.body,
                         tip: spec.tip,
                         group: groupKey,
-                        priority: groupKey === "g3" ? "high" : (groupKey === "g1" ? "medium" : "low"),
-                        ingredients: spec.ingredients || []
+                        priority: priority,
+                        ingredients: spec.ingredients || [],
+                        // @ts-ignore
+                        spfData: scenario.spfData
                     });
                 }
             }
@@ -86,6 +92,7 @@ function getActiveAdvice(ctx: Context): AdviceItem[] {
     };
 
     processGroup("g3", "high");
+    processGroup("g4", "high");
     processGroup("g1", "medium");
     processGroup("g2", "low");
 
@@ -264,12 +271,12 @@ const CheckinAdvice = () => {
         const skinType = SKIN_TYPE_MAP[guest.skin_type] ?? "normal";
         const ctx: Context = {
             skinType,
-            uvIndex: factors.weather?.uv ?? 0,
+            uvIndex: Math.floor(factors.weather?.uv ?? 0),
             tempC: factors.weather?.temp ?? 20,
             humidity: factors.weather?.humidity ?? 50,
             aqi: factors.weather?.aqiScore ?? 25,
             sleepHours: factors.sleepHours ?? 8,
-            stressLevel: factors.stressLevel ?? 1,
+            stressLevel: (factors.stressLevel ?? 1) * 2, // Map 1-5 app scale to 1-10 matrix scale
             alcoholLastNight: factors.alcoholDrinks ?? 0,
             removedMakeupLastNight: factors.makeupRemoved ?? true,
             didSportToday: factors.didSport ?? ((factors.workoutMinutes ?? 0) > 0),
@@ -599,7 +606,7 @@ const CheckinAdvice = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className={`p-5 rounded-3xl shadow-card border border-border/40 ${advice.priority === "high" ? 'bg-primary/5 border-primary/20' : 'bg-card'}`}
+                                className={`p-5 rounded-3xl shadow-card border border-border/40`}
                             >
                                 <div className="flex gap-4">
                                     <div className="text-3xl flex-shrink-0">{advice.iconStr}</div>
@@ -614,6 +621,26 @@ const CheckinAdvice = () => {
                                                         {ing}
                                                     </span>
                                                 ))}
+                                            </div>
+                                        )}
+
+                                        {advice.spfData && (
+                                            <div className="my-4 p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-3">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Quantité</p>
+                                                        <p className="text-[11px] font-bold text-foreground">{advice.spfData.qty}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Renouveler</p>
+                                                        <p className="text-[11px] font-bold text-foreground">Toutes les {advice.spfData.renewEvery}</p>
+                                                    </div>
+                                                </div>
+                                                {advice.spfData.renewNote && (
+                                                    <p className="text-[10px] text-muted-foreground italic leading-tight">
+                                                        * {advice.spfData.renewNote}
+                                                    </p>
+                                                )}
                                             </div>
                                         )}
 
