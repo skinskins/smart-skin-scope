@@ -159,6 +159,8 @@ const CheckinAdvice = () => {
     const [editValue, setEditValue] = useState<any>(null);
     const [editProfileValue, setEditProfileValue] = useState<any>(null);
     const [locationInput, setLocationInput] = useState("");
+    const [makeupStep, setMakeupStep] = useState(1);
+    const [woreMakeup, setWoreMakeup] = useState<boolean | null>(null);
 
     const [dbCheckinDone, setDbCheckinDone] = useState(false);
 
@@ -331,6 +333,7 @@ const CheckinAdvice = () => {
                             cyclePhase: profileData.cycle_phase,
                             didSport: profileData.did_sport,
                             makeupRemoved: profileData.makeup_removed,
+                            woreMakeup: profileData.makeup_removed === null ? null : (JSON.parse(localStorage.getItem("dailyCheckinData") || "{}").woreMakeup),
                             foodQuality: profileData.food_quality,
                             location: profileData.manual_location || f.location
                         }));
@@ -399,7 +402,10 @@ const CheckinAdvice = () => {
         }
         if (editingFactor === 'cycle') newFactors.cyclePhase = editValue;
         if (editingFactor === 'sport') newFactors.didSport = editValue;
-        if (editingFactor === 'makeup') newFactors.makeupRemoved = editValue;
+        if (editingFactor === 'makeup') {
+            newFactors.makeupRemoved = editValue;
+            newFactors.woreMakeup = woreMakeup;
+        }
         if (editingFactor === 'alimentation') newFactors.foodQuality = editValue;
 
         setFactors(newFactors);
@@ -412,6 +418,8 @@ const CheckinAdvice = () => {
         // Sync with Supabase
         syncFactorToSupabase(editingFactor, syncValue);
         setEditingFactor(null);
+        setMakeupStep(1);
+        setWoreMakeup(null);
     };
 
     const saveProfileEdit = async () => {
@@ -722,13 +730,16 @@ const CheckinAdvice = () => {
                         </div>
                     </button>
 
-                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
+                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); setMakeupStep(1); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
                         <Sparkles size={16} className="text-skin-glow" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Nettoyage</p>
+                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Maquillage / Nettoyage</p>
                             <div className="flex items-center gap-1">
                                 <p className={`text-sm font-semibold transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
-                                    {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (factors.makeupRemoved ? "Fait" : "Pas fait") : "N/A"}
+                                    {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (
+                                        factors.woreMakeup === false ? "Visage nettoyé" :
+                                            (factors.makeupRemoved ? "Visage nettoyé" : "Non démaquillé")
+                                    ) : "N/A"}
                                 </p>
                                 <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
                             </div>
@@ -848,7 +859,7 @@ const CheckinAdvice = () => {
                             {editingFactor === 'alcohol' && "Alcool"}
                             {editingFactor === 'sleep' && "Sommeil"}
                             {editingFactor === 'stress' && "Stress"}
-                            {editingFactor === 'makeup' && "Nettoyage"}
+                            {editingFactor === 'makeup' && "Maquillage et nettoyage"}
                             {editingFactor === 'location' && "Localisation"}
                             {editingFactor === 'cycle' && "Cycle"}
                             {editingFactor === 'sport' && "Sport"}
@@ -859,8 +870,8 @@ const CheckinAdvice = () => {
                         <DialogDescription>
                             {editingFactor === 'alcohol' && "Avez-vous bu de l'alcool ?"}
                             {editingFactor === 'sleep' && "Combien d'heures avez-vous dormi la nuit dernière ?"}
-                            {editingFactor === 'stress' && "Quel est votre niveau de stress ?"}
-                            {editingFactor === 'makeup' && "Nous parlons ici d'un double nettoyage : démaquillage suivi d'un nettoyage doux du visage."}
+                            {editingFactor === 'stress' && "Quel est votre niveau de stress dernièrement ?"}
+                            {editingFactor === 'makeup' && ""}
                             {editingFactor === 'location' && "Ajustez votre ville pour mettre à jour la météo et la pollution."}
                             {editingFactor === 'cycle' && "À quelle étape de votre cycle êtes-vous ?"}
                             {editingFactor === 'sport' && "Avez-vous pratiqué une activité physique ?"}
@@ -946,10 +957,47 @@ const CheckinAdvice = () => {
                         )}
                         {editingFactor === 'makeup' && (
                             <div className="space-y-4">
-                                <div className="flex flex-col gap-3">
-                                    <button onClick={() => setEditValue(true)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>Nettoyage fait</button>
-                                    <button onClick={() => setEditValue(false)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>Pas fait</button>
-                                </div>
+                                {makeupStep === 1 && (
+                                    <div className="space-y-4">
+                                        <p className="text-sm font-bold">Étiez-vous maquillé(e) aujourd'hui ?</p>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => { setWoreMakeup(true); setMakeupStep(2); }} className="flex-1 py-4 rounded-2xl border font-bold transition-all bg-card border-border hover:bg-accent text-foreground">Oui</button>
+                                            <button
+                                                onClick={() => {
+                                                    setWoreMakeup(false);
+                                                    setEditValue(true); // Effectively cleaned
+                                                    // Immediately save for No Makeup case
+                                                    const newFactors = { ...factors, makeupRemoved: true, woreMakeup: false };
+                                                    setFactors(newFactors);
+                                                    localStorage.setItem("dailyCheckinData", JSON.stringify(newFactors));
+                                                    syncFactorToSupabase('makeup', true);
+                                                    setEditingFactor(null);
+                                                    setMakeupStep(1);
+                                                    setWoreMakeup(null);
+                                                }}
+                                                className="flex-1 py-4 rounded-2xl border font-bold transition-all bg-card border-border hover:bg-accent text-foreground"
+                                            >
+                                                Non
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                {makeupStep === 2 && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-2">
+                                        <p className="text-sm font-bold">Avez-vous retiré votre maquillage et nettoyé votre visage ce soir ?</p>
+                                        <div className="flex flex-col gap-3">
+                                            <button onClick={() => setEditValue(true)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent focus:bg-primary/5 focus:border-primary'}`}>
+                                                Oui, double nettoyage fait
+                                            </button>
+                                            <button onClick={() => setEditValue(false)} className={`py-4 rounded-2xl border text-left px-6 font-bold transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent focus:bg-primary/5 focus:border-primary'}`}>
+                                                Non, pas fait
+                                            </button>
+                                        </div>
+                                        <button onClick={() => setMakeupStep(1)} className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                                            <ArrowLeft size={12} /> Retour
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

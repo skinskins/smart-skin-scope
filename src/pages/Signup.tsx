@@ -279,7 +279,7 @@ const Signup = () => {
                                 <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
                                     En créant un compte, vous acceptez notre{" "}
                                     <button type="button" onClick={() => navigate("/rgpd")} className="underline hover:text-primary">politique de confidentialité</button>.
-                                    Vos données sont protégées et peuvent être supprimées à tout moment sur simple demande <a href="mailto:nacre_care@gmail.com" className="font-bold hover:text-primary">nacre_care@gmail.com</a>.
+                                    Vos données sont protégées et peuvent être supprimées à tout moment sur simple demande <a href="mailto:lulua.skin26@gmail.com" className="font-bold hover:text-primary">lulua.skin26@gmail.com</a>.
                                 </p>
                             </div>
                             <div className="pt-4 text-center">
