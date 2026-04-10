@@ -54,8 +54,8 @@ const RGPD = () => {
                                 <p className="text-sm font-semibold">Comment supprimer mon compte ?</p>
                                 <p className="text-sm text-muted-foreground mt-1">
                                     Pour supprimer l'intégralité de vos données, envoyez simplement un mail à :
-                                    <a href="mailto:nacre_care@gmail.com" className="text-primary font-bold block mt-1 hover:underline">
-                                        nacre_care@gmail.com
+                                    <a href="mailto:lulua.skin26@gmail.com" className="text-primary font-bold block mt-1 hover:underline">
+                                        lulua.skin26@gmail.com
                                     </a>
                                     Nous traiterons votre demande dans un délai maximum de 30 jours.
                                 </p>
