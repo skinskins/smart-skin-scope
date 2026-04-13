@@ -110,7 +110,7 @@ const SKIN_TYPE_MAP: Record<string, string> = {
     "Normale": "normal",
 };
 
-const cyclePhases = ["Je ne sais pas", "Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"];
+const cyclePhases = ["Aucun", "Autre", "Je ne sais pas", "Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
 const workoutIntensities = ["Non", "Léger", "Modéré", "Intense"];
 const STRESS_LABELS = ["", "Zen", "Calme", "Modéré", "Élevé", "Extrême"];
 
@@ -148,8 +148,8 @@ const CheckinAdvice = () => {
         const saved = localStorage.getItem("dailyCheckinData");
         const factors = saved ? JSON.parse(saved) : {};
         // Ensure manualLocation is always present in factors if it exists
-        const manualLocSnippet = localStorage.getItem("manualLocation");
-        if (manualLocSnippet && !factors.location) {
+        const manualLocSnippet = localStorage.getItem("manualLocation") || "Paris";
+        if (!factors.location) {
             factors.location = manualLocSnippet;
         }
         return factors;
@@ -218,7 +218,7 @@ const CheckinAdvice = () => {
         }
     };
 
-    const [manualLocation, setManualLocationState] = useState<string | null>(() => localStorage.getItem("manualLocation"));
+    const [manualLocation, setManualLocationState] = useState<string>(() => localStorage.getItem("manualLocation") || "Paris");
     const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
 
     const setManualLocation = async (loc: string | null) => {
@@ -280,7 +280,7 @@ const CheckinAdvice = () => {
             alcoholLastNight: factors.alcoholDrinks ?? 0,
             removedMakeupLastNight: factors.makeupRemoved ?? true,
             didSportToday: factors.didSport ?? ((factors.workoutMinutes ?? 0) > 0),
-            cycleDay: factors.cyclePhase === "Menstruel" ? 2 : (factors.cyclePhase === "Je ne sais pas" || factors.cyclePhase === "Folliculaire" ? null : (factors.cyclePhase === "Lutéal" ? 20 : null))
+            cycleDay: factors.cyclePhase === "Menstruation" ? 2 : (["Je ne sais pas", "Folliculaire", "Aucun", "Autre"].includes(factors.cyclePhase || "") ? null : (factors.cyclePhase === "Lutéal" ? 20 : null))
         };
         const advice = getActiveAdvice(ctx);
         if (advice.length === 0) {
@@ -946,7 +946,7 @@ const CheckinAdvice = () => {
                         )}
                         {editingFactor === 'cycle' && (
                             <div className="flex flex-col gap-3">
-                                {["Je ne sais pas", "Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"].map(v => (
+                                {["Je ne sais pas", "Menstruation", "Folliculaire", "Ovulatoire", "Lutéal", "Aucun", "Autre"].map(v => (
                                     <button key={v} onClick={() => setEditValue(v)} className={`py-4 px-6 rounded-2xl border text-left font-bold transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>
                                         {v}
                                     </button>

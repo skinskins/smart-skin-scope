@@ -270,11 +270,11 @@ const DailyCheckin = () => {
 
                     {/* Cycle */}
                     <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="space-y-4">
-                        <h2 className="text-lg font-semibold flex items-center gap-2"><Waves className="text-rose-400" size={20} /> Cycle Menstruel</h2>
+                        <h2 className="text-lg font-semibold flex items-center gap-2"><Waves className="text-rose-400" size={20} /> Cycle Menstruation</h2>
                         <div className="bg-card p-5 rounded-3xl shadow-sm border border-border/50">
                             <p className="text-sm font-medium mb-3">Phase actuelle</p>
                             <div className="grid grid-cols-2 gap-2">
-                                {["Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"].map(p => (
+                                {["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal", "Aucun", "Autre"].map(p => (
                                     <button
                                         key={p}
                                         onClick={() => setData({ ...data, cyclePhase: p })}

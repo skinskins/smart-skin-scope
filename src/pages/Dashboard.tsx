@@ -47,7 +47,7 @@ const defaultDailyLog = {
   workoutIntensity: "Modéré"
 };
 
-const cyclePhases = ["Menstruel", "Folliculaire", "Ovulatoire", "Lutéal"];
+const cyclePhases = ["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
 const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
 
 const ALL_PRODUCTS = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux", "Rétinol", "Masque", "Huile de soin", "Exfoliant AHA/BHA", "Traitement local"];
@@ -72,7 +72,7 @@ const factorDetails: Record<string, { title: string; desc: string; }> = {
   uv: { title: "Indice UV", desc: "UV 6+ : réappliquer SPF toutes les 2h. Cause vieillissement et taches." },
   air: { title: "Qualité de l'air", desc: "La pollution pénètre les pores et cause stress oxydatif et teint terne." },
   location: { title: "Localisation", desc: "Votre position permet d'ajuster les données météo, UV et pollution en temps réel." },
-  cycle: { title: "Phase du cycle", desc: "Lutéal = plus gras. Menstruel = sensible. Folliculaire = équilibré." },
+  cycle: { title: "Phase du cycle", desc: "Lutéal = plus gras. Menstruation = sensible. Folliculaire = équilibré." },
   heartStress: { title: "Cœur & Stress", desc: "Le stress augmente le cortisol → plus de boutons. L'exercice améliore l'éclat." },
   water: { title: "Hydratation", desc: "6–8 verres/jour soutiennent la barrière cutanée." },
   sleep: { title: "Sommeil", desc: "La peau se répare pendant le sommeil profond. <6h = collagène altéré." },
@@ -628,7 +628,7 @@ const Dashboard = () => {
           if (dailyLog.alcohol) tips.push({ icon: <Wine size={16} className="text-destructive" />, text: "Alcool détecté — hydratez-vous davantage pour compenser la déshydratation cutanée.", priority: "medium" });
           if (dailyLog.waterGlasses < 5) tips.push({ icon: <GlassWater size={16} className="text-skin-hydration" />, text: `Seulement ${dailyLog.waterGlasses} verres d'eau — visez au moins 6 à 8 verres par jour.`, priority: "high" });
           if (dailyLog.cyclePhase === "Lutéal") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase lutéale — votre peau peut être plus grasse, privilégiez un nettoyage doux.", priority: "low", ingredients: ["Acide salicylique", "Niacinamide", "Tea tree"] });
-          if (dailyLog.cyclePhase === "Menstruel") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase menstruelle — peau sensible, optez pour des soins doux et apaisants.", priority: "low", ingredients: ["Avoine", "Aloe vera", "Camomille"] });
+          if (dailyLog.cyclePhase === "Menstruation") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase menstruelle — peau sensible, optez pour des soins doux et apaisants.", priority: "low", ingredients: ["Avoine", "Aloe vera", "Camomille"] });
 
           // Trier par priorité et limiter à 5
           const priorityOrder = { high: 0, medium: 1, low: 2 };
