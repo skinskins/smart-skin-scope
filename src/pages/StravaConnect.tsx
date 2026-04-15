@@ -1,11 +1,16 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Callback from "./Callback";
+import { supabase } from "@/integrations/supabase/client";
 
-const CLIENT_ID = "TON_CLIENT_ID";
+const CLIENT_ID = "225555";
 const REDIRECT_URI = "http://localhost:8080/callback";
 
-const App: React.FC = () => {
+interface StravaConnectProps {
+  compact?: boolean;
+}
+
+const StravaConnect: React.FC<StravaConnectProps> = ({ compact }) => {
+  const isConnected = !!localStorage.getItem("athleteId");
+
   const connectStrava = () => {
     const url =
       `https://www.strava.com/oauth/authorize` +
@@ -17,22 +22,42 @@ const App: React.FC = () => {
     window.location.href = url;
   };
 
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <button onClick={connectStrava}>
-              Connect Strava
-            </button>
-          }
-        />
+  const disconnectStrava = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await (supabase as any).from("profiles").update({ did_sport: null }).eq("id", session.user.id);
+    }
 
-        <Route path="/callback" element={<Callback />} />
-      </Routes>
-    </BrowserRouter>
+    localStorage.removeItem("athleteId");
+    localStorage.removeItem("strava_accessToken");
+    localStorage.removeItem("strava_refreshToken");
+    // Clear strava data from factors in local storage if we want to be thorough
+    const currentData = JSON.parse(localStorage.getItem("dailyCheckinData") || "{}");
+    delete currentData.stravaData;
+    currentData.didSport = null;
+    localStorage.setItem("dailyCheckinData", JSON.stringify(currentData));
+    window.location.reload();
+  };
+
+  if (isConnected) {
+    return (
+      <button
+        onClick={disconnectStrava}
+        className={`${compact ? 'w-full py-4' : 'px-6 py-3'} border border-[#FC4C02] text-[#FC4C02] text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-muted/10 transition-colors`}
+      >
+        Déconnecter Strava
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={connectStrava}
+      className={`${compact ? 'w-full py-4' : 'px-6 py-3'} bg-[#FC4C02] text-white text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[#E34402] transition-colors`}
+    >
+      Connecter Strava
+    </button>
   );
 };
 
-export default App;
+export default StravaConnect;

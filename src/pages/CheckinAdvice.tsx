@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { toast } from "sonner";
+import StravaConnect from "./stravaconnect";
+import { classifyStravaIntensity } from "@/data/stravaIntensity";
+import axios from "axios";
 
 // ─── Types ───────────────────────────────────────────────────
 interface AdviceItem {
@@ -135,6 +138,7 @@ const CheckinAdvice = () => {
     const firstName = location.state?.firstName || "";
 
     const [isSuccessStep, setIsSuccessStep] = useState(isOnboarding);
+    const [isStravaLoading, setIsStravaLoading] = useState(false);
 
     // Clear onboarding state from location history so it doesn't reappear on reload
     useEffect(() => {
@@ -179,7 +183,10 @@ const CheckinAdvice = () => {
 
     const isAllFactorsDone = useMemo(() => {
         const required = ['sleepHours', 'stressLevel', 'waterStatus', 'alcoholDrinks', 'cyclePhase', 'didSport', 'makeupRemoved', 'foodQuality'];
-        return required.every(key => factors[key] !== undefined && factors[key] !== null && factors[key] !== "");
+        return required.every(key => {
+            const val = factors[key];
+            return val !== undefined && val !== null && val !== "" && val !== "N/A";
+        });
     }, [factors]);
 
     const isCheckinDoneToday = isAllFactorsDone;
@@ -279,7 +286,7 @@ const CheckinAdvice = () => {
             stressLevel: (factors.stressLevel ?? 1) * 2, // Map 1-5 app scale to 1-10 matrix scale
             alcoholLastNight: factors.alcoholDrinks ?? 0,
             removedMakeupLastNight: factors.makeupRemoved ?? true,
-            didSportToday: factors.didSport ?? ((factors.workoutMinutes ?? 0) > 0),
+            didSportToday: factors.didSport === true || (typeof factors.didSport === 'string' && factors.didSport !== "Non"),
             cycleDay: factors.cyclePhase === "Menstruation" ? 2 : (["Je ne sais pas", "Folliculaire", "Aucun", "Autre"].includes(factors.cyclePhase || "") ? null : (factors.cyclePhase === "Lutéal" ? 20 : null))
         };
         const advice = getActiveAdvice(ctx);
@@ -383,6 +390,75 @@ const CheckinAdvice = () => {
         fetchCheckinStatus();
     }, []);
 
+    // Strava Integration
+    useEffect(() => {
+        const fetchStravaActivities = async () => {
+            const athleteId = localStorage.getItem("athleteId");
+            if (!athleteId) return;
+
+            setIsStravaLoading(true);
+            try {
+                const res = await axios.get(`http://localhost:4000/activities?athleteId=${athleteId}`);
+                const activities = res.data;
+
+                if (activities && activities.length > 0) {
+                    // Check activities from today or yesterday
+                    const now = new Date();
+                    const yesterday = new Date(now);
+                    yesterday.setDate(now.getDate() - 1);
+                    yesterday.setHours(0, 0, 0, 0);
+
+                    const recentActivities = activities.filter((a: any) => {
+                        const date = new Date(a.start_date);
+                        return date >= yesterday;
+                    });
+
+                    if (recentActivities.length > 0) {
+                        // Take the most recent one
+                        const latest = recentActivities[0];
+                        const result = classifyStravaIntensity(latest, 48); // 48h to be generous for "today or yesterday"
+
+                        const intensityMap: Record<string, string> = {
+                            "none": "Non",
+                            "light": "Léger",
+                            "moderate": "Modéré",
+                            "intense": "Intense"
+                        };
+
+                        const mappedIntensity = intensityMap[result.level] || "Non";
+
+                        setFactors(prev => {
+                            const updated = {
+                                ...prev,
+                                didSport: mappedIntensity,
+                                stravaData: {
+                                    sport: result.sport,
+                                    label: result.label,
+                                    duration: result.durationMin
+                                }
+                            };
+                            localStorage.setItem("dailyCheckinData", JSON.stringify(updated));
+                            return updated;
+                        });
+
+                        console.log("[Strava] Auto-filled sport intensity:", mappedIntensity, result);
+                        // Also sync to Supabase if not already done
+                        const { data: { session } } = await supabase.auth.getSession();
+                        if (session) {
+                            syncFactorToSupabase('sport', mappedIntensity !== "Non");
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("[Strava] Error fetching activities:", err);
+            } finally {
+                setIsStravaLoading(false);
+            }
+        };
+
+        fetchStravaActivities();
+    }, []);
+
     useEffect(() => {
         if (isSuccessStep) {
             const timer = setTimeout(() => setIsSuccessStep(false), 3000);
@@ -393,7 +469,7 @@ const CheckinAdvice = () => {
     const saveEdit = async () => {
         if (!editingFactor) return;
 
-        const newFactors = { ...factors };
+        let newFactors = { ...factors };
         let syncValue = editValue;
 
         if (editingFactor === 'location') {
@@ -404,11 +480,13 @@ const CheckinAdvice = () => {
         if (editingFactor === 'stress') newFactors.stressLevel = editValue;
         if (editingFactor === 'water') newFactors.waterStatus = editValue;
         if (editingFactor === 'alcohol') {
-            newFactors.hasAlcohol = editValue > 0;
-            newFactors.alcoholDrinks = editValue;
-        }
-        if (editingFactor === 'cycle') newFactors.cyclePhase = editValue;
-        if (editingFactor === 'sport') newFactors.didSport = editValue;
+            newFactors = { ...factors, alcoholDrinks: editValue };
+            syncFactorToSupabase('alcohol', editValue);
+        } else if (editingFactor === 'sport') {
+            newFactors = { ...factors, didSport: editValue };
+            const syncVal = editValue === null ? null : (editValue !== "Non");
+            syncFactorToSupabase('sport', syncVal);
+        } else if (editingFactor === 'cycle') newFactors.cyclePhase = editValue;
         if (editingFactor === 'makeup') {
             newFactors.makeupRemoved = editValue;
             newFactors.woreMakeup = woreMakeup;
@@ -474,12 +552,12 @@ const CheckinAdvice = () => {
 
             {/* Consolidated Identity Header */}
             <section className="mb-12 relative group/card">
-                <div className="bg-white border border-[#E5E5E5] p-8 relative overflow-hidden">
+                <div className="bg-[#111111] p-8 relative overflow-hidden">
 
                     {/* Top Row: Greeting & Logout */}
                     <div className="flex items-center justify-between mb-5 relative z-10">
                         <div>
-                            <h2 className="text-3xl font-display font-bold text-[#111111] uppercase tracking-[0.05em]">
+                            <h2 className="text-3xl font-display font-bold text-white uppercase tracking-[0.05em]">
                                 {greeting}, {guest.first_name || firstName}
                             </h2>
                         </div>
@@ -493,73 +571,73 @@ const CheckinAdvice = () => {
                                 navigate("/onboarding");
                                 toast.success("Déconnexion réussie");
                             }}
-                            className="p-3 bg-white border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white transition-all shadow-none"
+                            className="p-3 bg-white border border-white text-[#111111] hover:bg-black hover:text-white transition-all shadow-none"
                         >
                             <LogOut size={18} />
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-[#E5E5E5]">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-[#888888]">
                         {/* Nature de la Peau */}
-                        <div className="relative group/edit flex flex-col justify-center">
+                        <div className="relative flex flex-col">
                             <button
                                 onClick={() => { setEditingProfile('skin_type'); setEditProfileValue(guest.skin_type); }}
-                                className="absolute -top-1 -right-1 p-2 bg-white border border-[#111111] shadow-none opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                                className="absolute -top-1 -right-1 p-2 z-20"
                             >
-                                <Pencil size={12} className="text-[#111111]" />
+                                <Pencil size={12} className="text-[#888888]" />
                             </button>
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">Nature</p>
-                            <p className="text-2xl font-display font-bold text-[#111111]">
+                            <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-2">Nature</p>
+                            <p className="text-2xl font-display font-bold text-white">
                                 {guest.skin_type || "Pure"}
                             </p>
                         </div>
 
                         {/* Focus Section */}
-                        <div className="relative group/edit flex flex-col justify-center border-l border-[#E5E5E5] pl-6">
+                        <div className="relative flex flex-col border-l border-[#888888] pl-6">
                             <button
                                 onClick={() => { setEditingProfile('skin_problems'); setEditProfileValue(guest.skin_problems); }}
-                                className="absolute -top-1 -right-1 p-2 bg-white border border-[#111111] opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                                className="absolute -top-1 -right-1 p-2 z-20"
                             >
-                                <Pencil size={12} className="text-[#111111]" />
+                                <Pencil size={12} className="text-[#888888]" />
                             </button>
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">Focus</p>
+                            <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-2">Focus</p>
                             <div className="flex flex-wrap gap-2 items-center">
                                 {guest.skin_problems && guest.skin_problems.length > 0 ? (
                                     <>
                                         {guest.skin_problems.slice(0, 2).map((prob: string) => (
-                                            <span key={prob} className="text-[10px] font-bold text-[#111111] border border-[#111111] px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
+                                            <span key={prob} className="text-[10px] font-bold text-white border border-white px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
                                                 {prob}
                                             </span>
                                         ))}
-                                        {guest.skin_problems.length > 2 && <span className="text-[10px] text-[#AAAAAA] font-bold">...</span>}
+                                        {guest.skin_problems.length > 2 && <span className="text-[11px] text-[#555555] font-bold">...</span>}
                                     </>
                                 ) : (
-                                    <span className="text-[10px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em]">Non défini</span>
+                                    <span className="text-[11px] text-[#555555] font-mono uppercase tracking-[0.1em]">Non défini</span>
                                 )}
                             </div>
                         </div>
 
                         {/* Objectifs Section */}
-                        <div className="relative group/edit flex flex-col justify-center border-l border-[#E5E5E5] pl-6">
+                        <div className="relative flex flex-col border-l border-[#888888] pl-6">
                             <button
                                 onClick={() => { setEditingProfile('skin_goals'); setEditProfileValue(guest.skin_goals); }}
-                                className="absolute -top-1 -right-1 p-2 bg-white border border-[#111111] opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                                className="absolute -top-1 -right-1 p-2 z-20"
                             >
-                                <Pencil size={12} className="text-[#111111]" />
+                                <Pencil size={12} className="text-[#888888]" />
                             </button>
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">Objectifs</p>
+                            <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-2">Objectifs</p>
                             <div className="flex flex-wrap gap-2 items-center">
                                 {guest.skin_goals && guest.skin_goals.length > 0 ? (
                                     <>
                                         {guest.skin_goals.slice(0, 2).map((goal: string) => (
-                                            <span key={goal} className="text-[10px] font-bold text-[#111111] border border-[#111111] px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
+                                            <span key={goal} className="text-[10px] font-bold text-white border border-white px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
                                                 {goal}
                                             </span>
                                         ))}
-                                        {guest.skin_goals.length > 2 && <span className="text-[10px] text-[#AAAAAA] font-bold">...</span>}
+                                        {guest.skin_goals.length > 2 && <span className="text-[11px] text-[#555555] font-bold">...</span>}
                                     </>
                                 ) : (
-                                    <span className="text-[10px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em]">Non défini</span>
+                                    <span className="text-[11px] text-[#555555] font-mono uppercase tracking-[0.1em]">Non défini</span>
                                 )}
                             </div>
                         </div>
@@ -584,7 +662,7 @@ const CheckinAdvice = () => {
                             </div>
                             <div className="space-y-2">
                                 <p className="text-sm font-bold uppercase tracking-[0.1em] text-[#111111]">Check-in du jour manquant</p>
-                                <p className="text-[11px] text-[#AAAAAA] leading-relaxed uppercase font-mono tracking-[0.05em]">
+                                <p className="text-xs text-[#555555] leading-relaxed uppercase font-mono tracking-[0.05em]">
                                     Complétez vos facteurs de vie ci-dessous pour débloquer vos conseils personnalisés.
                                 </p>
                                 <button
@@ -627,16 +705,16 @@ const CheckinAdvice = () => {
                                             <div className="my-6 p-5 bg-white border border-[#111111] space-y-4">
                                                 <div className="grid grid-cols-2 gap-6">
                                                     <div>
-                                                        <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] font-bold mb-1">Quantité</p>
+                                                        <p className="text-xs font-mono text-[#111111] uppercase tracking-[0.1em] font-bold mb-1">Quantité</p>
                                                         <p className="text-sm font-bold text-[#111111] uppercase tracking-[0.05em]">{advice.spfData.qty}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] font-bold mb-1">Renouveler</p>
+                                                        <p className="text-xs font-mono text-[#111111] uppercase tracking-[0.1em] font-bold mb-1">Renouveler</p>
                                                         <p className="text-sm font-bold text-[#111111] uppercase tracking-[0.05em]">Toutes les {advice.spfData.renewEvery}</p>
                                                     </div>
                                                 </div>
                                                 {advice.spfData.renewNote && (
-                                                    <p className="text-[11px] text-[#AAAAAA] font-mono uppercase tracking-[0.05em] italic">
+                                                    <p className="text-sm text-[#888888] font-mono uppercase tracking-[0.05em] italic">
                                                         * {advice.spfData.renewNote}
                                                     </p>
                                                 )}
@@ -644,8 +722,8 @@ const CheckinAdvice = () => {
                                         )}
 
                                         {advice.tip && (
-                                            <div className="flex gap-3 p-4 bg-muted/10 border border-[#E5E5E5]">
-                                                <Info size={16} className="text-[#AAAAAA] shrink-0 mt-0.5" />
+                                            <div className="flex gap-3 p-4 bg-[#F2F2F7] border border-[#E5E5E5]">
+                                                <Info size={16} className="text-[#666666] shrink-0 mt-0.5" />
                                                 <p className="text-[11px] font-mono text-[#111111] leading-relaxed uppercase tracking-[0.05em]">{advice.tip}</p>
                                             </div>
                                         )}
@@ -668,7 +746,7 @@ const CheckinAdvice = () => {
                         <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E5E5] hover:bg-muted/10 p-2 transition-colors">
                             <MapPin size={18} className="text-[#111111]" />
                             <div>
-                                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] font-bold">Localisation</p>
+                                <p className="text-xs font-mono text-[#111111] uppercase tracking-[0.1em] font-bold">Localisation</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className={`text-base font-bold ${factors.location ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
                                         {factors.location || "Paris"}
@@ -676,7 +754,7 @@ const CheckinAdvice = () => {
                                     <Pencil size={12} className="text-[#AAAAAA]/40" />
                                 </div>
                             </div>
-                            <span className="ml-auto flex items-center gap-2 text-[10px] font-mono text-[#111111] font-bold uppercase tracking-[0.1em]">
+                            <span className="ml-auto flex items-center gap-2 text-xs font-mono text-[#111111] font-bold uppercase tracking-[0.1em]">
                                 <span className="w-1.5 h-1.5 bg-[#111111] animate-pulse" />
                                 En direct
                             </span>
@@ -685,18 +763,18 @@ const CheckinAdvice = () => {
 
                     <div className="grid grid-cols-4 gap-4 text-center">
                         {[
-                            { id: "temp", icon: <Thermometer size={18} />, val: `${factors.weather?.temp ?? 20}°C`, sub: "Temp" },
-                            { id: "humidity", icon: <Droplets size={18} />, val: `${factors.weather?.humidity ?? 50}%`, sub: "Humidité" },
-                            { id: "uv", icon: <Sun size={18} />, val: factors.weather?.uv ?? 0, sub: "UV" },
-                            { id: "air", icon: <CloudSun size={18} />, val: factors.weather?.pollution ?? "Bon", sub: "Air" }
+                            { id: "temp", icon: <Thermometer size={18} />, val: `${factors.weather?.temp ?? 20}°C`, sub: "Temp", color: "#FF3B30" },
+                            { id: "humidity", icon: <Droplets size={18} />, val: `${factors.weather?.humidity ?? 50}%`, sub: "Humidité", color: "#007AFF" },
+                            { id: "uv", icon: <Sun size={18} />, val: factors.weather?.uv ?? 0, sub: "UV", color: "#FF9500" },
+                            { id: "air", icon: <CloudSun size={18} />, val: factors.weather?.pollution ?? "Bon", sub: "Air", color: "#4CD964" }
                         ].map((item) => (
                             <div key={item.id} className="flex flex-col items-center gap-3 p-3 border border-transparent hover:bg-muted/10 transition-colors">
-                                <div className="text-[#111111]">
+                                <div style={{ color: item.color }}>
                                     {item.icon}
                                 </div>
                                 <div className="space-y-1">
                                     <p className="text-sm font-bold text-[#111111] leading-tight uppercase">{item.val}</p>
-                                    <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">{item.sub}</p>
+                                    <p className="text-xs font-mono text-[#111111] uppercase tracking-[0.1em]">{item.sub}</p>
                                 </div>
                             </div>
                         ))}
@@ -705,13 +783,13 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Lifestyle Grid */}
-            <section id="lifestyle-factors" className="bg-white border border-[#E5E5E5] p-8 mb-8">
+            <section id="lifestyle-factors" className="bg-white mb-8">
                 <div className="mb-8">
-                    <h3 className="text-2xl font-display font-bold text-[#111111] uppercase tracking-[0.05em] mb-2">
+                    <h3 className="text-xl font-display font-bold text-[#111111] uppercase tracking-[0.05em] mb-2">
                         {factorSectionTitle}
                     </h3>
                     {!isCheckinDoneToday && (
-                        <p className="text-[11px] font-mono text-[#AAAAAA] uppercase tracking-[0.05em] italic">
+                        <p className="text-sm font-mono text-[#888888] uppercase tracking-[0.05em] italic">
                             Renseignez vos dernières actions pour des conseils précis.
                         </p>
                     )}
@@ -720,9 +798,9 @@ const CheckinAdvice = () => {
                 <div className="grid grid-cols-2 gap-3">
                     {/* Cycle */}
                     <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group relative">
-                        <Calendar size={18} className="text-[#111111]" />
+                        <Calendar size={18} className="text-[#FF2D55]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Cycle</p>
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Cycle</p>
                             <select
                                 value={factors.cyclePhase || ""}
                                 onChange={(e) => {
@@ -733,7 +811,7 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('cycle', val);
                                 }}
-                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.cyclePhase ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.cyclePhase ? 'text-[#555555]/50' : 'text-[#111111]'}`}
                             >
                                 <option value="" disabled className="bg-white">N/A</option>
                                 {cyclePhases.map((p) => <option key={p} value={p} className="bg-white">{p}</option>)}
@@ -743,135 +821,104 @@ const CheckinAdvice = () => {
 
                     {/* Stress */}
                     <button onClick={() => { setEditingFactor('stress'); setEditValue(factors.stressLevel ?? 3); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Heart size={18} className="text-[#111111]" />
+                        <Heart size={18} className="text-[#FF3B30]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Stress</p>
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Stress</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-sm font-bold uppercase ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
+                                <p className={`text-sm font-bold uppercase ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
                                     {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5` : "N/A"}
                                 </p>
-                                <Pencil size={12} className="text-[#AAAAAA]/40" />
+                                <Pencil size={12} className="text-[#555555]/40" />
                             </div>
                         </div>
                     </button>
 
                     <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); setMakeupStep(1); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Sparkles size={18} className="text-[#111111]" />
+                        <Sparkles size={18} className="text-[#AF52DE]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Démaquillage</p>
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Démaquillage</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-[10px] font-bold uppercase transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
+                                <p className={`text-[11px] font-bold uppercase transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
                                     {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (
                                         factors.woreMakeup === false ? "Visage Net" :
                                             (factors.makeupRemoved ? "Visage Net" : "Maquillé")
                                     ) : "N/A"}
                                 </p>
-                                <Pencil size={12} className="text-[#AAAAAA]/40" />
+                                <Pencil size={12} className="text-[#555555]/40" />
                             </div>
                         </div>
                     </button>
 
-                    {/* Sommeil */}
-                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Moon size={18} className="text-[#111111]" />
+                    <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Wine size={18} className="text-[#FFCC00]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Sommeil</p>
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Alcool</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-sm font-bold uppercase ${factors.sleepHours !== undefined && factors.sleepHours !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
+                                <p className={`text-sm font-bold uppercase ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
+                                    {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `${factors.alcoholDrinks} verre(s)` : "Aucun") : "N/A"}
+                                </p>
+                                <Pencil size={12} className="text-[#555555]/40" />
+                            </div>
+                        </div>
+                    </button>
+
+                    <button onClick={() => { setEditingFactor('alimentation'); setEditValue(factors.foodQuality || "Équilibrée"); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Salad size={18} className="text-[#4CD964]" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Assiette</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-sm font-bold uppercase ${factors.foodQuality ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
+                                    {factors.foodQuality || "N/A"}
+                                </p>
+                                <Pencil size={12} className="text-[#555555]/40" />
+                            </div>
+                        </div>
+                    </button>
+
+                    <button onClick={() => { setEditingFactor('water'); setEditValue(factors.waterStatus || "Suffisamment"); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Droplets size={18} className="text-[#007AFF]" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Eau</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-sm font-bold uppercase ${factors.waterStatus ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
+                                    {factors.waterStatus || "N/A"}
+                                </p>
+                                <Pencil size={12} className="text-[#555555]/40" />
+                            </div>
+                        </div>
+                    </button>
+
+                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Moon size={18} className="text-[#5856D6]" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Sommeil</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-sm font-bold uppercase ${factors.sleepHours !== undefined && factors.sleepHours !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
                                     {factors.sleepHours !== undefined && factors.sleepHours !== null ? `${factors.sleepHours}h` : "N/A"}
                                 </p>
-                                <Pencil size={12} className="text-[#AAAAAA]/40" />
+                                <Pencil size={12} className="text-[#555555]/40" />
                             </div>
                         </div>
                     </button>
 
-                    {/* Eau */}
-                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Droplets size={18} className="text-[#111111]" />
+                    <button onClick={() => { setEditingFactor('sport'); setEditValue(factors.didSport || "Non"); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Dumbbell size={18} className="text-[#FC4C02]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Eau</p>
-                            <select
-                                value={factors.waterStatus || ""}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setFactors(f => ({ ...f, waterStatus: val }));
-                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, waterStatus: val }));
-                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
-                                    setDbCheckinDone(true);
-                                    syncFactorToSupabase('water', val);
-                                }}
-                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.waterStatus ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
-                            >
-                                <option value="" disabled className="bg-white">N/A</option>
-                                <option value="Pas assez" className="bg-white">🏜️ Pas assez</option>
-                                <option value="Suffisamment" className="bg-white">💧 Suffisamment</option>
-                                <option value="Trop" className="bg-white">🌊 Trop</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Alimentation */}
-                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Salad size={18} className="text-[#111111]" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Assiette</p>
-                            <select
-                                value={factors.foodQuality || ""}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    setFactors(f => ({ ...f, foodQuality: val }));
-                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, foodQuality: val }));
-                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
-                                    setDbCheckinDone(true);
-                                    syncFactorToSupabase('alimentation', val);
-                                }}
-                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.foodQuality ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
-                            >
-                                <option value="" disabled className="bg-white">N/A</option>
-                                <option value="bien" className="bg-white">Saine</option>
-                                <option value="moyen" className="bg-white">Moyenne</option>
-                                <option value="mauvais" className="bg-white">Lourde</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Alcool */}
-                    <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Wine size={18} className="text-[#111111]" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Alcool</p>
+                            <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Sport</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-sm font-bold uppercase ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
-                                    {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `Oui (${factors.alcoholDrinks})` : "Non") : "N/A"}
+                                <p className={`text-sm font-bold uppercase ${factors.didSport !== undefined && factors.didSport !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
+                                    {factors.didSport || "N/A"}
                                 </p>
-                                <Pencil size={12} className="text-[#AAAAAA]/40" />
+                                <Pencil size={12} className="text-[#555555]/40" />
                             </div>
+                            {factors.stravaData && factors.didSport !== "Non" && (
+                                <div className="mt-2 flex items-center gap-1.5 text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.05em]">
+                                    <span className="w-1.5 h-1.5 bg-[#FC4C02] rounded-full animate-pulse" />
+                                    Synchronisé : {factors.stravaData.sport}
+                                </div>
+                            )}
                         </div>
                     </button>
-
-                    {/* Sport */}
-                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
-                        <Dumbbell size={18} className="text-[#111111]" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Sport</p>
-                            <select
-                                value={factors.didSport === undefined || factors.didSport === null ? "" : (factors.didSport ? "Modéré" : "Non")}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    const didSport = val !== "Non" && val !== "";
-                                    setFactors(f => ({ ...f, didSport }));
-                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, didSport }));
-                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
-                                    setDbCheckinDone(true);
-                                    syncFactorToSupabase('sport', didSport);
-                                }}
-                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${(factors.didSport === undefined || factors.didSport === null) ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
-                            >
-                                <option value="" disabled className="bg-white">N/A</option>
-                                {workoutIntensities.map((i) => <option key={i} value={i} className="bg-white">{i}</option>)}
-                            </select>
-                        </div>
-                    </div>
 
                 </div>
             </section>
@@ -891,7 +938,7 @@ const CheckinAdvice = () => {
                             {editingFactor === 'water' && "Eau"}
                             {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Modifier"}
                         </DialogTitle>
-                        <DialogDescription className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-2 italic">
+                        <DialogDescription className="text-xs font-mono text-[#111111] uppercase tracking-[0.1em] mt-2 italic">
                             {editingFactor === 'alcohol' && "Avez-vous bu de l'alcool ?"}
                             {editingFactor === 'sleep' && "Combien d'heures avez-vous dormi ?"}
                             {editingFactor === 'stress' && "Quel est votre niveau de stress ?"}
@@ -907,7 +954,7 @@ const CheckinAdvice = () => {
                     <div className="py-6">
                         {editingFactor === 'location' && (
                             <div className="space-y-4">
-                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Ville ou code postal :</p>
+                                <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Ville ou code postal :</p>
                                 <Input
                                     value={locationInput}
                                     onChange={(e) => setLocationInput(e.target.value)}
@@ -926,7 +973,7 @@ const CheckinAdvice = () => {
                             <div className="space-y-6">
                                 <div className="flex flex-col items-center gap-2 py-6">
                                     <span className="text-5xl font-bold text-[#111111]">{editValue}</span>
-                                    <span className="text-sm font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">{STRESS_LABELS[editValue]}</span>
+                                    <span className="text-base font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">{STRESS_LABELS[editValue]}</span>
                                 </div>
                                 <div className="grid grid-cols-5 gap-3">
                                     {[1, 2, 3, 4, 5].map(v => (
@@ -936,8 +983,7 @@ const CheckinAdvice = () => {
                                     ))}
                                 </div>
                                 <div className="flex justify-between px-1">
-                                    <span className="text-[10px] text-[#AAAAAA] uppercase font-mono tracking-[0.1em] font-bold">Zen</span>
-                                    <span className="text-[10px] text-[#AAAAAA] uppercase font-mono tracking-[0.1em] font-bold">Extrême</span>
+                                    <span className="text-xs text-[#111111] uppercase font-mono tracking-[0.1em] font-bold">Extrême</span>
                                 </div>
                             </div>
                         )}
@@ -974,9 +1020,34 @@ const CheckinAdvice = () => {
                             </div>
                         )}
                         {editingFactor === 'sport' && (
-                            <div className="flex gap-2">
-                                <button onClick={() => setEditValue(true)} className={`flex-1 py-4 rounded-2xl border ${editValue === true ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border'}`}>Oui</button>
-                                <button onClick={() => setEditValue(false)} className={`flex-1 py-4 rounded-2xl border ${editValue === false ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border'}`}>Non</button>
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-2">
+                                    {workoutIntensities.map((i) => (
+                                        <button
+                                            key={i}
+                                            disabled={!!localStorage.getItem("athleteId") && i !== factors.didSport}
+                                            onClick={() => setEditValue(i)}
+                                            className={`p-4 border text-xs font-bold uppercase transition-all ${editValue === i ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white border-[#E5E5E5] text-[#AAAAAA] hover:border-[#111111]'} ${(!!localStorage.getItem("athleteId") && i !== factors.didSport) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        >
+                                            {i}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="pt-4 border-t border-[#E5E5E5]">
+                                    <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-4">Optimiser avec Strava</p>
+                                    {factors.stravaData && !isStravaLoading && (
+                                        <p className="mb-3 text-xs font-mono font-bold text-[#111111] uppercase text-center">
+                                            Dernière activité détectée : {factors.stravaData.sport} ({factors.stravaData.duration} min)
+                                        </p>
+                                    )}
+                                    <StravaConnect compact />
+                                    {isStravaLoading && (
+                                        <p className="mt-3 text-xs font-mono font-bold text-[#111111] animate-pulse uppercase text-center">
+                                            Synchronisation en cours...
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         )}
                         {editingFactor === 'makeup' && (
@@ -1036,7 +1107,7 @@ const CheckinAdvice = () => {
                 <DialogContent className="max-w-sm rounded-none border border-[#111111]">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">Profil</DialogTitle>
-                        <DialogDescription className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-2 italic">
+                        <DialogDescription className="text-xs font-mono text-[#111111] uppercase tracking-[0.1em] mt-2 italic font-bold">
                             {editingProfile === 'skin_type' ? "Nature de peau." :
                                 editingProfile === 'skin_problems' ? "Préoccupations prioritaires." :
                                     "Objectifs cutanés."}
@@ -1082,11 +1153,14 @@ const CheckinAdvice = () => {
 
                     <div className="flex flex-col gap-3 mt-4">
                         <button onClick={saveProfileEdit} className="w-full py-4 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors">Enregistrer</button>
-                        <button onClick={() => setEditingProfile(null)} className="w-full py-4 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] border border-[#E5E5E5] hover:bg-muted/10 transition-colors">Annuler</button>
+                        <button onClick={() => setEditingProfile(null)} className="w-full py-4 text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em] border border-[#111111] hover:bg-muted/10 transition-colors">Annuler</button>
                     </div>
                 </DialogContent>
             </Dialog>
 
+            <div className="mt-8 flex justify-center">
+                {/* StravaConnect removed from here as it is now in the Sport popup */}
+            </div>
 
             {/* RGPD Link */}
             <div className="mt-4 text-center">

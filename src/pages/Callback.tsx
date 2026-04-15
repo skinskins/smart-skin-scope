@@ -10,22 +10,24 @@ const Callback: React.FC = () => {
       if (!code) return;
 
       try {
-        await axios.post("http://localhost:4000/auth", {
+        const res = await axios.post("http://localhost:4000/auth", {
           code,
         });
+
+        const athleteId = res.data.athleteId;
+
+        localStorage.setItem("athleteId", athleteId);
+        window.location.href = "/checkin-advice";
       } catch (err) {
         console.error("Error exchanging token", err);
+        window.location.href = "/checkin-advice";
       }
     };
 
     exchangeToken();
   }, []);
 
-  return (
-    <div>
-      <h2>Connexion Strava en cours...</h2>
-    </div>
-  );
+  return null;
 };
 
 export default Callback;

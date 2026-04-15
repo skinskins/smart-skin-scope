@@ -20,6 +20,9 @@ import ResetPassword from "./pages/ResetPassword";
 import DailyCheckin from "./pages/DailyCheckin";
 import CheckinAdvice from "./pages/CheckinAdvice";
 import RGPD from "./pages/RGPD";
+import StravaConnect from "./pages/stravaconnect";
+import Callback from "./pages/Callback";
+
 
 const queryClient = new QueryClient();
 
@@ -131,6 +134,8 @@ const App = () => (
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />
           <Route path="/signup" element={<PublicOnlyGuard><Signup /></PublicOnlyGuard>} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/strava-connect" element={<StravaConnect />} />
+          <Route path="/callback" element={<Callback />} />
           <Route path="/rgpd" element={<RGPD />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
