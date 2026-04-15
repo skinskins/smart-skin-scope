@@ -60,7 +60,7 @@ const MetricCard = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-card p-5 shadow-card cursor-pointer hover:shadow-elevated transition-shadow"
+        className=" bg-card p-5  cursor-pointer hover: transition-shadow"
         onClick={() => setOpen(true)}
       >
         <div className="flex items-center justify-between mb-3">
@@ -85,7 +85,7 @@ const MetricCard = ({
             {trendText[trend].label}
           </div>
         )}
-        <p className="mt-1 text-[10px] text-muted-foreground/60">Appuyez pour le détail</p>
+        <p className="mt-1 text-[11px] text-muted-foreground/60">Appuyez pour le détail</p>
       </motion.div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -113,7 +113,7 @@ const MetricCard = ({
               </span>
             </div>
             {trend && (
-              <div className="bg-accent rounded-xl p-3">
+              <div className="bg-accent  p-3">
                 <p className={`text-xs font-semibold ${toneClass || "text-accent-foreground"}`}>
                   {trendText[trend].label}
                 </p>
@@ -121,7 +121,7 @@ const MetricCard = ({
               </div>
             )}
             {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
-            <div className="bg-muted rounded-xl p-3">
+            <div className="bg-muted  p-3">
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-semibold">Ce qui influence :</span>{" "}
                 {label === "Hydratation" && "Apport en eau, humidité, crème hydratante, alcool."}

@@ -475,16 +475,14 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <p className="text-muted-foreground text-sm font-medium">Bonjour {userName ? `${userName} ` : ""}✨</p>
-        <h1 className="text-2xl font-display font-semibold text-foreground mt-1">Votre peau aujourd'hui</h1>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
+        <p className="text-[#AAAAAA] text-xs font-mono uppercase tracking-[0.1em]">Bonjour {userName ? userName : ""}✨</p>
+        <h1 className="text-3xl font-display font-bold text-[#111111] mt-2">Votre peau aujourd'hui</h1>
       </motion.div>
 
       {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="bg-card rounded-3xl p-8 shadow-card mb-5 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-28 h-28 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
+        className="bg-white border border-[#E5E5E5] p-8 mb-8 relative overflow-hidden">
 
         <div className="relative flex items-start gap-5">
           {/* Diagnostic photo + past days vertical */}
@@ -493,7 +491,7 @@ const Dashboard = () => {
               initial={hasTodayDiag ? { scale: 0.8, opacity: 0, rotateY: 90 } : { scale: 1, opacity: 1 }}
               animate={{ scale: 1, opacity: 1, rotateY: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 18, delay: 0.3 }}
-              className={`w-24 h-24 rounded-2xl border-2 flex items-center justify-center overflow-hidden ${hasTodayDiag ? 'border-primary shadow-elevated' : 'border-muted-foreground/20 bg-muted/50'}`}
+              className={`w-24 h-24 border flex items-center justify-center overflow-hidden ${hasTodayDiag ? 'border-[#111111]' : 'border-[#E5E5E5] bg-white'}`}
             >
               {hasTodayDiag ?
                 <motion.img
@@ -505,19 +503,19 @@ const Dashboard = () => {
                   transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
                 /> :
                 <div className="flex flex-col items-center gap-1.5 opacity-40">
-                  <Camera size={24} className="text-muted-foreground" />
-                  <span className="text-[9px] text-muted-foreground">Pas encore</span>
+                  <Camera size={24} className="text-[#AAAAAA]" />
+                  <span className="text-[10px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em]">Pas encore</span>
                 </div>
               }
             </motion.div>
             {pastDays.length > 0 &&
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 w-full">
                 {pastDays.map((day) =>
                   <button key={day.label}
-                    className="flex items-center justify-between gap-2 bg-muted/50 hover:bg-muted rounded-lg px-2.5 py-1 transition-colors w-full"
+                    className="flex items-center justify-between gap-2 border border-[#E5E5E5] px-2.5 py-1 transition-colors w-full"
                     onClick={() => {/* TODO: show past diagnostic */ }}>
-                    <span className="text-[9px] font-medium text-muted-foreground capitalize">{day.label}</span>
-                    <span className={`text-[10px] font-semibold ${day.hasDiag ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                    <span className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.05em]">{day.label}</span>
+                    <span className={`text-[11px] font-bold ${day.hasDiag ? 'text-[#111111]' : 'text-[#AAAAAA]'}`}>
                       {day.score}
                     </span>
                   </button>
@@ -532,12 +530,12 @@ const Dashboard = () => {
               <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
                 <SkinScoreRing score={currentScore} size={130} />
               </div>
-              <div className="text-center space-y-1">
-                <p className="text-sm text-muted-foreground">Votre peau est <span className="text-primary font-semibold">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
-                <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/60">
+              <div className="text-center space-y-2">
+                <p className="text-sm text-[#111111]">Votre peau est <span className="font-bold underline">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
+                <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">
                   <Calendar size={11} /><span>Dernier diag : {formatDiagDate()}</span>
                 </div>
-                <button onClick={() => setScoreOpen(true)} className="text-[11px] text-primary font-medium underline underline-offset-2">
+                <button onClick={() => setScoreOpen(true)} className="text-[11px] text-[#111111] font-bold uppercase tracking-[0.1em] border-b border-[#111111]">
                   Voir le détail
                 </button>
               </div>
@@ -546,12 +544,12 @@ const Dashboard = () => {
         </div>
 
         <button onClick={() => navigate("/diagnosis")}
-          className="relative mt-5 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-2xl px-5 py-3.5 shadow-elevated hover:opacity-90 transition-opacity">
-          <div className="flex items-center gap-3">
+          className="relative mt-8 w-full flex items-center justify-between bg-[#111111] text-white px-6 py-4 hover:bg-black transition-colors">
+          <div className="flex items-center gap-4">
             <Stethoscope size={20} />
             <div className="text-left">
-              <p className="text-sm font-semibold">Faire un diagnostic</p>
-              <p className="text-[10px] opacity-80">Analysez votre peau en 30s</p>
+              <p className="text-sm font-bold uppercase tracking-[0.05em]">Faire un diagnostic</p>
+              <p className="text-[11px] opacity-60 font-mono tracking-[0.1em] uppercase">Analysez votre peau en 30s</p>
             </div>
           </div>
           <ChevronRight size={18} className="opacity-60" />
@@ -582,11 +580,11 @@ const Dashboard = () => {
       </Dialog>
 
       {/* Conseils personnalisés */}
-      <h2 className="text-lg font-display font-semibold text-foreground mb-3 flex items-center gap-2">
-        <Lightbulb size={18} className="text-primary" /> Conseils du jour
+      <h2 className="text-xl font-display font-bold text-[#111111] mb-6 uppercase tracking-[0.05em]">
+        Conseils du jour
       </h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-        className="bg-card rounded-2xl p-4 shadow-card mb-5 space-y-3">
+        className="bg-card  p-4  mb-5 space-y-3">
         {(() => {
           const tips: { icon: React.ReactNode; text: string; priority: "high" | "medium" | "low"; ingredients?: string[] }[] = [];
 
@@ -597,11 +595,11 @@ const Dashboard = () => {
           const sebum = skinMetrics.find(m => m.label === "Sébum")!;
           const texture = skinMetrics.find(m => m.label === "Texture")!;
 
-          if (hydration.value < 70) tips.push({ icon: <GlassWater size={16} className="text-skin-hydration" />, text: "Hydratation faible — pensez à boire davantage et appliquer un sérum hydratant.", priority: "high", ingredients: ["Acide hyaluronique", "Glycérine", "Céramides", "Aloe vera"] });
-          if (redness.value > 35) tips.push({ icon: <ShieldAlert size={16} className="text-destructive" />, text: "Rougeurs élevées — évitez les produits agressifs et privilégiez des soins apaisants.", priority: "high", ingredients: ["Niacinamide", "Centella asiatica", "Bisabolol", "Avoine colloïdale"] });
-          if (glow.value < 60) tips.push({ icon: <Sparkles size={16} className="text-skin-glow" />, text: "Éclat en berne — un sérum vitamine C le matin peut faire la différence.", priority: "medium", ingredients: ["Vitamine C (acide ascorbique)", "Alpha-arbutine", "Acide kojique"] });
-          if (sebum.value > 60) tips.push({ icon: <CircleDot size={16} className="text-skin-sebum" />, text: "Excès de sébum — utilisez un nettoyant doux et évitez les crèmes trop riches.", priority: "medium", ingredients: ["Niacinamide", "Acide salicylique (BHA)", "Zinc", "Argile verte"] });
-          if (texture.value < 65) tips.push({ icon: <Fingerprint size={16} className="text-accent-foreground" />, text: "Texture irrégulière — une exfoliation douce 2x/semaine peut aider.", priority: "medium", ingredients: ["Rétinol", "AHA (acide glycolique)", "PHA", "Bakuchiol"] });
+          if (hydration.value < 70) tips.push({ icon: <GlassWater size={16} />, text: "Hydratation faible — pensez à boire davantage et appliquer un sérum hydratant.", priority: "high", ingredients: ["Acide hyaluronique", "Glycérine", "Céramides", "Aloe vera"] });
+          if (redness.value > 35) tips.push({ icon: <ShieldAlert size={16} />, text: "Rougeurs élevées — évitez les produits agressifs et privilégiez des soins apaisants.", priority: "high", ingredients: ["Niacinamide", "Centella asiatica", "Bisabolol", "Avoine colloïdale"] });
+          if (glow.value < 60) tips.push({ icon: <Sparkles size={16} />, text: "Éclat en berne — un sérum vitamine C le matin peut faire la différence.", priority: "medium", ingredients: ["Vitamine C (acide ascorbique)", "Alpha-arbutine", "Acide kojique"] });
+          if (sebum.value > 60) tips.push({ icon: <CircleDot size={16} />, text: "Excès de sébum — utilisez un nettoyant doux et évitez les crèmes trop riches.", priority: "medium", ingredients: ["Niacinamide", "Acide salicylique (BHA)", "Zinc", "Argile verte"] });
+          if (texture.value < 65) tips.push({ icon: <Fingerprint size={16} />, text: "Texture irrégulière — une exfoliation douce 2x/semaine peut aider.", priority: "medium", ingredients: ["Rétinol", "AHA (acide glycolique)", "PHA", "Bakuchiol"] });
 
           // Tips basés sur le diagnostic (zones)
           if (diagResult?.zones) {
@@ -621,14 +619,14 @@ const Dashboard = () => {
           }
 
           // Tips basés sur les paramètres du jour
-          if (dailyLog.weather.uv >= 6) tips.push({ icon: <Sun size={16} className="text-skin-glow" />, text: `UV à ${dailyLog.weather.uv} — réappliquez votre SPF toutes les 2h, surtout en extérieur.`, priority: "high" });
-          if (dailyLog.weather.humidity < 40) tips.push({ icon: <Droplets size={16} className="text-skin-hydration" />, text: "Air sec aujourd'hui — renforcez l'hydratation avec un brumisateur ou une crème riche.", priority: "medium", ingredients: ["Acide hyaluronique", "Squalane"] });
-          if (dailyLog.weather.humidity > 75) tips.push({ icon: <Droplets size={16} className="text-skin-hydration" />, text: "Forte humidité — allégez votre routine pour éviter les pores bouchés.", priority: "medium" });
-          if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} className="text-muted-foreground" />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high", ingredients: ["Rétinol (soir)", "Peptides", "Bakuchiol"] });
-          if (dailyLog.alcohol) tips.push({ icon: <Wine size={16} className="text-destructive" />, text: "Alcool détecté — hydratez-vous davantage pour compenser la déshydratation cutanée.", priority: "medium" });
-          if (dailyLog.waterGlasses < 5) tips.push({ icon: <GlassWater size={16} className="text-skin-hydration" />, text: `Seulement ${dailyLog.waterGlasses} verres d'eau — visez au moins 6 à 8 verres par jour.`, priority: "high" });
-          if (dailyLog.cyclePhase === "Lutéal") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase lutéale — votre peau peut être plus grasse, privilégiez un nettoyage doux.", priority: "low", ingredients: ["Acide salicylique", "Niacinamide", "Tea tree"] });
-          if (dailyLog.cyclePhase === "Menstruation") tips.push({ icon: <Heart size={16} className="text-primary" />, text: "Phase menstruelle — peau sensible, optez pour des soins doux et apaisants.", priority: "low", ingredients: ["Avoine", "Aloe vera", "Camomille"] });
+          if (dailyLog.weather.uv >= 6) tips.push({ icon: <Sun size={16} />, text: `UV à ${dailyLog.weather.uv} — réappliquez votre SPF toutes les 2h, surtout en extérieur.`, priority: "high" });
+          if (dailyLog.weather.humidity < 40) tips.push({ icon: <Droplets size={16} />, text: "Air sec aujourd'hui — renforcez l'hydratation avec un brumisateur ou une crème riche.", priority: "medium", ingredients: ["Acide hyaluronique", "Squalane"] });
+          if (dailyLog.weather.humidity > 75) tips.push({ icon: <Droplets size={16} />, text: "Forte humidité — allégez votre routine pour éviter les pores bouchés.", priority: "medium" });
+          if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high", ingredients: ["Rétinol (soir)", "Peptides", "Bakuchiol"] });
+          if (dailyLog.alcohol) tips.push({ icon: <Wine size={16} />, text: "Alcool détecté — hydratez-vous davantage pour compenser la déshydratation cutanée.", priority: "medium" });
+          if (dailyLog.waterGlasses < 5) tips.push({ icon: <GlassWater size={16} />, text: `Seulement ${dailyLog.waterGlasses} verres d'eau — visez au moins 6 à 8 verres par jour.`, priority: "high" });
+          if (dailyLog.cyclePhase === "Lutéal") tips.push({ icon: <Heart size={16} />, text: "Phase lutéale — votre peau peut être plus grasse, privilégiez un nettoyage doux.", priority: "low", ingredients: ["Acide salicylique", "Niacinamide", "Tea tree"] });
+          if (dailyLog.cyclePhase === "Menstruation") tips.push({ icon: <Heart size={16} />, text: "Phase menstruelle — peau sensible, optez pour des soins doux et apaisants.", priority: "low", ingredients: ["Avoine", "Aloe vera", "Camomille"] });
 
           // Trier par priorité et limiter à 5
           const priorityOrder = { high: 0, medium: 1, low: 2 };
@@ -640,21 +638,16 @@ const Dashboard = () => {
 
           return sorted.map((tip, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-              className={`flex flex-col gap-2 rounded-xl p-3 ${tip.priority === "high" ? "bg-destructive/5 border border-destructive/10" :
-                tip.priority === "medium" ? "bg-accent/50" : "bg-muted/50"
-                }`}>
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0">{tip.icon}</span>
-                <p className="text-xs text-foreground/90 leading-relaxed">{tip.text}</p>
+              className="flex flex-col gap-3 p-5 border border-[#E5E5E5] bg-white">
+              <div className="flex items-start gap-4">
+                <span className="mt-0.5 flex-shrink-0 text-[#111111]">{tip.icon}</span>
+                <p className="text-sm text-[#111111] leading-relaxed">{tip.text}</p>
               </div>
               {tip.ingredients && tip.ingredients.length > 0 && (
-                <div className="flex items-start gap-2 ml-7">
-                  <FlaskRound size={11} className="text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex flex-wrap gap-1">
-                    {tip.ingredients.map(ing => (
-                      <span key={ing} className="text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">{ing}</span>
-                    ))}
-                  </div>
+                <div className="flex flex-wrap gap-2 ml-9">
+                  {tip.ingredients.map(ing => (
+                    <span key={ing} className="text-[10px] border border-[#111111] text-[#111111] px-2.5 py-1 font-mono uppercase tracking-[0.1em]">{ing}</span>
+                  ))}
                 </div>
               )}
             </motion.div>
@@ -663,38 +656,40 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Facteurs quotidiens */}
-      <h2 className="text-lg font-display font-semibold text-foreground mb-3">Paramètres du jour</h2>
+      <h2 className="text-xl font-display font-bold text-[#111111] mb-6 uppercase tracking-[0.05em]">Paramètres du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-        className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        className="bg-white border border-[#E5E5E5] p-6 mb-8">
         {/* Location row */}
         <button onClick={() => openEditDialog("location")} className="text-left w-full focus:outline-none">
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-            <MapPin size={16} className="text-primary" />
+          <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E5E5] hover:bg-muted/10 p-2 transition-colors">
+            <MapPin size={18} className="text-[#111111]" />
             <div>
-              <p className="text-xs text-muted-foreground">Localisation</p>
-              <div className="flex items-center gap-1">
-                <p className="text-sm font-semibold text-foreground">{dailyLog.location}</p>
-                <Pencil size={10} className="text-muted-foreground/40" />
+              <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Localisation</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-base font-bold text-[#111111]">{dailyLog.location}</p>
+                <Pencil size={12} className="text-[#AAAAAA]/40" />
               </div>
             </div>
-            <span className="ml-auto flex items-center gap-1 text-[9px] text-primary/60">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <span className="ml-auto flex items-center gap-2 text-[10px] font-mono text-[#111111] font-bold uppercase tracking-[0.1em]">
+              <span className="w-1.5 h-1.5 bg-[#111111] animate-pulse" />
               En direct
             </span>
           </div>
         </button>
-        <div className="grid grid-cols-4 gap-3 text-center text-xs">
+        <div className="grid grid-cols-4 gap-4 text-center">
           {[
-            { id: "temp", icon: <Thermometer size={16} className="text-skin-redness" />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
-            { id: "humidity", icon: <Droplets size={16} className="text-skin-hydration" />, val: `${dailyLog.weather.humidity}%`, sub: "Humidité" },
-            { id: "uv", icon: <Sun size={16} className="text-skin-glow" />, val: `${dailyLog.weather.uv}`, sub: "UV" },
-            { id: "air", icon: <CloudSun size={16} className="text-muted-foreground" />, val: dailyLog.weather.pollution, sub: "Air" }].
+            { id: "temp", icon: <Thermometer size={18} />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
+            { id: "humidity", icon: <Droplets size={18} />, val: `${dailyLog.weather.humidity}%`, sub: "Humidité" },
+            { id: "uv", icon: <Sun size={18} />, val: `${dailyLog.weather.uv}`, sub: "UV" },
+            { id: "air", icon: <CloudSun size={18} />, val: dailyLog.weather.pollution, sub: "Air" }].
             map((item) =>
               <FactorButton key={item.id} id={item.id}>
-                <div className="flex flex-col items-center gap-1 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-                  {item.icon}
-                  <span className="font-semibold text-foreground">{item.val}</span>
-                  <span className="text-muted-foreground">{item.sub}</span>
+                <div className="flex flex-col items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-transparent">
+                  <div className="text-[#111111]">{item.icon}</div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-[#111111] leading-tight uppercase">{item.val}</p>
+                    <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">{item.sub}</p>
+                  </div>
                 </div>
               </FactorButton>
             )}
@@ -703,64 +698,63 @@ const Dashboard = () => {
 
       {/* Appareil connecté + lifestyle factors */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="bg-card rounded-2xl p-4 shadow-card mb-4">
-        <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
-          <div className="flex items-center gap-2">
+        className="bg-white border border-[#E5E5E5] p-6 mb-8">
+        <div className="flex items-center justify-between mb-6 pb-6 border-b border-[#E5E5E5]">
+          <div className="flex items-center gap-4">
             {deviceConnected ?
-              <Bluetooth size={16} className="text-primary" /> :
-
-              <BluetoothOff size={16} className="text-muted-foreground" />
+              <Bluetooth size={18} className="text-[#111111]" /> :
+              <BluetoothOff size={18} className="text-[#AAAAAA]" />
             }
             <div>
-              <p className="text-xs font-semibold text-foreground">
+              <p className="text-sm font-bold text-[#111111] uppercase tracking-[0.05em]">
                 {deviceConnected ? "Apple Watch connectée" : "Aucun appareil connecté"}
               </p>
-              <p className="text-[10px] text-muted-foreground">
-                {deviceConnected ? "Sport, cycle, rythme cardiaque et sommeil synchronisés" : "Sport, cycle, rythme cardiaque et sommeil en saisie manuelle"}
+              <p className="text-[11px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em] mt-1">
+                {deviceConnected ? "Sport, cycle, rythme cardiaque et sommeil synchronisés" : "Saisie manuelle"}
               </p>
             </div>
           </div>
-          <button className="text-[10px] font-medium text-primary px-2 py-1 rounded-full bg-accent">
+          <button className="text-[11px] font-bold text-white px-4 py-2 bg-[#111111] uppercase tracking-[0.1em]">
             {deviceConnected ? "Réglages" : "Connecter"}
           </button>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <FactorButton id="cycle">
-            <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-              <FlaskConical size={16} className="text-skin-texture" />
-              <div>
-                <p className="text-xs text-muted-foreground">Cycle</p>
+            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
+              <FlaskConical size={18} className="text-[#111111]" />
+              <div className="flex-1">
+                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Cycle</p>
                 <select value={dailyLog.cyclePhase} onClick={(e) => e.stopPropagation()}
                   onChange={(e) => { setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle"); }}
-                  className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
-                  {cyclePhases.map((p) => <option key={p}>{p}</option>)}
+                  className="text-sm font-bold text-[#111111] bg-transparent border-none p-0 focus:outline-none w-full uppercase">
+                  {cyclePhases.map((p) => <option key={p} className="bg-white">{p}</option>)}
                 </select>
                 <ManualLabel id="cycle" />
               </div>
             </div>
           </FactorButton>
           <button onClick={() => openEditDialog("heartStress")} className="text-left w-full">
-            <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-              <Heart size={16} className="text-skin-redness" />
+            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
+              <Heart size={18} className="text-[#111111]" />
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Cœur / Stress</p>
-                <div className="flex items-center gap-1">
-                  <p className="text-sm font-semibold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
-                  {!deviceConnected && <Pencil size={10} className="text-muted-foreground/40" />}
+                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Cœur / Stress</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-[#111111]">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
+                  {!deviceConnected && <Pencil size={12} className="text-[#AAAAAA]/40" />}
                 </div>
                 <ManualLabel id="heartStress" />
               </div>
             </div>
           </button>
           <FactorButton id="water">
-            <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-              <Droplets size={16} className="text-skin-hydration" />
-              <div>
-                <p className="text-xs text-muted-foreground">Eau</p>
-                <div className="flex gap-0.5">
+            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
+              <Droplets size={18} className="text-[#111111]" />
+              <div className="flex-1">
+                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Eau</p>
+                <div className="flex gap-1 mt-1">
                   {[...Array(8)].map((_, i) =>
                     <button key={i} onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water"); }}
-                      className={`w-3 h-4 rounded-sm ${i < dailyLog.waterGlasses ? 'bg-skin-hydration' : 'bg-muted'}`} />
+                      className={`w-4 h-6 ${i < dailyLog.waterGlasses ? 'bg-[#111111]' : 'border border-[#E5E5E5]'}`} />
                   )}
                 </div>
                 <ManualLabel id="water" />
@@ -768,25 +762,25 @@ const Dashboard = () => {
             </div>
           </FactorButton>
           <button onClick={() => openEditDialog("sleep")} className="text-left w-full">
-            <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-              <Moon size={16} className="text-skin-texture" />
-              <div>
-                <p className="text-xs text-muted-foreground">Sommeil</p>
-                <div className="flex items-center gap-1">
-                  <p className="text-sm font-semibold text-foreground">{dailyLog.sleepHours}h</p>
-                  {!deviceConnected && <Pencil size={10} className="text-muted-foreground/40" />}
+            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
+              <Moon size={18} className="text-[#111111]" />
+              <div className="flex-1">
+                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Sommeil</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm font-bold text-[#111111]">{dailyLog.sleepHours}h</p>
+                  {!deviceConnected && <Pencil size={12} className="text-[#AAAAAA]/40" />}
                 </div>
                 <ManualLabel id="sleep" />
               </div>
             </div>
           </button>
           <FactorButton id="alcohol">
-            <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-              <Wine size={16} className="text-skin-oil" />
-              <div>
-                <p className="text-xs text-muted-foreground">Alcool</p>
+            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
+              <Wine size={18} className="text-[#111111]" />
+              <div className="flex-1">
+                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Alcool</p>
                 <button onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol"); }}
-                  className={`text-sm font-semibold ${dailyLog.alcohol ? 'text-skin-redness' : 'text-primary'}`}>
+                  className={`text-sm font-bold uppercase mt-1 ${dailyLog.alcohol ? 'text-[#111111] underline' : 'text-[#AAAAAA]'}`}>
                   {dailyLog.alcohol ? "Oui" : "Non"}
                 </button>
                 <ManualLabel id="alcohol" />
@@ -794,14 +788,14 @@ const Dashboard = () => {
             </div>
           </FactorButton>
           <FactorButton id="workout">
-            <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors">
-              <Dumbbell size={16} className="text-primary" />
-              <div>
-                <p className="text-xs text-muted-foreground">Sport</p>
+            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
+              <Dumbbell size={18} className="text-[#111111]" />
+              <div className="flex-1">
+                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Sport</p>
                 <select value={dailyLog.workoutIntensity} onClick={(e) => e.stopPropagation()}
                   onChange={(e) => { setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout"); }}
-                  className="text-sm font-semibold text-foreground bg-transparent border-none p-0 focus:outline-none">
-                  {intensities.map((i) => <option key={i}>{i}</option>)}
+                  className="text-sm font-bold text-[#111111] bg-transparent border-none p-0 focus:outline-none w-full uppercase mt-1">
+                  {intensities.map((i) => <option key={i} className="bg-white">{i}</option>)}
                 </select>
                 <ManualLabel id="workout" />
               </div>
@@ -812,31 +806,31 @@ const Dashboard = () => {
 
       {/* Dialogue facteur */}
       <Dialog open={!!factorOpen} onOpenChange={() => setFactorOpen(null)}>
-        <DialogContent className="max-w-sm rounded-2xl">
+        <DialogContent className="max-w-sm rounded-none border border-[#111111]">
           <DialogHeader>
-            <DialogTitle className="text-foreground">{factorOpen ? factorDetails[factorOpen]?.title : ""}</DialogTitle>
-            <DialogDescription>{factorOpen ? factorDetails[factorOpen]?.desc : ""}</DialogDescription>
+            <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">{factorOpen ? factorDetails[factorOpen]?.title : ""}</DialogTitle>
+            <DialogDescription className="text-sm text-[#111111] leading-relaxed mt-2">{factorOpen ? factorDetails[factorOpen]?.desc : ""}</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
 
       {/* Dialogue édition facteur manuel */}
       <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
-        <DialogContent className="max-w-sm rounded-2xl">
+        <DialogContent className="max-w-sm rounded-none border border-[#111111]">
           <DialogHeader>
-            <DialogTitle className="text-foreground">
+            <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">
               {editingFactor === "heartStress" ? "Cœur & Stress" : editingFactor === "sleep" ? "Sommeil" : "Localisation"}
             </DialogTitle>
-            <DialogDescription>Modifiez vos données manuellement</DialogDescription>
+            <DialogDescription className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-2 italic">Modifiez vos données manuellement</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {editingFactor === "location" && (
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Ville ou code postal</label>
+                <label className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-2 block font-bold">Ville ou code postal</label>
                 <div className="flex gap-2">
-                  <Input type="text" value={editValues.location} onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))} placeholder="Ex: Paris, 75001" autoFocus />
-                  <button onClick={() => { setManualLocation(null); setEditingFactor(null); }} className="px-3 rounded-xl bg-muted text-foreground/80 text-xs font-medium hover:bg-accent transition-colors" title="Me localiser automatiquement">
-                    <MapPin size={16} />
+                  <Input type="text" value={editValues.location} onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))} placeholder="Ex: Paris, 75001" className="rounded-none border-[#E5E5E5] focus:border-[#111111] transition-colors" autoFocus />
+                  <button onClick={() => { setManualLocation(null); setEditingFactor(null); }} className="px-4 border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white transition-colors" title="Me localiser automatiquement">
+                    <MapPin size={18} />
                   </button>
                 </div>
               </div>
@@ -848,11 +842,11 @@ const Dashboard = () => {
                   <Input type="number" value={editValues.heartRate} onChange={e => setEditValues(v => ({ ...v, heartRate: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Niveau de stress (1-5)</label>
+                  <label className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-3 block font-bold">Niveau de stress (1-5)</label>
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map(n => (
                       <button key={n} onClick={() => setEditValues(v => ({ ...v, stressLevel: n }))}
-                        className={`w-10 h-10 rounded-xl text-sm font-semibold transition-colors ${editValues.stressLevel === n ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        className={`w-10 h-10 border text-sm font-bold transition-all ${editValues.stressLevel === n ? 'bg-[#111111] border-[#111111] text-white' : 'bg-white border-[#E5E5E5] text-[#AAAAAA]'}`}>
                         {n}
                       </button>
                     ))}
@@ -867,7 +861,7 @@ const Dashboard = () => {
               </div>
             )}
             <button onClick={saveEditFactor}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground">
+              className="w-full py-4 bg-[#111111] text-white text-sm font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors">
               Enregistrer
             </button>
           </div>
@@ -882,7 +876,7 @@ const Dashboard = () => {
             <DialogDescription>Quels produits utilisez-vous habituellement ?</DialogDescription>
           </DialogHeader>
 
-          <div className="flex bg-muted rounded-xl p-1 mb-2">
+          <div className="flex bg-muted  p-1 mb-2">
             <button onClick={() => setSetupTimeTab("am")}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${setupTimeTab === "am" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
               ☀️ Matin
@@ -942,7 +936,7 @@ const Dashboard = () => {
 
       {/* Produits utilisés */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="bg-card rounded-2xl p-4 shadow-card mb-5">
+        className="bg-card  p-4  mb-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">Ma Routine</p>

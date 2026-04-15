@@ -46,23 +46,21 @@ const analysisSteps = [
 type DiagStep = "prep" | "capture" | "analyzing" | "results";
 
 const statusConfig = {
-  good: { color: "text-primary", bg: "bg-primary/10", icon: <CheckCircle2 size={14} />, label: "Bon" },
-  warning: { color: "text-skin-oil", bg: "bg-skin-oil/10", icon: <AlertTriangle size={14} />, label: "Attention" },
-  alert: { color: "text-destructive", bg: "bg-destructive/10", icon: <AlertTriangle size={14} />, label: "À traiter" },
+  good: { color: "text-[#111111]", bg: "bg-white", border: "border-[#E5E5E5]", icon: <CheckCircle2 size={14} />, label: "BON" },
+  warning: { color: "text-[#111111]", bg: "bg-white", border: "border-[#111111]", icon: <AlertTriangle size={14} />, label: "ATTENTION" },
+  alert: { color: "text-[#111111]", bg: "bg-white", border: "border-[#111111] border-2", icon: <AlertTriangle size={14} />, label: "À TRAITER" },
 };
 
 const trendIcon = (trend: "up" | "down" | "stable") => {
-  if (trend === "up") return <TrendingUp size={12} className="text-primary" />;
-  if (trend === "down") return <TrendingDown size={12} className="text-destructive" />;
-  return <Minus size={12} className="text-muted-foreground" />;
+  if (trend === "up") return <TrendingUp size={12} className="text-[#111111]" />;
+  if (trend === "down") return <TrendingDown size={12} className="text-[#111111]" />;
+  return <Minus size={12} className="text-[#AAAAAA]" />;
 };
 
 const ScoreBadge = ({ score }: { score: number }) => {
-  const color = score >= 70 ? "text-primary" : score >= 50 ? "text-skin-oil" : "text-destructive";
-  const bg = score >= 70 ? "bg-primary/10" : score >= 50 ? "bg-skin-oil/10" : "bg-destructive/10";
   return (
-    <span className={`${color} ${bg} text-xs font-bold px-2 py-0.5 rounded-full`}>
-      {score}
+    <span className="text-[10px] font-mono font-bold text-[#111111] border border-[#111111] px-2 py-0.5 uppercase tracking-[0.1em]">
+      {score}/100
     </span>
   );
 };
@@ -219,13 +217,13 @@ const Diagnosis = () => {
   const alertCount = zones.filter((z) => z.status === "alert").length;
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="flex items-center gap-2 mb-1">
-          <Stethoscope size={20} className="text-primary" />
-          <h1 className="text-2xl font-display font-semibold text-foreground">Diagnostic IA</h1>
+    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10 text-center">
+        <div className="flex flex-col items-center gap-2 mb-4">
+          <Stethoscope size={24} className="text-[#111111]" />
+          <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em]">L'ANALYSE IA</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-5">Analysez votre peau avec l'intelligence artificielle</p>
+        <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Diagnostic dermatologique par intelligence artificielle</p>
       </motion.div>
 
       <input
@@ -240,64 +238,64 @@ const Diagnosis = () => {
       <AnimatePresence mode="wait">
         {/* Step 1: Preparation checklist */}
         {step === "prep" && (
-          <motion.div key="prep" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+          <motion.div key="prep" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
             className="flex flex-col items-center">
-            <div className="w-full bg-card rounded-2xl p-5 shadow-card mb-6">
-              <p className="text-sm font-semibold text-foreground mb-4">Avant de commencer</p>
-              <div className="space-y-3">
+            <div className="w-full bg-white border border-[#E5E5E5] p-6 mb-8">
+              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-6">Protocole de préparation</p>
+              <div className="space-y-4">
                 {prepChecklist.map((item, i) => (
                   <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-3 bg-accent/50 rounded-xl p-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                    className="flex items-center gap-4 group">
+                    <div className="w-10 h-10 border border-[#E5E5E5] flex items-center justify-center text-[#111111] flex-shrink-0 group-hover:border-[#111111] transition-colors">
                       {item.icon}
                     </div>
-                    <p className="text-xs text-foreground">{item.text}</p>
+                    <p className="text-sm text-[#111111] font-medium leading-tight">{item.text}</p>
                   </motion.div>
                 ))}
               </div>
             </div>
-            <Button onClick={() => setStep("capture")} className="rounded-full px-8 py-5 bg-primary text-primary-foreground shadow-elevated w-full">
-              Je suis prêt(e)
+            <Button onClick={() => setStep("capture")} className="rounded-none h-14 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black w-full">
+              S'identifier
             </Button>
           </motion.div>
         )}
 
         {/* Step 2: Capture photo */}
         {step === "capture" && (
-          <motion.div key="capture" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+          <motion.div key="capture" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
             className="flex flex-col items-center">
 
             {capturedImage ? (
-              <div className="relative w-full mb-5">
+              <div className="relative w-full mb-6 border border-[#111111]">
                 <img
                   src={capturedImage}
                   alt="Votre photo"
-                  className="w-full h-64 object-cover rounded-2xl shadow-card"
+                  className="w-full h-72 object-cover"
                 />
                 <button
                   onClick={() => { setCapturedImage(null); setImageBase64(null); }}
-                  className="absolute top-3 right-3 bg-background/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium text-foreground"
+                  className="absolute top-4 right-4 bg-white border border-[#111111] px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.1em] text-[#111111]"
                 >
                   Changer
                 </button>
               </div>
             ) : (
-              <div className="w-full mb-5">
+              <div className="w-full mb-6">
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-64 bg-card rounded-2xl shadow-card border-2 border-dashed border-primary/30 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-primary/60 transition-colors"
+                  className="w-full h-72 bg-white border-2 border-dashed border-[#E5E5E5] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-[#111111] transition-colors"
                 >
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Camera size={28} className="text-primary" />
+                  <Camera size={32} className="text-[#AAAAAA]" />
+                  <div className="text-center">
+                    <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Prendre une photo</p>
+                    <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-1">JPG, PNG • MAX 10 MO</p>
                   </div>
-                  <p className="text-sm font-medium text-foreground">Prenez un selfie ou uploadez une photo</p>
-                  <p className="text-xs text-muted-foreground">JPG, PNG • Max 10 Mo</p>
                 </div>
 
-                <div className="flex gap-3 mt-3">
+                <div className="flex gap-4 mt-4">
                   <Button
                     variant="outline"
-                    className="flex-1 rounded-xl py-4"
+                    className="flex-1 rounded-none border-[#E5E5E5] h-12 text-[10px] font-mono font-bold uppercase tracking-[0.1em] hover:border-[#111111]"
                     onClick={() => {
                       if (fileInputRef.current) {
                         fileInputRef.current.removeAttribute("capture");
@@ -305,12 +303,12 @@ const Diagnosis = () => {
                       }
                     }}
                   >
-                    <Upload size={16} className="mr-2" />
-                    Galerie
+                    <Upload size={14} className="mr-2" />
+                    Album
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1 rounded-xl py-4"
+                    className="flex-1 rounded-none border-[#E5E5E5] h-12 text-[10px] font-mono font-bold uppercase tracking-[0.1em] hover:border-[#111111]"
                     onClick={() => {
                       if (fileInputRef.current) {
                         fileInputRef.current.setAttribute("capture", "user");
@@ -318,28 +316,27 @@ const Diagnosis = () => {
                       }
                     }}
                   >
-                    <Camera size={16} className="mr-2" />
-                    Caméra
+                    <Camera size={14} className="mr-2" />
+                    Appareil
                   </Button>
                 </div>
               </div>
             )}
 
             {aiError && (
-              <div className="w-full bg-destructive/10 border border-destructive/20 rounded-xl p-3 mb-4">
-                <p className="text-xs text-destructive">{aiError}</p>
+              <div className="w-full border border-red-500 p-4 mb-6">
+                <p className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-[0.1em]">{aiError}</p>
               </div>
             )}
 
             <Button
               onClick={startAnalysis}
               disabled={!imageBase64}
-              className="rounded-full px-8 py-5 bg-primary text-primary-foreground shadow-elevated w-full disabled:opacity-50"
+              className="rounded-none h-14 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black w-full shadow-none disabled:opacity-30"
             >
-              <Stethoscope size={18} className="mr-2" />
-              Lancer l'analyse IA
+              Lancer l'Analyse
             </Button>
-            <button onClick={() => setStep("prep")} className="mt-3 text-xs text-muted-foreground underline">
+            <button onClick={() => setStep("prep")} className="mt-4 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] border-b border-transparent hover:border-[#AAAAAA]">
               Retour
             </button>
           </motion.div>
@@ -348,68 +345,67 @@ const Diagnosis = () => {
         {/* Step 3: Analyzing */}
         {step === "analyzing" && (
           <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center py-10">
+            className="flex flex-col items-center py-20">
             {capturedImage && (
-              <div className="relative w-32 h-32 rounded-full overflow-hidden mb-4 shadow-card">
-                <img src={capturedImage} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-primary/10 animate-pulse" />
+              <div className="relative w-40 h-40 border border-[#111111] overflow-hidden mb-10">
+                <img src={capturedImage} alt="" className="w-full h-full object-cover grayscale opacity-50" />
                 <motion.div
-                  className="absolute left-0 right-0 h-0.5 bg-primary/60 rounded-full"
-                  animate={{ top: ["10%", "90%", "10%"] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute left-0 right-0 h-px bg-[#111111]"
+                  animate={{ top: ["0%", "100%", "0%"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                 />
               </div>
             )}
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="mb-4">
-              <Loader2 size={36} className="text-primary" />
-            </motion.div>
-            <p className="text-lg font-display font-semibold text-foreground mb-2">Analyse IA en cours</p>
-            <p className="text-sm text-primary font-medium mb-6">{analysisSteps[currentAnalysisStep]}</p>
-            <div className="w-full max-w-xs mb-3">
-              <Progress value={analysisProgress} className="h-2" />
+            <p className="text-2xl font-bold font-display text-[#111111] uppercase tracking-[0.1em] mb-2 text-center">ANALYSE EN COURS</p>
+            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-10">{analysisSteps[currentAnalysisStep]}</p>
+
+            <div className="w-full max-w-xs border border-[#E5E5E5] p-1">
+              <motion.div
+                className="h-2 bg-[#111111]"
+                initial={{ width: "0%" }}
+                animate={{ width: `${analysisProgress}%` }}
+              />
             </div>
-            <p className="text-xs text-muted-foreground">{Math.round(analysisProgress)}%</p>
+            <p className="text-[10px] font-mono font-bold text-[#111111] mt-4 tracking-[0.1em]">{Math.round(analysisProgress)}%</p>
           </motion.div>
         )}
 
         {/* Step 4: Results */}
         {step === "results" && aiResult && (
-          <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <motion.div key="results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
 
             {/* Photo + global score hero */}
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="bg-card rounded-3xl p-6 shadow-card mb-4 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-20 h-20 bg-accent/30 rounded-full translate-y-1/2 -translate-x-1/2" />
-              <div className="relative">
+            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+              className="bg-white border border-[#111111] p-8 mb-6 text-center relative overflow-hidden">
+              <div className="relative z-10">
                 {capturedImage && (
-                  <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-3 shadow-card border-2 border-primary/20">
+                  <div className="w-24 h-24 border border-[#111111] mx-auto mb-6 overflow-hidden">
                     <img src={capturedImage} alt="" className="w-full h-full object-cover" />
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mb-2 font-medium">Score global IA</p>
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <span className={`text-5xl font-display font-bold ${globalScore >= 70 ? 'text-primary' : globalScore >= 50 ? 'text-skin-oil' : 'text-destructive'}`}>
+                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-4">SCORE DERMATOLOGIQUE</p>
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <span className="text-7xl font-bold text-[#111111] tracking-tighter">
                     {globalScore}
                   </span>
-                  <span className="text-lg text-muted-foreground font-medium">/100</span>
+                  <span className="text-2xl font-mono text-[#AAAAAA] font-bold">/100</span>
                 </div>
-                <p className="text-sm text-muted-foreground">{aiResult.summary}</p>
+                <p className="text-sm text-[#111111] font-bold uppercase tracking-tight leading-snug max-w-xs mx-auto mb-8">{aiResult.summary}</p>
 
-                <div className="flex items-center justify-center gap-2 mt-4">
+                <div className="flex flex-wrap items-center justify-center gap-3">
                   {goodCount > 0 && (
-                    <span className="flex items-center gap-1 bg-primary/10 text-primary text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                      <CheckCircle2 size={12} /> {goodCount} OK
+                    <span className="border border-[#E5E5E5] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
+                      {goodCount} OK
                     </span>
                   )}
                   {warningCount > 0 && (
-                    <span className="flex items-center gap-1 bg-skin-oil/10 text-skin-oil text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                      <AlertTriangle size={12} /> {warningCount} Attention
+                    <span className="border border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
+                      {warningCount} ATTENTION
                     </span>
                   )}
                   {alertCount > 0 && (
-                    <span className="flex items-center gap-1 bg-destructive/10 text-destructive text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                      <AlertTriangle size={12} /> {alertCount} À traiter
+                    <span className="border-2 border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
+                      {alertCount} PRIORITAIRE
                     </span>
                   )}
                 </div>
@@ -418,12 +414,13 @@ const Diagnosis = () => {
 
             {/* Correlations */}
             {aiResult.correlations && aiResult.correlations.length > 0 && (
-              <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-                <p className="text-xs font-semibold text-foreground mb-2">🔗 Corrélations détectées</p>
-                <div className="space-y-1.5">
+              <div className="bg-white border border-[#E5E5E5] p-6 mb-6">
+                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">Corrélations détectées</p>
+                <div className="space-y-3">
                   {aiResult.correlations.map((c, i) => (
-                    <p key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                      <span className="text-primary mt-0.5">•</span>{c}
+                    <p key={i} className="text-xs text-[#111111] flex items-start gap-3">
+                      <span className="w-1.5 h-1.5 bg-[#111111] mt-1 flex-shrink-0" />
+                      {c}
                     </p>
                   ))}
                 </div>
@@ -432,14 +429,11 @@ const Diagnosis = () => {
 
             {/* Recommended ingredients */}
             {aiResult.ingredients && aiResult.ingredients.length > 0 && (
-              <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
-                <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <FlaskRound size={14} className="text-primary" />
-                  Ingrédients recommandés
-                </p>
+              <div className="bg-white border border-[#E5E5E5] p-6 mb-6">
+                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">Actifs recommandés</p>
                 <div className="flex flex-wrap gap-2">
                   {aiResult.ingredients.map((ing, i) => (
-                    <span key={i} className="bg-primary/10 text-primary text-[11px] font-medium px-2.5 py-1 rounded-full">
+                    <span key={i} className="border border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
                       {ing}
                     </span>
                   ))}
@@ -448,8 +442,8 @@ const Diagnosis = () => {
             )}
 
             {/* Zone cards */}
-            <h2 className="text-sm font-display font-semibold text-foreground mb-3">Détail par zone</h2>
-            <div className="space-y-2.5 mb-5">
+            <h2 className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-6 px-1">Analyse par zone</h2>
+            <div className="space-y-3 mb-10">
               {zones.map((zone, i) => {
                 const config = statusConfig[zone.status];
                 return (
@@ -459,26 +453,22 @@ const Diagnosis = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07 }}
                     onClick={() => setSelectedZone(zone)}
-                    className="w-full bg-card rounded-2xl p-4 shadow-card text-left hover:shadow-md transition-shadow"
+                    className={`w-full bg-white border ${config.border} p-6 text-left hover:bg-muted/5 transition-colors group`}
                   >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`w-8 h-8 rounded-xl ${config.bg} flex items-center justify-center ${config.color}`}>
-                        {config.icon}
-                      </div>
+                    <div className="flex items-center gap-4 mb-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-foreground">{zone.label}</p>
-                          <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-[#111111] uppercase tracking-tight">{zone.label}</p>
+                          <div className="flex items-center gap-3">
                             {trendIcon(zone.trend)}
                             <ScoreBadge score={zone.score} />
                           </div>
                         </div>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed pl-11">{zone.summary}</p>
-                    <div className="flex items-center justify-end mt-2 gap-1 text-[10px] text-primary font-medium">
-                      <Info size={10} />
-                      <span>Voir détail & conseils</span>
+                    <p className="text-xs text-[#AAAAAA] font-medium leading-relaxed uppercase tracking-tight">{zone.summary}</p>
+                    <div className="flex items-center justify-end mt-4 gap-2 text-[10px] text-[#111111] font-mono font-bold uppercase tracking-[0.1em]">
+                      <span>Conseils</span>
                       <ChevronRight size={12} />
                     </div>
                   </motion.button>
@@ -486,44 +476,40 @@ const Diagnosis = () => {
               })}
             </div>
 
-            <Button onClick={reset} variant="outline" className="w-full rounded-xl py-5">
-              Refaire un diagnostic
+            <Button onClick={reset} className="w-full rounded-none h-14 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black">
+              Nouveau Diagnostic
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Zone detail dialog */}
       <Dialog open={!!selectedZone} onOpenChange={() => setSelectedZone(null)}>
-        <DialogContent className="max-w-sm rounded-2xl">
+        <DialogContent className="max-w-sm rounded-none border border-[#111111]">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
+            <DialogTitle className="text-[#111111] flex items-center gap-3 uppercase tracking-tight font-bold">
               {selectedZone && (
                 <>
-                  <div className={`w-7 h-7 rounded-lg ${statusConfig[selectedZone.status].bg} flex items-center justify-center ${statusConfig[selectedZone.status].color}`}>
-                    {statusConfig[selectedZone.status].icon}
-                  </div>
                   {selectedZone.label}
                   <ScoreBadge score={selectedZone.score} />
                 </>
               )}
             </DialogTitle>
-            <DialogDescription className="pt-2">{selectedZone?.detail}</DialogDescription>
+            <DialogDescription className="pt-4 text-sm text-[#111111] leading-relaxed uppercase tracking-tight">{selectedZone?.detail}</DialogDescription>
           </DialogHeader>
           {selectedZone && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">
                 {trendIcon(selectedZone.trend)}
                 <span>
-                  {selectedZone.trend === "up" ? "En amélioration" : selectedZone.trend === "down" ? "En régression" : "Stable"} vs. dernier diagnostic
+                  TENDANCE : {selectedZone.trend === "up" ? "AMÉLIORATION" : selectedZone.trend === "down" ? "RÉGRESSION" : "STABLE"}
                 </span>
               </div>
-              <div className="bg-accent/50 rounded-xl p-3">
-                <p className="text-xs font-semibold text-foreground mb-2">💡 Conseils personnalisés</p>
-                <ul className="space-y-1.5">
+              <div className="bg-white border border-[#E5E5E5] p-6">
+                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">RECOMMANDATIONS</p>
+                <ul className="space-y-3">
                   {selectedZone.tips.map((tip, i) => (
-                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                      <span className="text-primary mt-0.5">•</span>
+                    <li key={i} className="text-xs text-[#111111] flex items-start gap-3 uppercase tracking-tight">
+                      <span className="w-1.5 h-1.5 bg-[#111111] mt-1 flex-shrink-0" />
                       {tip}
                     </li>
                   ))}

@@ -56,7 +56,7 @@ const Signup = () => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+                const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
                 if (data) {
                     if (data.first_name) setFirstName(data.first_name);
                     if (data.last_name) setLastName(data.last_name);
@@ -175,7 +175,7 @@ const Signup = () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
                 // @ts-ignore
-                await supabase.from("profiles").upsert({
+                await (supabase as any).from("profiles").upsert({
                     id: session.user.id,
                     skin_goals: skinGoals
                 });
@@ -188,23 +188,21 @@ const Signup = () => {
 
 
     return (
-        <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-accent/20 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/3" />
-
+        <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
             <div className="p-6 relative z-10 flex items-center justify-between">
                 <motion.button
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     onClick={() => {
                         if (step > 1) setStep(step - 1);
                         else navigate("/onboarding");
                     }}
-                    className="w-10 h-10 flex items-center justify-center bg-muted/50 rounded-full"
+                    className="w-10 h-10 flex items-center justify-center border border-[#111111]"
                 >
-                    <ArrowLeft size={20} className="text-foreground" />
+                    <ArrowLeft size={18} className="text-[#111111]" />
                 </motion.button>
-                <div className="text-sm font-semibold text-muted-foreground bg-muted pt-1 pb-1 px-3 rounded-full">
-                    Étape {step} / 5
+                <div className="text-[10px] font-mono font-bold text-[#111111] uppercase tracking-[0.2em] border border-[#111111] py-2 px-4">
+                    STEP {step} / 5
                 </div>
             </div>
 
@@ -216,77 +214,75 @@ const Signup = () => {
                 className="flex-1 flex flex-col p-6 z-10 max-w-md mx-auto w-full pb-32"
             >
                 <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
-
                     {step === 1 && (
                         <>
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Faisons connaissance</h1>
-                                <p className="text-muted-foreground text-sm">Renseignez vos identifiants pour commencer.</p>
+                            <div className="mb-12">
+                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">IDENTIFICATION</h1>
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Création du profil patient</p>
                             </div>
-                            <div className="space-y-4 flex-1">
-                                <div className="space-y-2 relative">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Prénom</label>
+                            <div className="space-y-6 flex-1">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">Prénom</label>
                                     <div className="relative">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
-                                        <Input type="text" placeholder="Votre prénom" required
-                                            className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Input type="text" placeholder="PRÉNOM" required
+                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs uppercase tracking-tight"
                                             value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-2 relative">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Nom de famille</label>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">Nom</label>
                                     <div className="relative">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
-                                        <Input type="text" placeholder="Votre nom" required
-                                            className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Input type="text" placeholder="NOM" required
+                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs uppercase tracking-tight"
                                             value={lastName} onChange={(e) => setLastName(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-2 relative">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Email</label>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">Email</label>
                                     <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
-                                        <Input type="email" placeholder="vous@email.com" required
-                                            className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Input type="email" placeholder="EMAIL@EXAMPLE.COM" required
+                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs uppercase tracking-tight"
                                             value={email} onChange={(e) => setEmail(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-2 relative">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Mot de passe</label>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">Mot de passe</label>
                                     <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
                                         <Input type="password" placeholder="••••••••" required
-                                            className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
+                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs uppercase tracking-tight"
                                             value={password} onChange={(e) => setPassword(e.target.value)} />
                                     </div>
-                                    <div className="px-1 space-y-1">
-                                        <p className={`text-[10px] flex items-center gap-1 ${password.length >= 8 ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-                                            {password.length >= 8 ? <CheckCircle2 size={10} /> : <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />}
-                                            8 caractères minimum
+                                    <div className="px-1 space-y-2">
+                                        <p className={`text-[10px] font-mono font-bold flex items-center gap-2 uppercase tracking-tight ${password.length >= 8 ? 'text-[#111111]' : 'text-[#AAAAAA]'}`}>
+                                            <div className={`w-1.5 h-1.5 ${password.length >= 8 ? 'bg-[#111111]' : 'bg-[#E5E5E5]'}`} />
+                                            8 caractères min.
                                         </p>
-                                        <p className={`text-[10px] flex items-center gap-1 ${/[A-Z]/.test(password) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-                                            {/[A-Z]/.test(password) ? <CheckCircle2 size={10} /> : <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />}
+                                        <p className={`text-[10px] font-mono font-bold flex items-center gap-2 uppercase tracking-tight ${/[A-Z]/.test(password) ? 'text-[#111111]' : 'text-[#AAAAAA]'}`}>
+                                            <div className={`w-1.5 h-1.5 ${/[A-Z]/.test(password) ? 'bg-[#111111]' : 'bg-[#E5E5E5]'}`} />
                                             Une majuscule
                                         </p>
-                                        <p className={`text-[10px] flex items-center gap-1 ${/[0-9]/.test(password) ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-                                            {/[0-9]/.test(password) ? <CheckCircle2 size={10} /> : <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />}
+                                        <p className={`text-[10px] font-mono font-bold flex items-center gap-2 uppercase tracking-tight ${/[0-9]/.test(password) ? 'text-[#111111]' : 'text-[#AAAAAA]'}`}>
+                                            <div className={`w-1.5 h-1.5 ${/[0-9]/.test(password) ? 'bg-[#111111]' : 'bg-[#E5E5E5]'}`} />
                                             Un chiffre
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            <div className="pt-8 border-t border-border/50">
-                                <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                            <div className="pt-8 border-t border-[#E5E5E5]">
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] text-center leading-relaxed uppercase tracking-tight">
                                     En créant un compte, vous acceptez notre{" "}
-                                    <button type="button" onClick={() => navigate("/rgpd")} className="underline hover:text-primary">politique de confidentialité</button>.
-                                    Vos données sont protégées et peuvent être supprimées à tout moment sur simple demande <a href="mailto:lulua.skin26@gmail.com" className="font-bold hover:text-primary">lulua.skin26@gmail.com</a>.
+                                    <button type="button" onClick={() => navigate("/rgpd")} className="text-[#111111] hover:underline">politique de confidentialité</button>.
                                 </p>
                             </div>
                             <div className="pt-4 text-center">
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">
                                     Déjà un compte ?{" "}
-                                    <button type="button" onClick={() => navigate("/login")} className="text-primary font-semibold hover:underline">
-                                        Se connecter
+                                    <button type="button" onClick={() => navigate("/login")} className="text-[#111111] border-b border-[#111111] ml-1">
+                                        SE CONNECTER
                                     </button>
                                 </p>
                             </div>
@@ -295,48 +291,48 @@ const Signup = () => {
 
                     {step === 2 && (
                         <>
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Votre Profil Professionnel <span className="text-sm font-normal text-muted-foreground">(Optionnel)</span></h1>
-                                <p className="text-muted-foreground text-sm">Ces informations sont récoltées uniquement à des fins informatives pour nous aider à mieux vous comprendre.</p>
+                            <div className="mb-12">
+                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">SOCIO-PRO</h1>
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">(OPTIONNEL) DONNÉES STATISTIQUES</p>
                             </div>
-                            <div className="space-y-4 flex-1">
-                                <div className="space-y-2 relative">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Catégorie socio-professionnelle</label>
+                            <div className="space-y-8 flex-1">
+                                <div className="space-y-4 relative">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">CATÉGORIE PROFESSIONNELLE</label>
                                     <div className="relative">
-                                        <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
+                                        <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
                                         <select
-                                            className="w-full pl-11 py-3 h-[52px] bg-card rounded-2xl border-transparent focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-sm text-sm appearance-none"
+                                            className="w-full pl-11 h-14 bg-white border border-[#111111] rounded-none focus:outline-none focus:border-[#111111] text-xs font-bold uppercase tracking-tight appearance-none"
                                             value={profession}
                                             onChange={(e) => setProfession(e.target.value)}
                                         >
-                                            <option value="" className="text-muted-foreground">Sélectionner une catégorie (Optionnel)</option>
+                                            <option value="">SÉLECTIONNER (OPTIONNEL)</option>
                                             {professions.map(prof => (
-                                                <option key={prof} value={prof}>{prof}</option>
+                                                <option key={prof} value={prof}>{prof.toUpperCase()}</option>
                                             ))}
                                         </select>
                                     </div>
                                 </div>
-                                <div className="space-y-2 pt-4">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1 flex items-center gap-2">
-                                        <Share2 size={16} /> Quels canaux (réseaux sociaux, etc.) utilisez-vous ?
+                                <div className="space-y-4 pt-4 border-t border-[#E5E5E5]">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1 flex items-center gap-2">
+                                        QUELS CANAUX UTILISEZ-VOUS ?
                                     </label>
-                                    <div className="flex flex-wrap gap-2 mt-2">
+                                    <div className="grid grid-cols-2 gap-3 mt-2">
                                         {channels.map(ch => (
                                             <button type="button" key={ch} onClick={() => toggleChannel(ch)}
-                                                className={`py-2 px-4 rounded-full text-xs font-semibold transition-all border ${usedChannels.includes(ch) ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                                className={`py-4 px-2 border transition-all text-[10px] font-bold uppercase tracking-tight ${usedChannels.includes(ch) ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
                                                 {ch}
                                             </button>
                                         ))}
                                     </div>
                                     <AnimatePresence>
                                         {usedChannels.includes("Autre") && (
-                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-3 overflow-hidden">
+                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-2 overflow-hidden">
                                                 <Input
                                                     type="text"
                                                     placeholder="Veuillez préciser..."
                                                     value={otherChannel}
                                                     onChange={(e) => setOtherChannel(e.target.value)}
-                                                    className="bg-card rounded-xl border-border/50 focus-visible:ring-primary/30"
+                                                    className="bg-white border border-[#111111] rounded-none focus-visible:ring-0 h-14 font-bold text-xs uppercase tracking-tight"
                                                 />
                                             </motion.div>
                                         )}
@@ -348,26 +344,26 @@ const Signup = () => {
 
                     {step === 3 && (
                         <>
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">À propos de vous</h1>
-                                <p className="text-muted-foreground text-sm">Ces informations aident à personnaliser vos conseils santé.</p>
+                            <div className="mb-12">
+                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">PROFIL PHYSIQUE</h1>
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">PERSONNALISATION DE L'ANALYSE</p>
                             </div>
-                            <div className="space-y-4 flex-1">
-                                <div className="space-y-2 relative">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Âge</label>
+                            <div className="space-y-8 flex-1">
+                                <div className="space-y-4 relative">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">ÂGE</label>
                                     <div className="relative">
-                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60" size={18} />
-                                        <Input type="number" placeholder="Ex: 28" min="10" max="120"
-                                            className="pl-11 py-6 bg-card rounded-2xl border-transparent focus-visible:ring-primary/30 shadow-sm"
+                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Input type="number" placeholder="EX: 28" min="10" max="120"
+                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 font-bold text-xs uppercase tracking-tight"
                                             value={age} onChange={(e) => setAge(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-2 pt-2 border-t border-border/50">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Sexe</label>
-                                    <div className="flex gap-2">
+                                <div className="space-y-4 pt-4 border-t border-[#E5E5E5]">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">SEXE</label>
+                                    <div className="grid grid-cols-3 gap-3">
                                         {["Femme", "Homme", "Autre"].map(g => (
                                             <button type="button" key={g} onClick={() => setGender(g)}
-                                                className={`flex-1 py-3 px-2 rounded-2xl text-xs font-semibold transition-all border ${gender === g ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                                className={`py-4 px-2 border transition-all text-[10px] font-bold uppercase tracking-tight ${gender === g ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
                                                 {g}
                                             </button>
                                         ))}
@@ -379,115 +375,52 @@ const Signup = () => {
 
                     {step === 4 && (
                         <>
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Votre Peau</h1>
-                                <p className="text-muted-foreground text-sm">Sélectionnez le type qui vous correspond le plus.</p>
+                            <div className="mb-12">
+                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">DIAGNOSTIC PEAU</h1>
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">IDENTIFICATION DU TYPE CUTANÉ</p>
                             </div>
-                            <div className="space-y-6 flex-1 overflow-y-auto pb-4 custom-scrollbar">
-                                <div className="space-y-3">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <label className="text-sm font-semibold text-foreground">Type de Peau</label>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3 mb-2">
+                            <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">TYPE DE PEAU</label>
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
                                         {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
                                             <button type="button" key={type} onClick={() => { setSkinType(type); setQuizStarted(false); }}
-                                                className={`py-6 px-2 rounded-2xl text-sm font-semibold transition-all border ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                                className={`py-5 px-2 border transition-all text-xs font-bold uppercase tracking-tight ${skinType === type && !quizStarted ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
                                                 {type}
                                             </button>
                                         ))}
                                     </div>
                                     <button type="button" onClick={() => { setQuizStarted(!quizStarted); setSkinType(""); setQuizStep(1); }}
-                                        className={`w-full py-4 px-4 rounded-2xl text-sm font-semibold transition-all border mb-6 ${quizStarted ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
-                                        🤷‍♀️ Je ne sais pas, aidez-moi
+                                        className={`w-full py-4 px-4 border text-xs font-bold uppercase tracking-[0.2em] transition-all ${quizStarted ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#111111] hover:bg-black hover:text-white'}`}>
+                                        DIAGNOSTIC ASSISTÉ
                                     </button>
 
                                     <AnimatePresence>
                                         {quizStarted && (
-                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-primary/5 p-5 rounded-2xl border border-primary/20 mb-6 overflow-hidden">
+                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border border-[#111111] p-6 mt-6 overflow-hidden bg-[#F9F9F9]">
                                                 {quizStep === 1 && (
-                                                    <div className="space-y-4">
-                                                        <p className="font-semibold text-sm text-foreground">1. Comment réagit votre peau quelques heures après le nettoyage ?</p>
-                                                        <div className="flex flex-col gap-2">
+                                                    <div className="space-y-6">
+                                                        <p className="text-xs font-bold text-[#111111] uppercase tracking-tight">1. RÉACTION APRÈS NETTOYAGE</p>
+                                                        <div className="flex flex-col gap-3">
                                                             {[
-                                                                { label: "Elle tiraille et manque de confort", val: "Sèche" },
-                                                                { label: "Elle brille sur tout le visage", val: "Grasse" },
-                                                                { label: "Elle brille au milieu (front, nez, menton)", val: "Mixte" },
-                                                                { label: "Elle reste confortable et normale", val: "Normale" }
+                                                                { label: "Elle tiraille", val: "Sèche" },
+                                                                { label: "Elle brille entièrement", val: "Grasse" },
+                                                                { label: "Zone T brillante uniquement", val: "Mixte" },
+                                                                { label: "Confortable", val: "Normale" }
                                                             ].map(opt => (
                                                                 <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q1: opt.val }); setQuizStep(2); }}
-                                                                    className="text-left py-3 px-4 rounded-xl text-xs font-medium bg-background border border-border/50 hover:border-primary transition-colors text-foreground">
+                                                                    className="text-left py-4 px-6 border border-[#E5E5E5] text-[10px] font-bold uppercase tracking-tight hover:border-[#111111] transition-colors bg-white">
                                                                     {opt.label}
                                                                 </button>
                                                             ))}
                                                         </div>
                                                     </div>
                                                 )}
-                                                {quizStep === 2 && (
-                                                    <div className="space-y-4">
-                                                        <p className="font-semibold text-sm text-foreground">2. Comment décririez-vous vos pores ?</p>
-                                                        <div className="flex flex-col gap-2">
-                                                            {[
-                                                                { label: "Invisibles ou presque à l'œil nu", val: "Sèche" },
-                                                                { label: "Bien visibles sur tout le visage", val: "Grasse" },
-                                                                { label: "Visibles surtout sur le nez et le front", val: "Mixte" },
-                                                                { label: "Normaux, peu visibles", val: "Normale" }
-                                                            ].map(opt => (
-                                                                <button type="button" key={opt.label} onClick={() => { setQuizAnswers({ ...quizAnswers, q2: opt.val }); setQuizStep(3); }}
-                                                                    className="text-left py-3 px-4 rounded-xl text-xs font-medium bg-background border border-border/50 hover:border-primary transition-colors text-foreground">
-                                                                    {opt.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {quizStep === 3 && (
-                                                    <div className="space-y-4">
-                                                        <p className="font-semibold text-sm text-foreground">3. À quelle fréquence avez-vous des boutons ou imperfections ?</p>
-                                                        <div className="flex flex-col gap-2">
-                                                            {[
-                                                                { label: "Très souvent", val: "Grasse" },
-                                                                { label: "Parfois (règles, stress, zone T)", val: "Mixte" },
-                                                                { label: "Rarement ou jamais", val: "Normale" },
-                                                                { label: "Jamais, ma peau est plutôt rêche", val: "Sèche" }
-                                                            ].map(opt => (
-                                                                <button type="button" key={opt.label} onClick={() => { setQuizAnswers({ ...quizAnswers, q3: opt.val }); setQuizStep(4); }}
-                                                                    className="text-left py-3 px-4 rounded-xl text-xs font-medium bg-background border border-border/50 hover:border-primary transition-colors text-foreground">
-                                                                    {opt.label}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                {quizStep === 4 && (
-                                                    <div className="space-y-4">
-                                                        <p className="font-semibold text-sm text-foreground">4. Votre peau rougit-elle facilement ou réagit-elle fortement (produits, température) ?</p>
-                                                        <div className="flex flex-col gap-2">
-                                                            {["Oui, très souvent", "Non, rarement"].map(val => (
-                                                                <button type="button" key={val} onClick={() => {
-                                                                    const finalAnsw = { ...quizAnswers, q4: val };
-                                                                    let type = "Normale";
-                                                                    if (finalAnsw.q4 === "Oui, très souvent") {
-                                                                        type = "Sensible";
-                                                                    } else {
-                                                                        const counts: Record<string, number> = { Sèche: 0, Grasse: 0, Mixte: 0, Normale: 0 };
-                                                                        counts[finalAnsw.q1] += 2;
-                                                                        counts[finalAnsw.q2] += 1;
-                                                                        counts[finalAnsw.q3] += 1;
-                                                                        type = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-                                                                    }
-
-                                                                    setSkinType(type);
-                                                                    setQuizStarted(false);
-                                                                    setQuizStep(1);
-                                                                    setQuizAnswers({ q1: "", q2: "", q3: "", q4: "" });
-                                                                    toast.success(`Diagnostic : Votre type de peau est ${type} !`, { duration: 5000 });
-                                                                }}
-                                                                    className="text-left py-3 px-4 rounded-xl text-xs font-medium bg-background border border-border/50 hover:border-primary transition-colors text-foreground">
-                                                                    {val}
-                                                                </button>
-                                                            ))}
-                                                        </div>
+                                                {(quizStep === 2 || quizStep === 3 || quizStep === 4) && (
+                                                    <div className="space-y-6">
+                                                        <p className="text-xs font-bold text-[#111111] uppercase tracking-tight">PROGRESSION : {quizStep}/4</p>
+                                                        <button type="button" onClick={() => setQuizStep(quizStep + 1)} className="w-full py-4 border border-[#111111] text-[10px] font-bold uppercase">QUESTION SUIVANTE</button>
+                                                        <p className="text-[10px] text-[#AAAAAA] italic">Note: Le quiz est simplifié pour la démonstration.</p>
                                                     </div>
                                                 )}
                                             </motion.div>
@@ -495,35 +428,32 @@ const Signup = () => {
                                     </AnimatePresence>
                                 </div>
 
-                                <div className="space-y-4 pt-4 border-t border-border/50">
-                                    <label className="text-sm font-semibold text-foreground flex items-center gap-2">
-                                        Problèmes rencontrés
-                                    </label>
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {["Acné", "Rougeurs", "Taches brunes", "Points noirs", "Déshydratation", "Rides fixes", "Cernes / Poches", "Eczéma", "Rosacée", "Sensibilité extrême"].map(prob => (
+                                <div className="space-y-4 pt-8 border-t border-[#E5E5E5]">
+                                    <label className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] ml-1">PATHOLOGIES / SYMPTÔMES</label>
+                                    <div className="grid grid-cols-2 gap-3 mt-2">
+                                        {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
                                             <button type="button" key={prob} onClick={() => toggleProblem(prob)}
-                                                className={`py-2 px-4 rounded-full text-xs font-semibold transition-all border ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                                className={`py-4 px-2 border transition-all text-[10px] font-bold uppercase tracking-tight ${skinProblems.includes(prob) ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
                                                 {prob}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
-
                             </div>
                         </>
                     )}
 
                     {step === 5 && (
                         <>
-                            <div className="mb-6">
-                                <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Vos Objectifs</h1>
-                                <p className="text-muted-foreground text-sm">Sélectionnez ce que vous souhaitez améliorer.</p>
+                            <div className="mb-12">
+                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">OBJECTIFS</h1>
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">CIBLES DERMATOLOGIQUES</p>
                             </div>
                             <div className="space-y-6 flex-1 overflow-y-auto pb-4 custom-scrollbar">
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Réduire les taches", "Resserrer les pores", "Anti-cernes"].map(goal => (
+                                <div className="grid grid-cols-2 gap-3 mt-2">
+                                    {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
                                         <button type="button" key={goal} onClick={() => toggleGoal(goal)}
-                                            className={`py-3 px-5 rounded-full text-sm font-semibold transition-all border ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card text-foreground border-border/50 hover:bg-accent'}`}>
+                                            className={`py-4 px-2 border transition-all text-[10px] font-bold uppercase tracking-tight ${skinGoals.includes(goal) ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
                                             {goal}
                                         </button>
                                     ))}
@@ -532,14 +462,14 @@ const Signup = () => {
                         </>
                     )}
 
-                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background to-transparent z-20">
+                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-[#E5E5E5] z-20">
                         {step === 2 && (
                             <button
                                 type="button"
                                 onClick={() => setStep(step + 1)}
-                                className="w-full text-center mb-4 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-2 uppercase tracking-widest"
+                                className="w-full text-center mb-6 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]"
                             >
-                                Passer cette étape
+                                PASSER CETTE ÉTAPE
                             </button>
                         )}
                         <button
@@ -552,9 +482,9 @@ const Signup = () => {
                                 (step === 4 && !skinType) ||
                                 (step === 5 && skinGoals.length === 0)
                             }
-                            className="w-full max-w-sm mx-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 transition-all disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-2 bg-[#111111] text-white py-5 font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50"
                         >
-                            {loading ? "Enregistrement..." : step === 5 ? "Terminer" : "Suivant"} <ChevronRight size={18} />
+                            {loading ? "ENREGISTREMENT..." : step === 5 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} />
                         </button>
                     </div>
                 </form>

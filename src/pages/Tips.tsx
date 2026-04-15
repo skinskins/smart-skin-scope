@@ -251,9 +251,9 @@ function generateTips(answers: Record<string, number>): DetailedTip[] {
 
 /* ─── UI Components ─── */
 const priorityConfig = {
-  high: { color: "text-destructive", bg: "bg-destructive/10", label: "Prioritaire" },
-  medium: { color: "text-skin-oil", bg: "bg-skin-oil/10", label: "Recommandé" },
-  low: { color: "text-primary", bg: "bg-primary/10", label: "Bonus" },
+  high: { border: "border-2 border-[#111111]", label: "PRIORITAIRE" },
+  medium: { border: "border border-[#111111]", label: "RECOMMANDÉ" },
+  low: { border: "border border-[#E5E5E5]", label: "CONSEIL" },
 };
 
 const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
@@ -261,29 +261,29 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
   const config = priorityConfig[tip.priority];
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
-      className="bg-card rounded-2xl shadow-card overflow-hidden"
+      className={`bg-white border ${config.border} group transition-colors`}
     >
       {/* Collapsed summary — always visible */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full text-left p-4 flex items-center gap-3"
+        className="w-full text-left p-6 flex items-center gap-4"
       >
-        <div className={`w-9 h-9 rounded-xl ${config.bg} flex items-center justify-center ${config.color} flex-shrink-0`}>
+        <div className="w-10 h-10 border border-[#E5E5E5] flex items-center justify-center text-[#111111] flex-shrink-0 group-hover:border-[#111111] transition-colors">
           {tip.icon}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground truncate">{tip.title}</h3>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${config.bg} ${config.color} flex-shrink-0`}>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h3 className="text-sm font-bold text-[#111111] uppercase tracking-tight truncate">{tip.title}</h3>
+            <span className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] flex-shrink-0">
               {config.label}
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground/60 italic mt-0.5">{tip.source}</p>
+          <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">{tip.source}</p>
         </div>
-        <ChevronRight size={16} className={`text-muted-foreground transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`} />
+        <ChevronRight size={16} className={`text-[#111111] transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`} />
       </button>
 
       {/* Expanded details */}
@@ -296,18 +296,18 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pt-0 space-y-3">
-              <p className="text-xs text-muted-foreground leading-relaxed">{tip.description}</p>
+            <div className="px-6 pb-6 pt-0 space-y-6">
+              <p className="text-xs text-[#111111] leading-relaxed uppercase tracking-tight">{tip.description}</p>
 
               {/* Products */}
               <div>
-                <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
-                  <ShieldCheck size={12} className="text-primary" />
-                  Produits recommandés
+                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-3 flex items-center gap-2">
+                  <ShieldCheck size={12} className="text-[#111111]" />
+                  RECOMMANDATIONS PRODUITS
                 </p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {tip.products.map((p, i) => (
-                    <span key={i} className="text-[10px] bg-accent text-foreground px-2.5 py-1 rounded-full font-medium">
+                    <span key={i} className="text-[10px] border border-[#E5E5E5] text-[#111111] px-3 py-1 font-mono font-bold uppercase tracking-[0.05em]">
                       {p}
                     </span>
                   ))}
@@ -316,13 +316,13 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
 
               {/* Ingredients */}
               <div>
-                <p className="text-[11px] font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
-                  <FlaskConical size={12} className="text-primary" />
-                  Ingrédients à privilégier
+                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-3 flex items-center gap-2">
+                  <FlaskConical size={12} className="text-[#111111]" />
+                  ACTIFS À PRIVILÉGIER
                 </p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {tip.ingredients.map((ing, i) => (
-                    <span key={i} className="text-[10px] bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
+                    <span key={i} className="text-[10px] border border-[#111111] text-[#111111] px-3 py-1 font-mono font-bold uppercase tracking-[0.05em]">
                       {ing}
                     </span>
                   ))}
@@ -374,39 +374,39 @@ const Tips = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles size={20} className="text-primary" />
-          <h1 className="text-2xl font-display font-semibold text-foreground">Quiz Peau</h1>
+    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10 text-center">
+        <div className="flex flex-col items-center gap-2 mb-4">
+          <Sparkles size={24} className="text-[#111111]" />
+          <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em]">LE QUIZ</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">Répondez pour des conseils ultra-personnalisés</p>
+        <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Protocole de personnalisation avancée</p>
       </motion.div>
 
       {/* Progress bar */}
-      <div className="flex gap-1 mb-6">
+      <div className="flex gap-1 mb-10">
         {questions.map((_, i) => (
-          <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < step || done ? 'bg-primary' : i === step && !done ? 'bg-primary/40' : 'bg-muted'
+          <div key={i} className={`h-1 flex-1 transition-colors ${i < step || done ? 'bg-[#111111]' : 'bg-[#E5E5E5]'
             }`} />
         ))}
       </div>
 
       <AnimatePresence mode="wait">
         {!done ? (
-          <motion.div key={step} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }}>
-            <div className="bg-card rounded-2xl p-6 shadow-card">
-              <p className="text-xs text-muted-foreground mb-1">Question {step + 1}/{questions.length}</p>
-              <h2 className="text-lg font-display font-semibold text-foreground mb-5">{current.text}</h2>
-              <div className="space-y-2">
+          <motion.div key={step} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }}>
+            <div className="bg-white border border-[#111111] p-8">
+              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">Étape {step + 1}/{questions.length}</p>
+              <h2 className="text-2xl font-bold font-display text-[#111111] uppercase tracking-tight leading-tight mb-8">{current.text}</h2>
+              <div className="space-y-3">
                 {current.options.map(opt => (
                   <button key={opt.label} onClick={() => answer(current.id, opt.value)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all text-sm font-medium ${answers[current.id] === opt.value
-                      ? 'border-primary bg-accent text-primary'
-                      : 'border-border text-foreground hover:border-primary/40'
+                    className={`w-full text-left px-5 py-4 border transition-all text-xs font-bold uppercase tracking-tight ${answers[current.id] === opt.value
+                      ? 'border-[#111111] bg-[#111111] text-white'
+                      : 'border-[#E5E5E5] text-[#111111] hover:border-[#111111]'
                       }`}>
                     <div className="flex items-center justify-between">
                       {opt.label}
-                      <ChevronRight size={16} className="text-muted-foreground" />
+                      <ChevronRight size={14} className={answers[current.id] === opt.value ? 'text-white' : 'text-[#AAAAAA]'} />
                     </div>
                   </button>
                 ))}
@@ -414,30 +414,30 @@ const Tips = () => {
             </div>
           </motion.div>
         ) : (
-          <motion.div key="result" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
 
             {/* Score summary */}
-            <div className="rounded-2xl p-5 mb-4 text-center" style={{ background: "var(--gradient-hero)" }}>
-              <p className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wider mb-2">Votre bilan personnalisé</p>
-              <p className="text-primary-foreground/80 text-sm mb-3">
-                {quizScore > 75 ? "Excellentes habitudes au quotidien ✨" : quizScore > 50 ? "Bonnes bases, quelques ajustements à faire 🔍" : "Plusieurs axes d'amélioration importants 🩹"}
+            <div className="bg-white border-2 border-[#111111] p-8 mb-6 text-center">
+              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-4">BILAN GÉNÉRÉ</p>
+              <p className="text-lg font-bold text-[#111111] uppercase tracking-tight leading-snug mb-8">
+                {quizScore > 75 ? "Protocoles optimaux détectés" : quizScore > 50 ? "Ajustements nécessaires" : "Intervention prioritaire requise"}
               </p>
-              <div className="flex items-center justify-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1 bg-white/20 text-primary-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                  {tips.length} conseils
+              <div className="flex items-center justify-center gap-3">
+                <span className="border border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
+                  {tips.length} ANALYSES
                 </span>
                 {highCount > 0 && (
-                  <span className="flex items-center gap-1 bg-destructive/30 text-primary-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                    <AlertTriangle size={10} /> {highCount} prioritaire{highCount > 1 ? "s" : ""}
+                  <span className="bg-[#111111] text-white text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
+                    {highCount} ALERTES
                   </span>
                 )}
               </div>
             </div>
 
             {/* Data sources info */}
-            <div className="bg-accent/50 rounded-xl p-3 mb-4">
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                💡 Ces conseils sont générés à partir de <strong>vos réponses au quiz</strong>, de vos <strong>paramètres du dashboard</strong> (météo, cycle, stress, sommeil) et des <strong>résultats de votre dernier diagnostic</strong> zone par zone.
+            <div className="bg-white border border-[#E5E5E5] p-6 mb-6">
+              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] leading-relaxed">
+                SYNTHÈSE BASÉE SUR : RÉPONSES AU QUIZ + PARAMÈTRES DASHBOARD (MÉTÉO, CYCLE, STRESS) + RÉSULTATS DU DERNIER DIAGNOSTIC IA.
               </p>
             </div>
 
@@ -448,7 +448,7 @@ const Tips = () => {
               ))}
             </div>
 
-            <Button onClick={restart} variant="outline" className="w-full rounded-xl py-5">Refaire le quiz</Button>
+            <Button onClick={restart} className="w-full rounded-none h-14 border border-[#111111] bg-white text-[#111111] font-bold uppercase tracking-[0.1em] hover:bg-muted/5">REINITIALISER LE QUIZ</Button>
           </motion.div>
         )}
       </AnimatePresence>

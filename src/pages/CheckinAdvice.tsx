@@ -120,10 +120,10 @@ const SKIN_GOALS = ["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfect
 
 const FactorButton = ({ icon, label, value, onClick }: { icon: React.ReactNode, label: string, value: string | number, onClick: () => void }) => (
     <button onClick={onClick} className="flex flex-col items-center gap-1.5 hover:bg-accent/50 rounded-2xl p-3 transition-all border border-transparent hover:border-primary/20">
-        <div className="p-2 rounded-xl bg-muted/50 text-primary">
+        <div className="p-2  bg-muted/50 text-primary">
             {icon}
         </div>
-        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</span>
+        <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{label}</span>
         <span className="text-sm font-bold text-foreground">{value}</span>
     </button>
 );
@@ -209,7 +209,7 @@ const CheckinAdvice = () => {
         }
 
         console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
-        const { error } = await supabase.from("profiles").update(updates).eq("id", session.user.id);
+        const { data, error } = await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
         if (error) {
             console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
             toast.error("Erreur de sauvegarde : Vérifiez la base de données.");
@@ -231,7 +231,7 @@ const CheckinAdvice = () => {
 
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                await supabase.from("profiles").update({ manual_location: loc }).eq("id", session.user.id);
+                await (supabase as any).from("profiles").update({ manual_location: loc }).eq("id", session.user.id);
             }
         } else {
             localStorage.removeItem("manualLocation");
@@ -300,7 +300,7 @@ const CheckinAdvice = () => {
         const fetchCheckinStatus = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                const { data: profile } = await supabase
+                const { data: profile } = await (supabase as any)
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
@@ -364,7 +364,7 @@ const CheckinAdvice = () => {
                         localStorage.setItem("dailyCheckinData", JSON.stringify(preservedFactors));
 
                         // Also clear the daily columns in Supabase for the new day
-                        supabase.from("profiles").update({
+                        (supabase as any).from("profiles").update({
                             cycle_phase: null,
                             stress_level: null,
                             makeup_removed: null,
@@ -443,7 +443,7 @@ const CheckinAdvice = () => {
         // Sync with Supabase
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            await supabase.from("profiles").update(updates).eq("id", session.user.id);
+            await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
             toast.success("Profil mis à jour !");
         }
 
@@ -454,7 +454,7 @@ const CheckinAdvice = () => {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 relative overflow-hidden">
                 <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-primary/20 rounded-full blur-[100px] -translate-y-1/2 -translate-x-1/2" />
-                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card p-8 rounded-3xl shadow-card z-10 flex flex-col items-center text-center max-w-sm w-full">
+                <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card p-8   z-10 flex flex-col items-center text-center max-w-sm w-full">
                     <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
                         <CheckCircle2 size={40} className="text-primary" />
                     </div>
@@ -470,18 +470,17 @@ const CheckinAdvice = () => {
 
     return (
         <div className="min-h-screen bg-background flex flex-col p-6 pb-32 max-w-lg mx-auto overflow-x-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[#111111]/5 -translate-y-1/2 translate-x-1/2" />
 
             {/* Consolidated Identity Header */}
-            <section className="mb-10 relative group/card">
-                <div className="bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-primary/10 rounded-[2.5rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 opacity-30" />
+            <section className="mb-12 relative group/card">
+                <div className="bg-white border border-[#E5E5E5] p-8 relative overflow-hidden">
 
                     {/* Top Row: Greeting & Logout */}
                     <div className="flex items-center justify-between mb-5 relative z-10">
                         <div>
-                            <h2 className="text-2xl font-display font-bold text-foreground">
-                                {greeting}, <span className="text-primary">{guest.first_name || firstName}</span>
+                            <h2 className="text-3xl font-display font-bold text-[#111111] uppercase tracking-[0.05em]">
+                                {greeting}, {guest.first_name || firstName}
                             </h2>
                         </div>
                         <button
@@ -494,73 +493,73 @@ const CheckinAdvice = () => {
                                 navigate("/onboarding");
                                 toast.success("Déconnexion réussie");
                             }}
-                            className="p-3 bg-white/60 backdrop-blur-md rounded-2xl text-red-400 hover:text-red-500 hover:bg-white transition-all shadow-sm border border-white"
+                            className="p-3 bg-white border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white transition-all shadow-none"
                         >
                             <LogOut size={18} />
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-primary/5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-[#E5E5E5]">
                         {/* Nature de la Peau */}
                         <div className="relative group/edit flex flex-col justify-center">
                             <button
                                 onClick={() => { setEditingProfile('skin_type'); setEditProfileValue(guest.skin_type); }}
-                                className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                                className="absolute -top-1 -right-1 p-2 bg-white border border-[#111111] shadow-none opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
                             >
-                                <Pencil size={10} className="text-primary" />
+                                <Pencil size={12} className="text-[#111111]" />
                             </button>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 italic">Nature</p>
-                            <p className="text-xl font-display font-bold text-foreground">
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">Nature</p>
+                            <p className="text-2xl font-display font-bold text-[#111111]">
                                 {guest.skin_type || "Pure"}
                             </p>
                         </div>
 
                         {/* Focus Section */}
-                        <div className="relative group/edit flex flex-col justify-center border-l md:border-l border-primary/5 pl-6">
+                        <div className="relative group/edit flex flex-col justify-center border-l border-[#E5E5E5] pl-6">
                             <button
                                 onClick={() => { setEditingProfile('skin_problems'); setEditProfileValue(guest.skin_problems); }}
-                                className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                                className="absolute -top-1 -right-1 p-2 bg-white border border-[#111111] opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
                             >
-                                <Pencil size={10} className="text-primary" />
+                                <Pencil size={12} className="text-[#111111]" />
                             </button>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1">Focus</p>
-                            <div className="flex flex-wrap gap-1.5 items-center">
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">Focus</p>
+                            <div className="flex flex-wrap gap-2 items-center">
                                 {guest.skin_problems && guest.skin_problems.length > 0 ? (
                                     <>
                                         {guest.skin_problems.slice(0, 2).map((prob: string) => (
-                                            <span key={prob} className="text-[9px] font-bold text-foreground/70 bg-white/50 px-2 py-0.5 rounded-lg border border-white/80">
+                                            <span key={prob} className="text-[10px] font-bold text-[#111111] border border-[#111111] px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
                                                 {prob}
                                             </span>
                                         ))}
-                                        {guest.skin_problems.length > 2 && <span className="text-[10px] text-muted-foreground font-bold">...</span>}
+                                        {guest.skin_problems.length > 2 && <span className="text-[10px] text-[#AAAAAA] font-bold">...</span>}
                                     </>
                                 ) : (
-                                    <span className="text-[10px] text-muted-foreground/60 italic font-medium">Non défini</span>
+                                    <span className="text-[10px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em]">Non défini</span>
                                 )}
                             </div>
                         </div>
 
                         {/* Objectifs Section */}
-                        <div className="relative group/edit flex flex-col justify-center border-l border-primary/5 pl-6">
+                        <div className="relative group/edit flex flex-col justify-center border-l border-[#E5E5E5] pl-6">
                             <button
                                 onClick={() => { setEditingProfile('skin_goals'); setEditProfileValue(guest.skin_goals); }}
-                                className="absolute -top-2 -right-2 p-1.5 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
+                                className="absolute -top-1 -right-1 p-2 bg-white border border-[#111111] opacity-0 group-hover/edit:opacity-100 transition-opacity z-20"
                             >
-                                <Pencil size={10} className="text-primary" />
+                                <Pencil size={12} className="text-[#111111]" />
                             </button>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1">Objectifs</p>
-                            <div className="flex flex-wrap gap-1.5 items-center">
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">Objectifs</p>
+                            <div className="flex flex-wrap gap-2 items-center">
                                 {guest.skin_goals && guest.skin_goals.length > 0 ? (
                                     <>
                                         {guest.skin_goals.slice(0, 2).map((goal: string) => (
-                                            <span key={goal} className="text-[9px] font-bold text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">
+                                            <span key={goal} className="text-[10px] font-bold text-[#111111] border border-[#111111] px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
                                                 {goal}
                                             </span>
                                         ))}
-                                        {guest.skin_goals.length > 2 && <span className="text-[10px] text-primary font-bold">...</span>}
+                                        {guest.skin_goals.length > 2 && <span className="text-[10px] text-[#AAAAAA] font-bold">...</span>}
                                     </>
                                 ) : (
-                                    <span className="text-[10px] text-muted-foreground/60 italic font-medium">Non défini</span>
+                                    <span className="text-[10px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em]">Non défini</span>
                                 )}
                             </div>
                         </div>
@@ -569,28 +568,28 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Advice Section */}
-            <section className="mb-10">
-                <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
-                    <Lightbulb size={20} className="text-primary" /> Conseils du jour
+            <section className="mb-12">
+                <h2 className="text-xl font-display font-bold text-[#111111] mb-6 uppercase tracking-[0.05em]">
+                    Conseils du jour
                 </h2>
                 <div className="space-y-4">
                     {!isCheckinDoneToday && (
                         <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="p-6 bg-primary/5 border border-primary/10 rounded-[2.5rem] flex flex-col items-center gap-3 text-center"
+                            className="p-8 bg-white border border-[#111111] flex flex-col items-center gap-4 text-center"
                         >
-                            <div className="p-3 bg-primary/10 rounded-full">
-                                <Droplets size={24} className="text-primary" />
+                            <div className="p-4 border border-[#111111]">
+                                <Droplets size={24} className="text-[#111111]" />
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-sm font-bold">Check-in du jour manquant</p>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            <div className="space-y-2">
+                                <p className="text-sm font-bold uppercase tracking-[0.1em] text-[#111111]">Check-in du jour manquant</p>
+                                <p className="text-[11px] text-[#AAAAAA] leading-relaxed uppercase font-mono tracking-[0.05em]">
                                     Complétez vos facteurs de vie ci-dessous pour débloquer vos conseils personnalisés.
                                 </p>
                                 <button
                                     onClick={() => document.getElementById('lifestyle-factors')?.scrollIntoView({ behavior: 'smooth' })}
-                                    className="mt-2 px-4 py-2 bg-primary text-primary-foreground text-[11px] font-bold rounded-full shadow-sm hover:shadow-md transition-all active:scale-95 flex items-center gap-2 mx-auto"
+                                    className="mt-4 px-6 py-3 bg-[#111111] text-white text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors flex items-center gap-2 mx-auto"
                                 >
                                     Compléter maintenant
                                     <ChevronRight size={14} />
@@ -606,18 +605,18 @@ const CheckinAdvice = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 transition={{ delay: idx * 0.1 }}
-                                className={`p-5 rounded-3xl shadow-card border border-border/40`}
+                                className="p-6 border border-[#E5E5E5] bg-white"
                             >
                                 <div className="flex gap-4">
                                     <div className="text-3xl flex-shrink-0">{advice.iconStr}</div>
                                     <div className="flex-1">
-                                        <h3 className="font-bold text-base mb-1">{advice.title}</h3>
-                                        <p className="text-sm text-muted-foreground leading-relaxed mb-3">{advice.text}</p>
+                                        <h3 className="font-display font-bold text-lg text-[#111111] uppercase tracking-[0.05em] mb-2">{advice.title}</h3>
+                                        <p className="text-sm text-[#111111] leading-relaxed mb-4">{advice.text}</p>
 
                                         {advice.ingredients && advice.ingredients.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                            <div className="flex flex-wrap gap-2 mb-4">
                                                 {advice.ingredients.map(ing => (
-                                                    <span key={ing} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                                                    <span key={ing} className="px-2.5 py-1 border border-[#111111] text-[#111111] text-[10px] font-mono uppercase tracking-[0.1em]">
                                                         {ing}
                                                     </span>
                                                 ))}
@@ -625,19 +624,19 @@ const CheckinAdvice = () => {
                                         )}
 
                                         {advice.spfData && (
-                                            <div className="my-4 p-4 rounded-2xl bg-muted/30 border border-border/60 space-y-3">
-                                                <div className="grid grid-cols-2 gap-4">
+                                            <div className="my-6 p-5 bg-white border border-[#111111] space-y-4">
+                                                <div className="grid grid-cols-2 gap-6">
                                                     <div>
-                                                        <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Quantité</p>
-                                                        <p className="text-[11px] font-bold text-foreground">{advice.spfData.qty}</p>
+                                                        <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] font-bold mb-1">Quantité</p>
+                                                        <p className="text-sm font-bold text-[#111111] uppercase tracking-[0.05em]">{advice.spfData.qty}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[9px] text-muted-foreground uppercase font-bold mb-1">Renouveler</p>
-                                                        <p className="text-[11px] font-bold text-foreground">Toutes les {advice.spfData.renewEvery}</p>
+                                                        <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] font-bold mb-1">Renouveler</p>
+                                                        <p className="text-sm font-bold text-[#111111] uppercase tracking-[0.05em]">Toutes les {advice.spfData.renewEvery}</p>
                                                     </div>
                                                 </div>
                                                 {advice.spfData.renewNote && (
-                                                    <p className="text-[10px] text-muted-foreground italic leading-tight">
+                                                    <p className="text-[11px] text-[#AAAAAA] font-mono uppercase tracking-[0.05em] italic">
                                                         * {advice.spfData.renewNote}
                                                     </p>
                                                 )}
@@ -645,9 +644,9 @@ const CheckinAdvice = () => {
                                         )}
 
                                         {advice.tip && (
-                                            <div className="flex gap-2 p-3 rounded-2xl bg-muted/30 border border-border/50">
-                                                <Info size={14} className="text-primary shrink-0 mt-0.5" />
-                                                <p className="text-[11px] font-medium leading-normal">{advice.tip}</p>
+                                            <div className="flex gap-3 p-4 bg-muted/10 border border-[#E5E5E5]">
+                                                <Info size={16} className="text-[#AAAAAA] shrink-0 mt-0.5" />
+                                                <p className="text-[11px] font-mono text-[#111111] leading-relaxed uppercase tracking-[0.05em]">{advice.tip}</p>
                                             </div>
                                         )}
                                     </div>
@@ -659,44 +658,46 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Environment Grid */}
-            <section className="mb-4">
-                <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
-                    <CloudSun size={20} className="text-primary" /> Paramètres du jour
+            <section className="mb-12">
+                <h2 className="text-xl font-display font-bold text-[#111111] mb-6 uppercase tracking-[0.05em]">
+                    Paramètres du jour
                 </h2>
-                <div className="bg-card rounded-[2.5rem] p-5 shadow-card border border-border/40">
+                <div className="bg-white border border-[#E5E5E5] p-6">
                     {/* Location row */}
                     <button onClick={() => { setEditingFactor('location'); setEditValue(factors.location || "Paris"); setLocationInput(factors.location || "Paris"); }} className="text-left w-full focus:outline-none">
-                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-border/60 hover:bg-accent/50 rounded-2xl p-2 transition-colors">
-                            <MapPin size={18} className="text-foreground" />
+                        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E5E5] hover:bg-muted/10 p-2 transition-colors">
+                            <MapPin size={18} className="text-[#111111]" />
                             <div>
-                                <p className="text-[10px] text-foreground font-bold uppercase tracking-wider">Localisation</p>
-                                <div className="flex items-center gap-1">
-                                    <p className={`text-sm font-bold ${factors.location ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] font-bold">Localisation</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className={`text-base font-bold ${factors.location ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
                                         {factors.location || "Paris"}
                                     </p>
-                                    <Pencil size={12} className="text-foreground/30" />
+                                    <Pencil size={12} className="text-[#AAAAAA]/40" />
                                 </div>
                             </div>
-                            <span className="ml-auto flex items-center gap-1 text-[10px] text-foreground font-bold uppercase tracking-tighter">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                            <span className="ml-auto flex items-center gap-2 text-[10px] font-mono text-[#111111] font-bold uppercase tracking-[0.1em]">
+                                <span className="w-1.5 h-1.5 bg-[#111111] animate-pulse" />
                                 En direct
                             </span>
                         </div>
                     </button>
 
-                    <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="grid grid-cols-4 gap-4 text-center">
                         {[
-                            { id: "temp", icon: <Thermometer size={18} className="text-skin-redness" />, val: `${factors.weather?.temp ?? 20}°C`, sub: "Temp" },
-                            { id: "humidity", icon: <Droplets size={18} className="text-skin-hydration" />, val: `${factors.weather?.humidity ?? 50}%`, sub: "Humidité" },
-                            { id: "uv", icon: <Sun size={18} className="text-skin-glow" />, val: factors.weather?.uv ?? 0, sub: "UV" },
-                            { id: "air", icon: <CloudSun size={18} className="text-foreground" />, val: factors.weather?.pollution ?? "Bon", sub: "Air" }
+                            { id: "temp", icon: <Thermometer size={18} />, val: `${factors.weather?.temp ?? 20}°C`, sub: "Temp" },
+                            { id: "humidity", icon: <Droplets size={18} />, val: `${factors.weather?.humidity ?? 50}%`, sub: "Humidité" },
+                            { id: "uv", icon: <Sun size={18} />, val: factors.weather?.uv ?? 0, sub: "UV" },
+                            { id: "air", icon: <CloudSun size={18} />, val: factors.weather?.pollution ?? "Bon", sub: "Air" }
                         ].map((item) => (
-                            <div key={item.id} className="flex flex-col items-center gap-1.5 p-1">
-                                <div className="p-2 rounded-xl bg-muted/30 text-foreground">
+                            <div key={item.id} className="flex flex-col items-center gap-3 p-3 border border-transparent hover:bg-muted/10 transition-colors">
+                                <div className="text-[#111111]">
                                     {item.icon}
                                 </div>
-                                <span className="text-sm font-bold text-foreground leading-tight">{item.val}</span>
-                                <span className="text-[10px] text-foreground font-bold uppercase tracking-wide">{item.sub}</span>
+                                <div className="space-y-1">
+                                    <p className="text-sm font-bold text-[#111111] leading-tight uppercase">{item.val}</p>
+                                    <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">{item.sub}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -704,27 +705,24 @@ const CheckinAdvice = () => {
             </section>
 
             {/* Lifestyle Grid */}
-            <section id="lifestyle-factors" className="bg-card rounded-2xl p-6 shadow-card mb-4 border border-border/40">
-                <div className="mb-6">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Pencil size={18} className="text-primary" />
-                        <h3 className="text-lg font-display font-bold text-foreground">
-                            {factorSectionTitle}
-                        </h3>
-                    </div>
+            <section id="lifestyle-factors" className="bg-white border border-[#E5E5E5] p-8 mb-8">
+                <div className="mb-8">
+                    <h3 className="text-2xl font-display font-bold text-[#111111] uppercase tracking-[0.05em] mb-2">
+                        {factorSectionTitle}
+                    </h3>
                     {!isCheckinDoneToday && (
-                        <p className="text-xs text-muted-foreground leading-relaxed italic">
-                            Prenez un moment pour renseigner vos dernières actions.
+                        <p className="text-[11px] font-mono text-[#AAAAAA] uppercase tracking-[0.05em] italic">
+                            Renseignez vos dernières actions pour des conseils précis.
                         </p>
                     )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                     {/* Cycle */}
-                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group relative">
-                        <Calendar size={16} className="text-rose-400" />
+                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group relative">
+                        <Calendar size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Cycle</p>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Cycle</p>
                             <select
                                 value={factors.cyclePhase || ""}
                                 onChange={(e) => {
@@ -735,63 +733,63 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('cycle', val);
                                 }}
-                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${!factors.cyclePhase ? 'text-muted-foreground/50' : 'text-foreground'}`}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.cyclePhase ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
                             >
-                                <option value="" disabled>N/A</option>
-                                {cyclePhases.map((p) => <option key={p} value={p}>{p}</option>)}
+                                <option value="" disabled className="bg-white">N/A</option>
+                                {cyclePhases.map((p) => <option key={p} value={p} className="bg-white">{p}</option>)}
                             </select>
                         </div>
                     </div>
 
                     {/* Stress */}
-                    <button onClick={() => { setEditingFactor('stress'); setEditValue(factors.stressLevel ?? 3); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Heart size={16} className="text-skin-redness" />
+                    <button onClick={() => { setEditingFactor('stress'); setEditValue(factors.stressLevel ?? 3); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Heart size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Stress</p>
-                            <div className="flex items-center gap-1">
-                                <p className={`text-sm font-semibold truncate ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Stress</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-sm font-bold uppercase ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
                                     {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5` : "N/A"}
                                 </p>
-                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
+                                <Pencil size={12} className="text-[#AAAAAA]/40" />
                             </div>
                         </div>
                     </button>
 
-                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); setMakeupStep(1); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Sparkles size={16} className="text-skin-glow" />
+                    <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); setMakeupStep(1); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Sparkles size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Maquillage / Nettoyage</p>
-                            <div className="flex items-center gap-1">
-                                <p className={`text-sm font-semibold transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Démaquillage</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-[10px] font-bold uppercase transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
                                     {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (
-                                        factors.woreMakeup === false ? "Visage nettoyé" :
-                                            (factors.makeupRemoved ? "Visage nettoyé" : "Non démaquillé")
+                                        factors.woreMakeup === false ? "Visage Net" :
+                                            (factors.makeupRemoved ? "Visage Net" : "Maquillé")
                                     ) : "N/A"}
                                 </p>
-                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
+                                <Pencil size={12} className="text-[#AAAAAA]/40" />
                             </div>
                         </div>
                     </button>
 
                     {/* Sommeil */}
-                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Moon size={16} className="text-skin-texture" />
+                    <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Moon size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Sommeil</p>
-                            <div className="flex items-center gap-1">
-                                <p className={`text-sm font-semibold ${factors.sleepHours !== undefined && factors.sleepHours !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Sommeil</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-sm font-bold uppercase ${factors.sleepHours !== undefined && factors.sleepHours !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
                                     {factors.sleepHours !== undefined && factors.sleepHours !== null ? `${factors.sleepHours}h` : "N/A"}
                                 </p>
-                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
+                                <Pencil size={12} className="text-[#AAAAAA]/40" />
                             </div>
                         </div>
                     </button>
 
                     {/* Eau */}
-                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
-                        <Droplets size={16} className="text-skin-hydration" />
+                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Droplets size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Consommation d'eau</p>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Eau</p>
                             <select
                                 value={factors.waterStatus || ""}
                                 onChange={(e) => {
@@ -802,21 +800,21 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('water', val);
                                 }}
-                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${!factors.waterStatus ? 'text-muted-foreground/50' : 'text-foreground'}`}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.waterStatus ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
                             >
-                                <option value="" disabled className="text-muted-foreground/50">N/A</option>
-                                <option value="Pas assez">🏜️ Pas assez</option>
-                                <option value="Suffisamment">💧 Suffisamment</option>
-                                <option value="Trop">🌊 Trop</option>
+                                <option value="" disabled className="bg-white">N/A</option>
+                                <option value="Pas assez" className="bg-white">🏜️ Pas assez</option>
+                                <option value="Suffisamment" className="bg-white">💧 Suffisamment</option>
+                                <option value="Trop" className="bg-white">🌊 Trop</option>
                             </select>
                         </div>
                     </div>
 
                     {/* Alimentation */}
-                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
-                        <Salad size={16} className="text-orange-400" />
+                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Salad size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Alimentation</p>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Assiette</p>
                             <select
                                 value={factors.foodQuality || ""}
                                 onChange={(e) => {
@@ -827,35 +825,35 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('alimentation', val);
                                 }}
-                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${!factors.foodQuality ? 'text-muted-foreground/50' : 'text-foreground'}`}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.foodQuality ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
                             >
-                                <option value="" disabled>N/A</option>
-                                <option value="bien">Saine</option>
-                                <option value="moyen">Moyenne</option>
-                                <option value="mauvais">Lourde / Sucrée</option>
+                                <option value="" disabled className="bg-white">N/A</option>
+                                <option value="bien" className="bg-white">Saine</option>
+                                <option value="moyen" className="bg-white">Moyenne</option>
+                                <option value="mauvais" className="bg-white">Lourde</option>
                             </select>
                         </div>
                     </div>
 
                     {/* Alcool */}
-                    <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-all group">
-                        <Wine size={16} className="text-skin-oil" />
+                    <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Wine size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Alcool</p>
-                            <div className="flex items-center gap-1">
-                                <p className={`text-sm font-semibold ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? 'text-foreground' : 'text-muted-foreground/50'}`}>
-                                    {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `Oui (${factors.alcoholDrinks} v.)` : "Non") : "N/A"}
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Alcool</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className={`text-sm font-bold uppercase ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? 'text-[#111111]' : 'text-[#AAAAAA]/50'}`}>
+                                    {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `Oui (${factors.alcoholDrinks})` : "Non") : "N/A"}
                                 </p>
-                                <Pencil size={10} className="text-foreground/40 group-hover:text-primary transition-colors" />
+                                <Pencil size={12} className="text-[#AAAAAA]/40" />
                             </div>
                         </div>
                     </button>
 
                     {/* Sport */}
-                    <div className="flex items-center gap-2 hover:bg-accent/50 rounded-xl p-1.5 transition-colors group">
-                        <Dumbbell size={16} className="text-foreground" />
+                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                        <Dumbbell size={18} className="text-[#111111]" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-foreground uppercase tracking-wider font-bold">Sport</p>
+                            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Sport</p>
                             <select
                                 value={factors.didSport === undefined || factors.didSport === null ? "" : (factors.didSport ? "Modéré" : "Non")}
                                 onChange={(e) => {
@@ -867,10 +865,10 @@ const CheckinAdvice = () => {
                                     setDbCheckinDone(true);
                                     syncFactorToSupabase('sport', didSport);
                                 }}
-                                className={`text-sm font-semibold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer ${(factors.didSport === undefined || factors.didSport === null) ? 'text-muted-foreground/50' : 'text-foreground'}`}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${(factors.didSport === undefined || factors.didSport === null) ? 'text-[#AAAAAA]/50' : 'text-[#111111]'}`}
                             >
-                                <option value="" disabled>N/A</option>
-                                {workoutIntensities.map((i) => <option key={i} value={i}>{i}</option>)}
+                                <option value="" disabled className="bg-white">N/A</option>
+                                {workoutIntensities.map((i) => <option key={i} value={i} className="bg-white">{i}</option>)}
                             </select>
                         </div>
                     </div>
@@ -878,44 +876,43 @@ const CheckinAdvice = () => {
                 </div>
             </section>
 
-            {/* Edit Dialog */}
             <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
-                <DialogContent className="max-w-sm rounded-3xl">
+                <DialogContent className="max-w-sm rounded-none border border-[#111111]">
                     <DialogHeader>
-                        <DialogTitle>
+                        <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">
                             {editingFactor === 'alcohol' && "Alcool"}
                             {editingFactor === 'sleep' && "Sommeil"}
                             {editingFactor === 'stress' && "Stress"}
-                            {editingFactor === 'makeup' && "Maquillage et nettoyage"}
+                            {editingFactor === 'makeup' && "Nettoyage"}
                             {editingFactor === 'location' && "Localisation"}
                             {editingFactor === 'cycle' && "Cycle"}
                             {editingFactor === 'sport' && "Sport"}
-                            {editingFactor === 'alimentation' && "Alimentation"}
+                            {editingFactor === 'alimentation' && "Assiette"}
                             {editingFactor === 'water' && "Eau"}
-                            {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Modifier le facteur"}
+                            {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Modifier"}
                         </DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-2 italic">
                             {editingFactor === 'alcohol' && "Avez-vous bu de l'alcool ?"}
-                            {editingFactor === 'sleep' && "Combien d'heures avez-vous dormi la nuit dernière ?"}
-                            {editingFactor === 'stress' && "Quel est votre niveau de stress dernièrement ?"}
-                            {editingFactor === 'makeup' && ""}
-                            {editingFactor === 'location' && "Ajustez votre ville pour mettre à jour la météo et la pollution."}
-                            {editingFactor === 'cycle' && "À quelle étape de votre cycle êtes-vous ?"}
-                            {editingFactor === 'sport' && "Avez-vous pratiqué une activité physique ?"}
-                            {editingFactor === 'alimentation' && "Évaluez la qualité de votre alimentation aujourd'hui."}
-                            {editingFactor === 'water' && "Est-ce que vous vous êtes bien hydraté(e) ?"}
-                            {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Ajustez vos données pour voir l'impact sur vos conseils."}
+                            {editingFactor === 'sleep' && "Combien d'heures avez-vous dormi ?"}
+                            {editingFactor === 'stress' && "Quel est votre niveau de stress ?"}
+                            {editingFactor === 'makeup' && "Démaquillage et nettoyage du visage."}
+                            {editingFactor === 'location' && "Ajustez votre ville."}
+                            {editingFactor === 'cycle' && "À quelle étape êtes-vous ?"}
+                            {editingFactor === 'sport' && "Avez-vous pratiqué une activité ?"}
+                            {editingFactor === 'alimentation' && "Évaluez votre alimentation."}
+                            {editingFactor === 'water' && "Hydratation du jour."}
+                            {!['alcohol', 'sleep', 'stress', 'makeup', 'location', 'cycle', 'sport', 'alimentation', 'water'].includes(editingFactor || '') && "Ajustez vos données."}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-6">
                         {editingFactor === 'location' && (
                             <div className="space-y-4">
-                                <p className="text-sm font-bold">Entrez votre ville :</p>
+                                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Ville ou code postal :</p>
                                 <Input
                                     value={locationInput}
                                     onChange={(e) => setLocationInput(e.target.value)}
                                     placeholder="Ex: Paris"
-                                    className="rounded-2xl"
+                                    className="rounded-none border-[#E5E5E5] focus:border-[#111111] transition-colors"
                                 />
                             </div>
                         )}
@@ -927,20 +924,20 @@ const CheckinAdvice = () => {
                         )}
                         {editingFactor === 'stress' && (
                             <div className="space-y-6">
-                                <div className="flex flex-col items-center gap-2 py-4">
-                                    <span className="text-4xl font-bold text-primary">{editValue}</span>
-                                    <span className="text-lg font-semibold text-foreground">{STRESS_LABELS[editValue]}</span>
+                                <div className="flex flex-col items-center gap-2 py-6">
+                                    <span className="text-5xl font-bold text-[#111111]">{editValue}</span>
+                                    <span className="text-sm font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">{STRESS_LABELS[editValue]}</span>
                                 </div>
-                                <div className="grid grid-cols-5 gap-2">
+                                <div className="grid grid-cols-5 gap-3">
                                     {[1, 2, 3, 4, 5].map(v => (
-                                        <button key={v} onClick={() => setEditValue(v)} className={`py-4 rounded-2xl border transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary shadow-elevated' : 'bg-card border-border hover:bg-accent'}`}>
+                                        <button key={v} onClick={() => setEditValue(v)} className={`py-5 border text-sm font-bold transition-all ${editValue === v ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white border-[#E5E5E5] text-[#AAAAAA] hover:border-[#111111]'}`}>
                                             {v}
                                         </button>
                                     ))}
                                 </div>
                                 <div className="flex justify-between px-1">
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Zen</span>
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Extrême</span>
+                                    <span className="text-[10px] text-[#AAAAAA] uppercase font-mono tracking-[0.1em] font-bold">Zen</span>
+                                    <span className="text-[10px] text-[#AAAAAA] uppercase font-mono tracking-[0.1em] font-bold">Extrême</span>
                                 </div>
                             </div>
                         )}
@@ -1028,21 +1025,21 @@ const CheckinAdvice = () => {
                             </div>
                         )}
                     </div>
-                    <button onClick={saveEdit} className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-sm">
-                        Enregistrer les modifications
+                    <button onClick={saveEdit} className="w-full bg-[#111111] text-white py-4 font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors">
+                        Enregistrer
                     </button>
                 </DialogContent>
             </Dialog >
 
             {/* Profile Edit Dialog */}
             <Dialog open={!!editingProfile} onOpenChange={() => setEditingProfile(null)}>
-                <DialogContent className="max-w-sm rounded-[2rem]">
+                <DialogContent className="max-w-sm rounded-none border border-[#111111]">
                     <DialogHeader>
-                        <DialogTitle>Mise à jour du profil</DialogTitle>
-                        <DialogDescription>
-                            {editingProfile === 'skin_type' ? "Modifiez votre nature de peau." :
-                                editingProfile === 'skin_problems' ? "Choisissez vos préoccupations prioritaires." :
-                                    "Définissez vos objectifs cutanés."}
+                        <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">Profil</DialogTitle>
+                        <DialogDescription className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-2 italic">
+                            {editingProfile === 'skin_type' ? "Nature de peau." :
+                                editingProfile === 'skin_problems' ? "Préoccupations prioritaires." :
+                                    "Objectifs cutanés."}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1083,9 +1080,9 @@ const CheckinAdvice = () => {
                         )}
                     </div>
 
-                    <div className="flex gap-2">
-                        <button onClick={() => setEditingProfile(null)} className="flex-1 py-4 text-sm font-bold text-foreground bg-muted/20 rounded-2xl hover:bg-muted/30 transition-colors">Annuler</button>
-                        <button onClick={saveProfileEdit} className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-md hover:opacity-90 transition-opacity">Enregistrer</button>
+                    <div className="flex flex-col gap-3 mt-4">
+                        <button onClick={saveProfileEdit} className="w-full py-4 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors">Enregistrer</button>
+                        <button onClick={() => setEditingProfile(null)} className="w-full py-4 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] border border-[#E5E5E5] hover:bg-muted/10 transition-colors">Annuler</button>
                     </div>
                 </DialogContent>
             </Dialog>
@@ -1095,7 +1092,7 @@ const CheckinAdvice = () => {
             <div className="mt-4 text-center">
                 <button
                     onClick={() => navigate("/rgpd")}
-                    className="text-[10px] text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer uppercase tracking-widest font-bold"
+                    className="text-[11px] text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer uppercase tracking-widest font-bold"
                 >
                     Politique de confidentialité & RGPD
                 </button>
