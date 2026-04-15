@@ -29,11 +29,11 @@ const trendToneForMetric = (label: string, trend?: MetricTrend): TrendTone | und
 };
 
 const skinMetrics = [
-  { label: "Hydratation", value: 72, color: "hsl(200, 60%, 55%)", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation basée sur vos apports quotidiens et l'humidité ambiante." },
-  { label: "Éclat", value: 65, color: "hsl(45, 80%, 65%)", icon: <Sun size={18} />, trend: "stable" as const, detail: "Calculé à partir du sommeil, des produits et de la luminosité du scan." },
-  { label: "Rougeurs", value: 28, color: "hsl(0, 70%, 60%)", icon: <Flame size={18} />, trend: "down" as const, detail: "Plus bas = mieux. Basé sur l'analyse du scan et les facteurs d'inflammation." },
-  { label: "Texture", value: 80, color: "hsl(280, 30%, 55%)", icon: <Fingerprint size={18} />, trend: "up" as const, detail: "Indice de lissage issu des scans et de l'utilisation de rétinol." },
-  { label: "Sébum", value: 45, color: "hsl(35, 70%, 55%)", icon: <CircleDot size={18} />, trend: "stable" as const, detail: "Production de sébum en zone T. 50 = équilibré." }];
+  { label: "Hydratation", value: 72, color: "#0052cc", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation par rapport à l'indice d'hydratation de référence." },
+  { label: "Éclat", value: 65, color: "#0ea5e9", icon: <Sun size={18} />, trend: "stable" as const, detail: "Indice de réflectivité cutanée calculé par photométrie." },
+  { label: "Rougeurs", value: 28, color: "#ef4444", icon: <Flame size={18} />, trend: "down" as const, detail: "Concentration de micro-inflammation détectée." },
+  { label: "Texture", value: 80, color: "#64748b", icon: <Fingerprint size={18} />, trend: "up" as const, detail: "Indice de lissage et régularité du grain de peau." },
+  { label: "Sébum", value: 45, color: "#f59e0b", icon: <CircleDot size={18} />, trend: "stable" as const, detail: "Niveau de lipides de surface (Zone T)." }];
 
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
@@ -475,14 +475,14 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
-        <p className="text-[#AAAAAA] text-xs font-mono uppercase tracking-[0.1em]">Bonjour {userName ? userName : ""}✨</p>
-        <h1 className="text-3xl font-display font-bold text-[#111111] mt-2">Votre peau aujourd'hui</h1>
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
+        <p className="text-[#0052cc] text-[10px] font-mono font-bold uppercase tracking-widest mb-2">Bonjour {userName ? userName : ""} ✨</p>
+        <h1 className="text-2xl font-display font-extrabold text-[#0f172a] leading-none tracking-tight">VOTRE PEAU AUJOURD'HUI</h1>
       </motion.div>
 
       {/* Diagnostic CTA + Score combined panel */}
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="bg-white border border-[#E5E5E5] p-8 mb-8 relative overflow-hidden">
+      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
+        className="bg-white border border-[#e2e8f0] p-8 mb-8 relative overflow-hidden shadow-sm">
 
         <div className="relative flex items-start gap-5">
           {/* Diagnostic photo + past days vertical */}
@@ -638,15 +638,17 @@ const Dashboard = () => {
 
           return sorted.map((tip, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-              className="flex flex-col gap-3 p-5 border border-[#E5E5E5] bg-white">
+              className="flex flex-col gap-3 p-5 border border-[#e2e8f0] bg-white relative overflow-hidden group hover:border-[#0052cc]/30 transition-colors">
               <div className="flex items-start gap-4">
-                <span className="mt-0.5 flex-shrink-0 text-[#111111]">{tip.icon}</span>
-                <p className="text-sm text-[#111111] leading-relaxed">{tip.text}</p>
+                <span className="mt-0.5 flex-shrink-0 text-[#64748b] group-hover:text-[#0052cc] transition-colors">{tip.icon}</span>
+                <p className="text-sm text-[#334155] leading-relaxed font-medium">{tip.text}</p>
               </div>
               {tip.ingredients && tip.ingredients.length > 0 && (
-                <div className="flex flex-wrap gap-2 ml-9">
+                <div className="flex flex-wrap gap-1.5 ml-9">
                   {tip.ingredients.map(ing => (
-                    <span key={ing} className="text-[10px] border border-[#111111] text-[#111111] px-2.5 py-1 font-mono uppercase tracking-[0.1em]">{ing}</span>
+                    <span key={ing} className="text-[8px] border border-[#e2e8f0] text-[#0052cc] px-2 py-0.5 font-mono font-bold uppercase tracking-wider bg-blue-50/50">
+                      {ing}
+                    </span>
                   ))}
                 </div>
               )}
