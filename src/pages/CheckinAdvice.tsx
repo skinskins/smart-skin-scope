@@ -116,6 +116,8 @@ const SKIN_TYPE_MAP: Record<string, string> = {
 const cyclePhases = ["Aucun", "Autre", "Je ne sais pas", "Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
 const workoutIntensities = ["Non", "Léger", "Modéré", "Intense"];
 const STRESS_LABELS = ["", "Zen", "Calme", "Modéré", "Élevé", "Extrême"];
+const FOOD_QUALITIES = ["Équilibrée", "Grasses / Sucrée", "Légère", "Épicée"];
+const WATER_STATUSES = ["Pas assez", "Suffisamment", "Trop"];
 
 const SKIN_TYPES = ["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"];
 const SKIN_CONCERNS = ["Acné", "Rougeurs", "Taches brunes", "Points noirs", "Déshydratation", "Rides fixes", "Cernes / Poches", "Eczéma", "Rosacée", "Sensibilité extrême"];
@@ -790,7 +792,7 @@ const CheckinAdvice = () => {
                     </h3>
                     {!isCheckinDoneToday && (
                         <p className="text-sm font-mono text-[#888888] uppercase tracking-[0.05em] italic">
-                            Renseignez vos dernières actions pour des conseils précis.
+                            Renseignez vos dernières actions pour voir les conseils.
                         </p>
                     )}
                 </div>
@@ -838,7 +840,7 @@ const CheckinAdvice = () => {
                         <div className="flex-1 min-w-0">
                             <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Démaquillage</p>
                             <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-[11px] font-bold uppercase transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
+                                <p className={`text-sm font-bold uppercase transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
                                     {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (
                                         factors.woreMakeup === false ? "Visage Net" :
                                             (factors.makeupRemoved ? "Visage Net" : "Maquillé")
@@ -862,31 +864,51 @@ const CheckinAdvice = () => {
                         </div>
                     </button>
 
-                    <button onClick={() => { setEditingFactor('alimentation'); setEditValue(factors.foodQuality || "Équilibrée"); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                    {/* Assiette */}
+                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group relative">
                         <Salad size={18} className="text-[#4CD964]" />
                         <div className="flex-1 min-w-0">
                             <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Assiette</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-sm font-bold uppercase ${factors.foodQuality ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
-                                    {factors.foodQuality || "N/A"}
-                                </p>
-                                <Pencil size={12} className="text-[#555555]/40" />
-                            </div>
+                            <select
+                                value={factors.foodQuality || ""}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFactors(f => ({ ...f, foodQuality: val }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, foodQuality: val }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('alimentation', val);
+                                }}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.foodQuality ? 'text-[#555555]/50' : 'text-[#111111]'}`}
+                            >
+                                <option value="" disabled className="bg-white">N/A</option>
+                                {FOOD_QUALITIES.map((q) => <option key={q} value={q} className="bg-white">{q}</option>)}
+                            </select>
                         </div>
-                    </button>
+                    </div>
 
-                    <button onClick={() => { setEditingFactor('water'); setEditValue(factors.waterStatus || "Suffisamment"); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
+                    {/* Eau */}
+                    <div className="flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group relative">
                         <Droplets size={18} className="text-[#007AFF]" />
                         <div className="flex-1 min-w-0">
                             <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.1em]">Eau</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <p className={`text-sm font-bold uppercase ${factors.waterStatus ? 'text-[#111111]' : 'text-[#555555]/50'}`}>
-                                    {factors.waterStatus || "N/A"}
-                                </p>
-                                <Pencil size={12} className="text-[#555555]/40" />
-                            </div>
+                            <select
+                                value={factors.waterStatus || ""}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFactors(f => ({ ...f, waterStatus: val }));
+                                    localStorage.setItem("dailyCheckinData", JSON.stringify({ ...factors, waterStatus: val }));
+                                    localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+                                    setDbCheckinDone(true);
+                                    syncFactorToSupabase('water', val);
+                                }}
+                                className={`text-sm font-bold bg-transparent border-none p-0 focus:outline-none w-full cursor-pointer uppercase mt-1 ${!factors.waterStatus ? 'text-[#555555]/50' : 'text-[#111111]'}`}
+                            >
+                                <option value="" disabled className="bg-white">N/A</option>
+                                {WATER_STATUSES.map((s) => <option key={s} value={s} className="bg-white">{s}</option>)}
+                            </select>
                         </div>
-                    </button>
+                    </div>
 
                     <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-4 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5] group">
                         <Moon size={18} className="text-[#5856D6]" />
@@ -912,7 +934,7 @@ const CheckinAdvice = () => {
                                 <Pencil size={12} className="text-[#555555]/40" />
                             </div>
                             {factors.stravaData && factors.didSport !== "Non" && (
-                                <div className="mt-2 flex items-center gap-1.5 text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.05em]">
+                                <div className="mt-2 flex items-center gap-1.5 text-[8px] font-mono font-bold text-[#FC4C02] uppercase tracking-[0.05em]">
                                     <span className="w-1.5 h-1.5 bg-[#FC4C02] rounded-full animate-pulse" />
                                     Synchronisé : {factors.stravaData.sport}
                                 </div>
@@ -1037,7 +1059,7 @@ const CheckinAdvice = () => {
                                 <div className="pt-4 border-t border-[#E5E5E5]">
                                     <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-4">Optimiser avec Strava</p>
                                     {factors.stravaData && !isStravaLoading && (
-                                        <p className="mb-3 text-xs font-mono font-bold text-[#111111] uppercase text-center">
+                                        <p className="mb-3 text-xs font-mono font-bold text-[#FC4C02] uppercase text-center">
                                             Dernière activité détectée : {factors.stravaData.sport} ({factors.stravaData.duration} min)
                                         </p>
                                     )}
@@ -1166,7 +1188,7 @@ const CheckinAdvice = () => {
             <div className="mt-4 text-center">
                 <button
                     onClick={() => navigate("/rgpd")}
-                    className="text-[11px] text-muted-foreground/60 hover:text-primary transition-colors cursor-pointer uppercase tracking-widest font-bold"
+                    className="text-[11px] text-muted-foreground hover:text-primary transition-colors cursor-pointer uppercase tracking-widest font-bold"
                 >
                     Politique de confidentialité & RGPD
                 </button>
