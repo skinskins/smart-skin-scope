@@ -2,7 +2,7 @@ import React from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 const CLIENT_ID = "225555";
-const REDIRECT_URI = "http://localhost:8080/callback";
+const REDIRECT_URI = "https://skin-nacre.vercel.app/callback";
 
 interface StravaConnectProps {
   compact?: boolean;

@@ -216,10 +216,7 @@ const Signup = () => {
                 <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
                     {step === 1 && (
                         <>
-                            <div className="mb-12">
-                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">IDENTIFICATION</h1>
-                                <p className="text-xs font-mono font-bold text-[#111111] uppercase tracking-[0.2em]">Création du profil patient</p>
-                            </div>
+                            <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">Inscription</h1>
                             <div className="space-y-6 flex-1">
                                 <div className="space-y-3">
                                     <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Prénom</label>
@@ -547,7 +544,7 @@ const Signup = () => {
                                 </div>
 
                                 <div className="space-y-4 pt-8 border-t border-[#E5E5E5]">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">PATHOLOGIES / SYMPTÔMES</label>
+                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">PROBLÈMES RENCONTRÉS</label>
                                     <div className="grid grid-cols-2 gap-3 mt-2">
                                         {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
                                             <button type="button" key={prob} onClick={() => toggleProblem(prob)}

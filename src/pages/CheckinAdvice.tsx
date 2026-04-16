@@ -217,14 +217,14 @@ const CheckinAdvice = () => {
             setManualLocationState(value);
         }
 
-        console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
-        const { data, error } = await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
-        if (error) {
-            console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
-            toast.error("Erreur de sauvegarde : Vérifiez la base de données.");
-        } else {
-            console.log(`[CheckinAdvice] Multi-sync successful for ${key}.`);
-        }
+        // console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
+        // const { data, error } = await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
+        // if (error) {
+        //     console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
+        //     toast.error("Erreur de sauvegarde : Vérifiez la base de données.");
+        // } else {
+        //     console.log(`[CheckinAdvice] Multi-sync successful for ${key}.`);
+        // }
     };
 
     const [manualLocation, setManualLocationState] = useState<string>(() => localStorage.getItem("manualLocation") || "Paris");
@@ -400,7 +400,7 @@ const CheckinAdvice = () => {
 
             setIsStravaLoading(true);
             try {
-                const res = await axios.get(`http://localhost:4000/activities?athleteId=${athleteId}`);
+                const res = await axios.get(`https://smart-skin-scope.onrender.com/activities?athleteId=${athleteId}`);
                 const activities = res.data;
 
                 if (activities && activities.length > 0) {
