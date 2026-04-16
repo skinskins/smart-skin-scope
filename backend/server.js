@@ -8,6 +8,8 @@ app.use(cors());
 
 const CLIENT_ID = "";
 const CLIENT_SECRET = "";
+const PORT = process.env.PORT || 4000;
+
 
 // 🧠 stockage temporaire des users
 let users = {};
@@ -96,6 +98,7 @@ app.get("/activities", async (req, res) => {
   }
 });
 
-app.listen(4000, () => {
-  console.log("Backend running on http://localhost:4000");
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
