@@ -554,12 +554,13 @@ const CheckinAdvice = () => {
 
             {/* Consolidated Identity Header */}
             <section className="mb-12 relative group/card">
-                <div className="bg-[#111111] p-8 relative overflow-hidden">
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] p-8 relative overflow-hidden shadow-sm">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[#0052cc]" />
 
                     {/* Top Row: Greeting & Logout */}
                     <div className="flex items-center justify-between mb-5 relative z-10">
                         <div>
-                            <h2 className="text-3xl font-display font-bold text-white uppercase tracking-[0.05em]">
+                            <h2 className="text-3xl font-display font-black text-[#0f172a] uppercase tracking-tight">
                                 {greeting}, {guest.first_name || firstName}
                             </h2>
                         </div>
@@ -573,48 +574,48 @@ const CheckinAdvice = () => {
                                 navigate("/onboarding");
                                 toast.success("Déconnexion réussie");
                             }}
-                            className="p-3 bg-white border border-white text-[#111111] hover:bg-black hover:text-white transition-all shadow-none"
+                            className="p-3 bg-white border border-[#e2e8f0] text-[#0f172a] hover:bg-[#0052cc] hover:text-white transition-all shadow-sm"
                         >
                             <LogOut size={18} />
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-[#888888]">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 relative z-10 pt-5 border-t border-[#e2e8f0]">
                         {/* Nature de la Peau */}
                         <div className="relative flex flex-col">
                             <button
                                 onClick={() => { setEditingProfile('skin_type'); setEditProfileValue(guest.skin_type); }}
                                 className="absolute -top-1 -right-1 p-2 z-20"
                             >
-                                <Pencil size={12} className="text-[#888888]" />
+                                <Pencil size={12} className="text-[#64748b]" />
                             </button>
-                            <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-2">Nature</p>
-                            <p className="text-2xl font-display font-bold text-white">
+                            <p className="text-[10px] font-mono font-bold text-[#64748b] uppercase tracking-widest mb-1">Nature</p>
+                            <p className="text-2xl font-display font-extrabold text-[#0f172a] uppercase">
                                 {guest.skin_type || "Pure"}
                             </p>
                         </div>
 
                         {/* Focus Section */}
-                        <div className="relative flex flex-col border-l border-[#888888] pl-6">
+                        <div className="relative flex flex-col border-l border-[#e2e8f0] pl-6">
                             <button
                                 onClick={() => { setEditingProfile('skin_problems'); setEditProfileValue(guest.skin_problems); }}
                                 className="absolute -top-1 -right-1 p-2 z-20"
                             >
-                                <Pencil size={12} className="text-[#888888]" />
+                                <Pencil size={12} className="text-[#64748b]" />
                             </button>
-                            <p className="text-xs font-mono font-bold text-[#888888] uppercase tracking-[0.1em] mb-2">Focus</p>
+                            <p className="text-[10px] font-mono font-bold text-[#64748b] uppercase tracking-widest mb-1">Focus</p>
                             <div className="flex flex-wrap gap-2 items-center">
                                 {guest.skin_problems && guest.skin_problems.length > 0 ? (
                                     <>
                                         {guest.skin_problems.slice(0, 2).map((prob: string) => (
-                                            <span key={prob} className="text-[10px] font-bold text-white border border-white px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
+                                            <span key={prob} className="text-[9px] font-bold text-[#0052cc] border border-[#0052cc]/20 bg-[#0052cc]/5 px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
                                                 {prob}
                                             </span>
                                         ))}
-                                        {guest.skin_problems.length > 2 && <span className="text-[11px] text-[#555555] font-bold">...</span>}
+                                        {guest.skin_problems.length > 2 && <span className="text-[11px] text-[#64748b] font-bold">...</span>}
                                     </>
                                 ) : (
-                                    <span className="text-[11px] text-[#555555] font-mono uppercase tracking-[0.1em]">Non défini</span>
+                                    <span className="text-[11px] text-[#94a3b8] font-mono uppercase tracking-[0.1em]">Non défini</span>
                                 )}
                             </div>
                         </div>
@@ -632,7 +633,7 @@ const CheckinAdvice = () => {
                                 {guest.skin_goals && guest.skin_goals.length > 0 ? (
                                     <>
                                         {guest.skin_goals.slice(0, 2).map((goal: string) => (
-                                            <span key={goal} className="text-[10px] font-bold text-white border border-white px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
+                                            <span key={goal} className="text-[9px] font-bold text-[#0052cc] border border-[#0052cc]/20 bg-[#0052cc]/5 px-2 py-0.5 font-mono uppercase tracking-[0.05em]">
                                                 {goal}
                                             </span>
                                         ))}
@@ -809,7 +810,7 @@ const CheckinAdvice = () => {
                         <div className="flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Calendar size={18} className="text-[#0052cc] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Cycle</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Cycle</p>
                                 <select
                                     value={factors.cyclePhase || ""}
                                     onChange={(e) => {
@@ -832,7 +833,7 @@ const CheckinAdvice = () => {
                         <button onClick={() => { setEditingFactor('stress'); setEditValue(factors.stressLevel ?? 3); }} className="text-left flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Heart size={18} className="text-[#ef4444] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Stress</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Stress</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className={`text-sm font-bold uppercase ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5` : "N/A"}
@@ -844,7 +845,7 @@ const CheckinAdvice = () => {
                         <button onClick={() => { setEditingFactor('makeup'); setEditValue(factors.makeupRemoved ?? false); setMakeupStep(1); }} className="text-left flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Sparkles size={18} className="text-[#6366f1] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Nettoyage</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Nettoyage</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className={`text-sm font-bold uppercase transition-colors ${factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {factors.makeupRemoved !== undefined && factors.makeupRemoved !== null ? (
@@ -859,7 +860,7 @@ const CheckinAdvice = () => {
                         <button onClick={() => { setEditingFactor('alcohol'); setEditValue(factors.alcoholDrinks ?? 0); }} className="text-left flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Wine size={18} className="text-[#f59e0b] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Alcool</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Alcool</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className={`text-sm font-bold uppercase ${factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {factors.alcoholDrinks !== undefined && factors.alcoholDrinks !== null ? (factors.alcoholDrinks > 0 ? `${factors.alcoholDrinks} verre(s)` : "Aucun") : "N/A"}
@@ -872,7 +873,7 @@ const CheckinAdvice = () => {
                         <div className="flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Salad size={18} className="text-[#10b981] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Assiette</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Alimentation</p>
                                 <select
                                     value={factors.foodQuality || ""}
                                     onChange={(e) => {
@@ -895,7 +896,7 @@ const CheckinAdvice = () => {
                         <div className="flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Droplets size={18} className="text-[#0ea5e9] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Eau</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Eau</p>
                                 <select
                                     value={factors.waterStatus || ""}
                                     onChange={(e) => {
@@ -917,7 +918,7 @@ const CheckinAdvice = () => {
                         <button onClick={() => { setEditingFactor('sleep'); setEditValue(factors.sleepHours ?? 8); }} className="text-left flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Moon size={18} className="text-[#8b5cf6] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Sommeil</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Sommeil</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className={`text-sm font-bold uppercase ${factors.sleepHours !== undefined && factors.sleepHours !== null ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {factors.sleepHours !== undefined && factors.sleepHours !== null ? `${factors.sleepHours}h` : "N/A"}
@@ -929,7 +930,7 @@ const CheckinAdvice = () => {
                         <button onClick={() => { setEditingFactor('sport'); setEditValue(factors.didSport || "Non"); }} className="text-left flex items-center gap-4 hover:bg-slate-50 p-3 transition-colors border border-slate-200 bg-white group relative overflow-hidden">
                             <Dumbbell size={18} className="text-[#f97316] opacity-80" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest">Sport</p>
+                                <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Sport</p>
                                 <div className="flex flex-col items-start gap-2 mt-1">
                                     <p className={`text-sm font-bold uppercase ${factors.didSport !== undefined && factors.didSport !== null ? 'text-slate-900' : 'text-slate-300'}`}>
                                         {factors.didSport || "N/A"}
