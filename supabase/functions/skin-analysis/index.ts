@@ -31,7 +31,7 @@ serve(async (req) => {
 Données utilisateur:
 - Qualité sommeil: ${formData?.sleep ?? 7}/10
 - Hydratation: ${formData?.hydration ?? 7}/10
-- Cycle menstruel: ${formData?.cycle ?? "non renseigné"}
+- Cycle Menstruation: ${formData?.cycle ?? "non renseigné"}
 - Pollution: ${formData?.pollution ?? 5}/10
 - Humidité air: ${formData?.humidity ?? 50}%
 - Indice UV: ${formData?.uv ?? 3}/10

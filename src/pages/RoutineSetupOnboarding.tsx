@@ -86,7 +86,7 @@ const RoutineSetupOnboarding = () => {
                         </p>
                     </div>
 
-                    <div className="flex bg-muted rounded-xl p-1 shrink-0">
+                    <div className="flex bg-muted  p-1 shrink-0">
                         <button onClick={() => setSetupTimeTab("am")}
                             className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-colors ${setupTimeTab === "am" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
                             ☀️ Matin

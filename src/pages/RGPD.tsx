@@ -22,7 +22,7 @@ const RGPD = () => {
                 className="max-w-2xl mx-auto space-y-8 pb-20"
             >
                 <div className="text-center space-y-4">
-                    <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <div className="w-16 h-16 bg-primary/10  flex items-center justify-center mx-auto mb-4">
                         <ShieldCheck size={32} className="text-primary" />
                     </div>
                     <h1 className="text-3xl font-bold">Politique de Confidentialité & RGPD</h1>
@@ -30,7 +30,7 @@ const RGPD = () => {
                 </div>
 
                 <div className="grid gap-6">
-                    <section className="bg-card p-6 rounded-3xl border border-border/50 space-y-4">
+                    <section className="bg-card p-6  border border-border/50 space-y-4">
                         <div className="flex items-center gap-3 text-primary">
                             <Lock size={20} />
                             <h2 className="font-bold uppercase tracking-wider text-xs">Protection des données</h2>
@@ -40,7 +40,7 @@ const RGPD = () => {
                         </p>
                     </section>
 
-                    <section className="bg-card p-6 rounded-3xl border border-border/50 space-y-4">
+                    <section className="bg-card p-6  border border-border/50 space-y-4">
                         <div className="flex items-center gap-3 text-red-500">
                             <Trash2 size={20} />
                             <h2 className="font-bold uppercase tracking-wider text-xs">Droit à l'oubli</h2>
@@ -48,7 +48,7 @@ const RGPD = () => {
                         <p className="text-sm leading-relaxed text-muted-foreground">
                             Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles.
                         </p>
-                        <div className="bg-accent/50 p-4 rounded-2xl flex items-start gap-3 border border-border/50">
+                        <div className="bg-accent/50 p-4  flex items-start gap-3 border border-border/50">
                             <Mail size={18} className="text-primary mt-0.5" />
                             <div>
                                 <p className="text-sm font-semibold">Comment supprimer mon compte ?</p>

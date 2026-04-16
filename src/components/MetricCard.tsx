@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useState, type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -60,32 +61,45 @@ const MetricCard = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-card p-5 shadow-card cursor-pointer hover:shadow-elevated transition-shadow"
+        className="bg-white border border-[#e2e8f0] p-5 hover:border-[#0052cc]/40 transition-all cursor-pointer h-full group relative overflow-hidden"
         onClick={() => setOpen(true)}
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-muted-foreground text-sm font-medium">{label}</span>
-          <span className="text-lg">{icon}</span>
+        <div className="absolute top-0 left-0 w-1 h-full bg-[#e2e8f0] group-hover:bg-[#0052cc] transition-colors" style={{ backgroundColor: color + '20' }} />
+
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div style={{ color }} className="transition-transform group-hover:scale-110 duration-200">
+              {icon}
+            </div>
+            <span className="text-[10px] font-mono font-bold text-[#64748b] uppercase tracking-widest">{label}</span>
+          </div>
+          {trend && (
+            <div className={cn(
+              "px-1.5 py-0.5 border border-[#e2e8f0] font-mono font-bold text-[8px] uppercase tracking-tighter",
+              computedTone === "positive" ? "text-emerald-600 bg-emerald-50 border-emerald-100" :
+                computedTone === "negative" ? "text-rose-600 bg-rose-50 border-rose-100" :
+                  "text-slate-400 bg-slate-50"
+            )}>
+              {trend.toUpperCase()}
+            </div>
+          )}
         </div>
-        <div className="flex items-end gap-2 mb-3">
-          <span className="text-3xl font-display font-semibold text-foreground">{value}</span>
-          <span className="text-muted-foreground text-sm mb-1">/ {maxValue}</span>
+        <div className="flex items-end gap-1.5 mb-4">
+          <span className="text-4xl font-display font-extrabold text-[#0f172a] tracking-tighter leading-none">{value}</span>
+          <span className="text-[#94a3b8] font-mono font-bold text-[10px] mb-1">/{maxValue}</span>
         </div>
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
+        <div className="h-1 bg-[#f1f5f9] overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
             transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-            className="h-full rounded-full"
+            className="h-full"
             style={{ backgroundColor: color }}
           />
         </div>
-        {trend && (
-          <div className={`mt-2 text-xs font-medium ${toneClass || "text-muted-foreground"}`}>
-            {trendText[trend].label}
-          </div>
-        )}
-        <p className="mt-1 text-[10px] text-muted-foreground/60">Appuyez pour le détail</p>
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-[8px] font-mono font-bold text-[#0052cc] opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Voir Détails →</p>
+        </div>
       </motion.div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -113,7 +127,7 @@ const MetricCard = ({
               </span>
             </div>
             {trend && (
-              <div className="bg-accent rounded-xl p-3">
+              <div className="bg-accent  p-3">
                 <p className={`text-xs font-semibold ${toneClass || "text-accent-foreground"}`}>
                   {trendText[trend].label}
                 </p>
@@ -121,7 +135,7 @@ const MetricCard = ({
               </div>
             )}
             {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
-            <div className="bg-muted rounded-xl p-3">
+            <div className="bg-muted  p-3">
               <p className="text-[11px] text-muted-foreground">
                 <span className="font-semibold">Ce qui influence :</span>{" "}
                 {label === "Hydratation" && "Apport en eau, humidité, crème hydratante, alcool."}
