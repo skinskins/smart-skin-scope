@@ -10,7 +10,7 @@ const Callback: React.FC = () => {
       if (!code) return;
 
       try {
-        const res = await axios.post("http://localhost:4000/auth", {
+        const res = await axios.post("https://smart-skin-scope.onrender.com/auth", {
           code,
         });
 

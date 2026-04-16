@@ -400,7 +400,7 @@ const CheckinAdvice = () => {
 
             setIsStravaLoading(true);
             try {
-                const res = await axios.get(`http://localhost:4000/activities?athleteId=${athleteId}`);
+                const res = await axios.get(`https://smart-skin-scope.onrender.com/activities?athleteId=${athleteId}`);
                 const activities = res.data;
 
                 if (activities && activities.length > 0) {
