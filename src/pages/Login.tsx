@@ -82,7 +82,7 @@ const Login = () => {
                 className="flex-1 flex flex-col justify-center z-10 max-w-sm mx-auto w-full"
             >
                 <div className="mb-12 text-center">
-                    <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">LOG-IN</h1>
+                    <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">Connexion</h1>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
