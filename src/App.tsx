@@ -20,7 +20,7 @@ import ResetPassword from "./pages/ResetPassword";
 import DailyCheckin from "./pages/DailyCheckin";
 import CheckinAdvice from "./pages/CheckinAdvice";
 import RGPD from "./pages/RGPD";
-import StravaConnect from "./pages/stravaconnect";
+import StravaConnect from "./pages/StravaConnect";
 import Callback from "./pages/Callback";
 
 

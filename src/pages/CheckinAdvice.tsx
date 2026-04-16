@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { toast } from "sonner";
-import StravaConnect from "./stravaconnect";
+import StravaConnect from "./StravaConnect";
 import { classifyStravaIntensity } from "@/data/stravaIntensity";
 import axios from "axios";
 
