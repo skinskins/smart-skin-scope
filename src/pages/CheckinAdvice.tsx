@@ -210,6 +210,7 @@ const CheckinAdvice = () => {
         if (key === 'sport') updates.did_sport = value;
         if (key === 'makeup') updates.makeup_removed = value;
         if (key === 'alimentation') updates.food_quality = value;
+        if (key === 'bpm') updates.bpm = value;
         if (key === 'location') {
             updates.manual_location = value;
             // Also update long-term storage
@@ -217,14 +218,12 @@ const CheckinAdvice = () => {
             setManualLocationState(value);
         }
 
-        // console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
-        // const { data, error } = await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
-        // if (error) {
-        //     console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
-        //     toast.error("Erreur de sauvegarde : Vérifiez la base de données.");
-        // } else {
-        //     console.log(`[CheckinAdvice] Multi-sync successful for ${key}.`);
-        // }
+        const { error } = await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
+        if (error) {
+            console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
+        } else {
+            console.log(`[CheckinAdvice] Sync successful for ${key}.`);
+        }
     };
 
     const [manualLocation, setManualLocationState] = useState<string>(() => localStorage.getItem("manualLocation") || "Paris");
@@ -351,7 +350,8 @@ const CheckinAdvice = () => {
                             makeupRemoved: profileData.makeup_removed,
                             woreMakeup: profileData.makeup_removed === null ? null : (JSON.parse(localStorage.getItem("dailyCheckinData") || "{}").woreMakeup),
                             foodQuality: profileData.food_quality,
-                            location: profileData.manual_location || f.location
+                            location: profileData.manual_location || f.location,
+                            bpm: profileData.bpm
                         }));
                     } else {
                         console.log("[CheckinAdvice] New day detected or no data today. Resetting factors.");
@@ -477,23 +477,26 @@ const CheckinAdvice = () => {
         if (editingFactor === 'location') {
             syncValue = locationInput;
             newFactors.location = locationInput;
-        }
-        if (editingFactor === 'sleep') newFactors.sleepHours = editValue;
-        if (editingFactor === 'stress') newFactors.stressLevel = editValue;
-        if (editingFactor === 'water') newFactors.waterStatus = editValue;
-        if (editingFactor === 'alcohol') {
-            newFactors = { ...factors, alcoholDrinks: editValue };
-            syncFactorToSupabase('alcohol', editValue);
+        } else if (editingFactor === 'sleep') {
+            newFactors.sleepHours = editValue;
+        } else if (editingFactor === 'stress') {
+            newFactors.stressLevel = editValue;
+        } else if (editingFactor === 'water') {
+            newFactors.waterStatus = editValue;
+        } else if (editingFactor === 'alcohol') {
+            newFactors.alcoholDrinks = editValue;
         } else if (editingFactor === 'sport') {
-            newFactors = { ...factors, didSport: editValue };
-            const syncVal = editValue === null ? null : (editValue !== "Non");
-            syncFactorToSupabase('sport', syncVal);
-        } else if (editingFactor === 'cycle') newFactors.cyclePhase = editValue;
-        if (editingFactor === 'makeup') {
+            newFactors.didSport = editValue;
+        } else if (editingFactor === 'cycle') {
+            newFactors.cyclePhase = editValue;
+        } else if (editingFactor === 'makeup') {
             newFactors.makeupRemoved = editValue;
             newFactors.woreMakeup = woreMakeup;
+        } else if (editingFactor === 'alimentation') {
+            newFactors.foodQuality = editValue;
+        } else if (editingFactor === 'bpm') {
+            newFactors.bpm = editValue;
         }
-        if (editingFactor === 'alimentation') newFactors.foodQuality = editValue;
 
         setFactors(newFactors);
         localStorage.setItem("dailyCheckinData", JSON.stringify(newFactors));
@@ -836,7 +839,7 @@ const CheckinAdvice = () => {
                                 <p className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">Stress</p>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className={`text-sm font-bold uppercase ${factors.stressLevel !== undefined && factors.stressLevel !== null ? 'text-slate-900' : 'text-slate-300'}`}>
-                                        {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5` : "N/A"}
+                                        {factors.stressLevel !== undefined && factors.stressLevel !== null ? `${factors.stressLevel}/5 - ${STRESS_LABELS[factors.stressLevel]}` : "N/A"}
                                     </p>
                                 </div>
                             </div>
@@ -1007,9 +1010,6 @@ const CheckinAdvice = () => {
                                             {v}
                                         </button>
                                     ))}
-                                </div>
-                                <div className="flex justify-between px-1">
-                                    <span className="text-xs text-[#111111] uppercase font-mono tracking-[0.1em] font-bold">Extrême</span>
                                 </div>
                             </div>
                         )}
