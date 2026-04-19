@@ -37,15 +37,15 @@ const demoHistory: DiagnosisResult[] = [
 ];
 
 const ScoreChange = ({ diff }: { diff: number }) => {
-  if (diff > 0) return <span className="text-[#111111] font-bold flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.1em]"><TrendingUp size={12} />+{diff}</span>;
-  if (diff < 0) return <span className="text-[#111111] font-bold flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.1em]"><TrendingDown size={12} />{diff}</span>;
-  return <span className="text-[#AAAAAA] font-bold flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.1em]"><Minus size={12} />0</span>;
+  if (diff > 0) return <span className="text-primary font-bold flex items-center gap-1 text-[10px] uppercase tracking-widest"><TrendingUp size={12} />+{diff}</span>;
+  if (diff < 0) return <span className="text-foreground font-bold flex items-center gap-1 text-[10px] uppercase tracking-widest"><TrendingDown size={12} />{diff}</span>;
+  return <span className="text-muted-foreground/60 font-bold flex items-center gap-1 text-[10px] uppercase tracking-widest"><Minus size={12} />0</span>;
 };
 
 const ScoreBar = ({ score, color }: { score: number; color: string }) => (
-  <div className="h-1.5 w-full bg-[#E5E5E5] overflow-hidden">
+  <div className="h-1.5 w-full bg-muted/10 rounded-full overflow-hidden">
     <motion.div
-      className="h-full bg-[#111111]"
+      className="h-full bg-primary"
       initial={{ width: 0 }}
       animate={{ width: `${score}%` }}
       transition={{ duration: 0.6, ease: "easeOut" }}
@@ -53,7 +53,7 @@ const ScoreBar = ({ score, color }: { score: number; color: string }) => (
   </div>
 );
 
-const getScoreTextClass = (score: number) => "text-[#111111]";
+const getScoreTextClass = (score: number) => "text-foreground";
 
 const Progress = () => {
   const realHistory = useDiagnosisHistory();
@@ -86,13 +86,17 @@ const Progress = () => {
   const comparableEntries = history.slice(0, -1);
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10 text-center">
-        <div className="flex flex-col items-center gap-2 mb-4">
-          <TrendingUp size={24} className="text-[#111111]" />
-          <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em]">PROGRESSION</h1>
+    <div className="min-h-screen bg-background pb-24 px-5 pt-10 max-w-lg mx-auto relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-12 text-center relative z-10">
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <TrendingUp size={24} strokeWidth={1.5} />
+          </div>
+          <h1 className="text-4xl font-display text-foreground leading-tight">Progression</h1>
         </div>
-        <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Compromis dermatologique et évolution</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Évolution dermatologique de votre peau</p>
       </motion.div>
 
       {history.length < 2 ? (
@@ -108,15 +112,15 @@ const Progress = () => {
         <>
           {/* Date selector */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white border border-[#E5E5E5] p-6 mb-6">
-            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">COMPARAISON TEMPORELLE</p>
+            className="premium-card p-6 mb-8 bg-white/60 relative z-10">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4 mb-3 block">Comparer avec</label>
             <Select value={String(selectedIdx)} onValueChange={(v) => setSelectedIdx(Number(v))}>
-              <SelectTrigger className="w-full bg-white border border-[#111111] rounded-none h-12 uppercase font-bold text-xs tracking-tight">
+              <SelectTrigger className="w-full bg-white border border-border/60 rounded-full h-14 px-6 font-bold text-xs tracking-tight shadow-sm hover:border-primary transition-all">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="rounded-none border-[#111111]">
+              <SelectContent className="rounded-2xl border-border/40">
                 {comparableEntries.map((entry, i) => (
-                  <SelectItem key={i} value={String(i)} className="rounded-none">
+                  <SelectItem key={i} value={String(i)} className="rounded-xl">
                     {formatDate(entry.date)} — {entry.globalScore}
                   </SelectItem>
                 ))}
@@ -124,66 +128,45 @@ const Progress = () => {
             </Select>
           </motion.div>
 
-          {/* Visual comparison (Optional/Placeholder since image property is missing in interface) */}
+          {/* Visual comparison */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.03 }}
-            className="bg-white border border-[#111111] p-6 mb-6">
-            <h3 className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-6">Comparaison des sessions</h3>
-            <div className="flex gap-4 items-center">
+            className="premium-card p-8 mb-8 bg-white relative z-10">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-8 text-center">Sessions comparées</h3>
+            <div className="flex gap-4 items-center mb-6">
               <div className="flex-1">
-                <div className="relative border border-[#E5E5E5] aspect-[3/4] bg-white flex flex-col items-center justify-center p-4">
-                  <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">{format(new Date(compared.date), "dd/MM/yy")}</p>
-                  <p className="text-4xl font-bold text-[#111111]">{compared.globalScore}</p>
+                <div className="relative rounded-3xl border border-border/40 aspect-[3/4] bg-muted/5 flex flex-col items-center justify-center p-6 text-center">
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 opacity-60">{format(new Date(compared.date), "dd/MM/yy")}</p>
+                  <p className="text-4xl font-display text-foreground">{compared.globalScore}</p>
                 </div>
               </div>
 
-              <ArrowRight size={20} className="text-[#AAAAAA]" />
+              <div className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center text-muted-foreground">
+                <ArrowRight size={18} strokeWidth={1.5} />
+              </div>
 
               <div className="flex-1">
-                <div className="relative border border-[#111111] aspect-[3/4] bg-white flex flex-col items-center justify-center p-4">
-                  <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">{format(new Date(latest.date), "dd/MM/yy")}</p>
-                  <p className="text-4xl font-bold text-[#111111]">{latest.globalScore}</p>
+                <div className="relative rounded-3xl border border-primary/20 aspect-[3/4] bg-primary/5 flex flex-col items-center justify-center p-6 text-center premium-shadow">
+                  <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-3">{format(new Date(latest.date), "dd/MM/yy")}</p>
+                  <p className="text-4xl font-display text-primary">{latest.globalScore}</p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-center mt-6 gap-2">
+            <div className="flex items-center justify-center gap-3 pt-6 border-t border-border/40">
               <ScoreChange diff={globalDiff} />
-              <span className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Écart (pts)</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Écart total</span>
             </div>
           </motion.div>
 
-          {/* Global score comparison */}
+          {/* Global score comparison - summary text */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}
-            className="bg-white border border-[#E5E5E5] p-8 mb-6 text-center">
-            <h3 className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-8">Score global</h3>
-            <div className="flex items-center justify-between gap-6">
-              <div className="flex-1 text-center">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">
-                  {format(new Date(compared.date), "d MMM", { locale: fr })}
-                </p>
-                <p className="text-4xl font-bold text-[#111111]">
-                  {compared.globalScore}
-                </p>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <ArrowRight size={18} className="text-[#AAAAAA]" />
-                <ScoreChange diff={globalDiff} />
-              </div>
-              <div className="flex-1 text-center">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-2">
-                  {format(new Date(latest.date), "d MMM", { locale: fr })}
-                </p>
-                <p className="text-4xl font-bold text-[#111111]">
-                  {latest.globalScore}
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-[#111111] font-bold uppercase tracking-tight leading-snug max-w-xs mx-auto mt-10">
+            className="premium-card p-8 mb-8 bg-white/40 text-center italic">
+            <p className="text-[13px] text-foreground leading-relaxed">
               {globalDiff > 0 ? (
-                <>Tendance : AMÉLIORATION (+{globalDiff} pts)</>
+                <>Votre peau montre une <span className="text-primary font-bold">amélioration notable</span> de {globalDiff} points depuis le {format(new Date(compared.date), "d MMMM", { locale: fr })}. Continuez vos rituels actuels.</>
               ) : globalDiff < 0 ? (
-                <>Tendance : BAISSE ({globalDiff} pts)</>
+                <>Attention, une <span className="text-primary font-bold">baisse de vitalité</span> ({globalDiff} pts) a été détectée. Revoyez vos facteurs de stress et d'hydratation.</>
               ) : (
-                <>Tendance : STABLE</>
+                <>Votre état cutané est parfaitement <span className="text-primary font-bold">stable</span>. Maintenez vos habitudes de soin.</>
               )}
             </p>
           </motion.div>
@@ -191,23 +174,35 @@ const Progress = () => {
           {/* Zone-by-zone comparison */}
           {zoneDiffs.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <h3 className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-4 px-1">Détail des zones</h3>
+              <div className="flex items-center justify-between mb-6 px-1">
+                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Détail par zone</h3>
+                <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">Variation</span>
+              </div>
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.12 }}
-                className="bg-white border border-[#E5E5E5] p-6 space-y-6"
+                className="premium-card p-8 space-y-8 bg-white/60 relative z-10"
               >
                 {zoneDiffs.map((z, i) => (
-                  <div key={z.id} className="space-y-3">
+                  <div key={z.id} className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#111111] uppercase tracking-tight">{z.label}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-mono font-bold text-[#111111]">{z.score}</span>
-                        <ScoreChange diff={z.diff} />
+                      <span className="text-[11px] font-bold text-foreground uppercase tracking-widest">{z.label}</span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[11px] font-bold text-primary">{z.score}<span className="text-[9px] opacity-40 ml-0.5">/100</span></span>
+                        <div className="min-w-[40px] flex justify-end">
+                            <ScoreChange diff={z.diff} />
+                        </div>
                       </div>
                     </div>
-                    <ScoreBar score={z.score} color="" />
+                    <div className="h-1.5 w-full bg-muted/10 rounded-full overflow-hidden">
+                        <motion.div
+                        className="h-full bg-primary"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${z.score}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        />
+                    </div>
                   </div>
                 ))}
               </motion.div>

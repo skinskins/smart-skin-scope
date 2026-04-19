@@ -251,9 +251,9 @@ function generateTips(answers: Record<string, number>): DetailedTip[] {
 
 /* ─── UI Components ─── */
 const priorityConfig = {
-  high: { border: "border-2 border-[#111111]", label: "PRIORITAIRE" },
-  medium: { border: "border border-[#111111]", label: "RECOMMANDÉ" },
-  low: { border: "border border-[#E5E5E5]", label: "CONSEIL" },
+  high: { border: "border-primary/20", bg: "bg-primary/5", label: "Action immédiate", color: "text-primary" },
+  medium: { border: "border-border/40", bg: "bg-white/60", label: "Recommandé", color: "text-foreground" },
+  low: { border: "border-border/20", bg: "bg-white/40", label: "Conseil bien-être", color: "text-muted-foreground" },
 };
 
 const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
@@ -264,26 +264,28 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08 }}
-      className={`bg-white border ${config.border} group transition-colors`}
+      className={`bg-white border ${config.border} rounded-[32px] group transition-all hover:border-primary/20 overflow-hidden relative shadow-sm`}
     >
       {/* Collapsed summary — always visible */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full text-left p-6 flex items-center gap-4"
+        className="w-full text-left p-8 flex items-center gap-5"
       >
-        <div className="w-10 h-10 border border-[#E5E5E5] flex items-center justify-center text-[#111111] flex-shrink-0 group-hover:border-[#111111] transition-colors">
+        <div className={`w-12 h-12 rounded-2xl ${config.bg} flex items-center justify-center ${config.color} flex-shrink-0 group-hover:scale-110 transition-transform`}>
           {tip.icon}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <h3 className="text-sm font-bold text-[#111111] uppercase tracking-tight truncate">{tip.title}</h3>
-            <span className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] flex-shrink-0">
+          <div className="flex flex-col gap-1 mb-1">
+            <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${config.color} opacity-60`}>
               {config.label}
             </span>
+            <h3 className="text-[15px] font-display text-foreground leading-tight">{tip.title}</h3>
           </div>
-          <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">{tip.source}</p>
+          <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">{tip.source}</p>
         </div>
-        <ChevronRight size={16} className={`text-[#111111] transition-transform flex-shrink-0 ${open ? 'rotate-90' : ''}`} />
+        <div className={`w-8 h-8 rounded-full border border-border/40 flex items-center justify-center text-primary/40 transition-all ${open ? 'rotate-90 bg-primary/5 border-primary/20 text-primary' : ''}`}>
+          <ChevronRight size={14} strokeWidth={2.5} />
+        </div>
       </button>
 
       {/* Expanded details */}
@@ -296,18 +298,18 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <div className="px-6 pb-6 pt-0 space-y-6">
-              <p className="text-xs text-[#111111] leading-relaxed uppercase tracking-tight">{tip.description}</p>
+            <div className="px-8 pb-8 pt-0 space-y-8">
+              <p className="text-[13px] text-foreground/80 leading-relaxed italic">{tip.description}</p>
 
               {/* Products */}
-              <div>
-                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-3 flex items-center gap-2">
-                  <ShieldCheck size={12} className="text-[#111111]" />
-                  RECOMMANDATIONS PRODUITS
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 decoration-primary/30 decoration-2 underline underline-offset-4">
+                  <ShieldCheck size={12} className="text-primary" strokeWidth={1.5} />
+                  Recommandations produits
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {tip.products.map((p, i) => (
-                    <span key={i} className="text-[10px] border border-[#E5E5E5] text-[#111111] px-3 py-1 font-mono font-bold uppercase tracking-[0.05em]">
+                    <span key={i} className="text-[10px] bg-white border border-border/40 text-foreground px-4 py-2 rounded-full font-bold uppercase tracking-widest shadow-sm">
                       {p}
                     </span>
                   ))}
@@ -315,14 +317,14 @@ const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
               </div>
 
               {/* Ingredients */}
-              <div>
-                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-3 flex items-center gap-2">
-                  <FlaskConical size={12} className="text-[#111111]" />
-                  ACTIFS À PRIVILÉGIER
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 decoration-primary/30 decoration-2 underline underline-offset-4">
+                  <FlaskConical size={12} className="text-primary" strokeWidth={1.5} />
+                  Actifs à privilégier
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {tip.ingredients.map((ing, i) => (
-                    <span key={i} className="text-[10px] border border-[#111111] text-[#111111] px-3 py-1 font-mono font-bold uppercase tracking-[0.05em]">
+                    <span key={i} className="text-[10px] bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold uppercase tracking-widest premium-shadow">
                       {ing}
                     </span>
                   ))}
@@ -374,39 +376,43 @@ const Tips = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10 text-center">
-        <div className="flex flex-col items-center gap-2 mb-4">
-          <Sparkles size={24} className="text-[#111111]" />
-          <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em]">LE QUIZ</h1>
+    <div className="min-h-screen bg-background pb-24 px-5 pt-10 max-w-lg mx-auto relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-12 text-center relative z-10">
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <Sparkles size={24} strokeWidth={1.5} />
+          </div>
+          <h1 className="text-4xl font-display text-foreground leading-tight">Le Quiz</h1>
         </div>
-        <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Protocole de personnalisation avancée</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation dermatologique avancée</p>
       </motion.div>
 
       {/* Progress bar */}
-      <div className="flex gap-1 mb-10">
+      <div className="flex gap-2 mb-12 px-2 relative z-10">
         {questions.map((_, i) => (
-          <div key={i} className={`h-1 flex-1 transition-colors ${i < step || done ? 'bg-[#111111]' : 'bg-[#E5E5E5]'
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < step || done ? 'bg-primary' : 'bg-muted/10'
             }`} />
         ))}
       </div>
 
       <AnimatePresence mode="wait">
         {!done ? (
-          <motion.div key={step} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }}>
-            <div className="bg-white border border-[#111111] p-8">
-              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">Étape {step + 1}/{questions.length}</p>
-              <h2 className="text-2xl font-bold font-display text-[#111111] uppercase tracking-tight leading-tight mb-8">{current.text}</h2>
-              <div className="space-y-3">
+          <motion.div key={step} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="relative z-10">
+            <div className="premium-card p-10 bg-white/60">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-8 ml-1">Étape {step + 1} sur {questions.length}</p>
+              <h2 className="text-3xl font-display text-foreground leading-tight mb-10 italic">{current.text}</h2>
+              <div className="space-y-4">
                 {current.options.map(opt => (
                   <button key={opt.label} onClick={() => answer(current.id, opt.value)}
-                    className={`w-full text-left px-5 py-4 border transition-all text-xs font-bold uppercase tracking-tight ${answers[current.id] === opt.value
-                      ? 'border-[#111111] bg-[#111111] text-white'
-                      : 'border-[#E5E5E5] text-[#111111] hover:border-[#111111]'
+                    className={`w-full text-left px-8 py-5 rounded-[24px] border transition-all text-[11px] font-bold uppercase tracking-widest shadow-sm ${answers[current.id] === opt.value
+                      ? 'border-primary bg-primary text-primary-foreground premium-shadow'
+                      : 'border-border/40 bg-white/80 text-foreground hover:border-primary/40 hover:bg-white'
                       }`}>
                     <div className="flex items-center justify-between">
                       {opt.label}
-                      <ChevronRight size={14} className={answers[current.id] === opt.value ? 'text-white' : 'text-[#AAAAAA]'} />
+                      <ChevronRight size={14} strokeWidth={2.5} className={answers[current.id] === opt.value ? 'text-primary-foreground' : 'text-primary/20'} />
                     </div>
                   </button>
                 ))}
@@ -414,30 +420,30 @@ const Tips = () => {
             </div>
           </motion.div>
         ) : (
-          <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative z-10">
 
             {/* Score summary */}
-            <div className="bg-white border-2 border-[#111111] p-8 mb-6 text-center">
-              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-4">BILAN GÉNÉRÉ</p>
-              <p className="text-lg font-bold text-[#111111] uppercase tracking-tight leading-snug mb-8">
-                {quizScore > 75 ? "Protocoles optimaux détectés" : quizScore > 50 ? "Ajustements nécessaires" : "Intervention prioritaire requise"}
+            <div className="premium-card p-10 mb-8 bg-white border-primary/10 text-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6">Analyses bio-cutanées générées</p>
+              <p className="text-2xl font-display text-foreground leading-tight italic mb-8">
+                {quizScore > 75 ? "Protocoles optimaux détectés" : quizScore > 50 ? "Ajustements ciblés requis" : "Intervention prioritaire recommandée"}
               </p>
               <div className="flex items-center justify-center gap-3">
-                <span className="border border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
-                  {tips.length} ANALYSES
+                <span className="bg-primary/5 text-primary text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest border border-primary/10 shadow-sm">
+                  {tips.length} Conseils
                 </span>
                 {highCount > 0 && (
-                  <span className="bg-[#111111] text-white text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
-                    {highCount} ALERTES
+                  <span className="bg-primary text-primary-foreground text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest premium-shadow">
+                    {highCount} Priorités
                   </span>
                 )}
               </div>
             </div>
 
             {/* Data sources info */}
-            <div className="bg-white border border-[#E5E5E5] p-6 mb-6">
-              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] leading-relaxed">
-                SYNTHÈSE BASÉE SUR : RÉPONSES AU QUIZ + PARAMÈTRES DASHBOARD (MÉTÉO, CYCLE, STRESS) + RÉSULTATS DU DERNIER DIAGNOSTIC IA.
+            <div className="premium-card p-6 mb-8 bg-white/40 border-primary/5 italic">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-relaxed text-center opacity-60">
+                Synthèse multi-factorielle : Quiz + Dashboard + Métabolisme + Diagnostic IA.
               </p>
             </div>
 
@@ -448,7 +454,7 @@ const Tips = () => {
               ))}
             </div>
 
-            <Button onClick={restart} className="w-full rounded-none h-14 border border-[#111111] bg-white text-[#111111] font-bold uppercase tracking-[0.1em] hover:bg-muted/5">REINITIALISER LE QUIZ</Button>
+            <Button onClick={restart} variant="outline" className="w-full h-14 border-border/60 bg-white/50 text-muted-foreground font-bold uppercase tracking-widest rounded-full hover:bg-white hover:text-primary transition-all">Réinitialiser le quiz</Button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Open+Sans:wght@700;800&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@300;400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,77 +6,60 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
+    --background: 34 24% 95%; /* #F7F4F0 Ecru */
+    --foreground: 60 6% 10%; /* #1A1A18 Charcoal */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 7%;
+    --card: 37 18% 91%; /* #EDE9E3 Greige */
+    --card-foreground: 60 6% 10%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover: 34 24% 98%;
+    --popover-foreground: 60 6% 10%;
 
-    --primary: 0 0% 7%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 17 45% 59%; /* #C4846A Terracotta */
+    --primary-foreground: 34 24% 95%;
 
-    --secondary: 0 0% 67%; /* #AAAAAA approx */
-    --secondary-foreground: 0 0% 7%;
+    --secondary: 33 5% 46%; /* #7A7570 Gray */
+    --secondary-foreground: 34 24% 95%;
 
-    --muted: 0 0% 98%;
-    --muted-foreground: 0 0% 67%;
+    --muted: 37 18% 88%;
+    --muted-foreground: 33 5% 46%;
 
-    --accent: 0 0% 95%;
-    --accent-foreground: 0 0% 7%;
+    --accent: 17 45% 95%;
+    --accent-foreground: 17 45% 40%;
 
-    --destructive: 0 0% 7%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 50% 50%;
+    --destructive-foreground: 34 24% 95%;
 
-    --border: 0 0% 90%; /* #E5E5E5 approx */
-    --input: 0 0% 90%;
-    --ring: 0 0% 7%;
+    --border: 35 12% 82%; /* #D8D3CB Subtle Warm Gray */
+    --input: 35 12% 82%;
+    --ring: 17 45% 59%;
 
-    --radius: 0;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 7%;
-    --sidebar-primary: 0 0% 7%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 0 0% 7%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 0 0% 7%;
+    --radius: 0.875rem; /* 14px */
 
     /* Custom tokens */
-    --font-display: 'Open Sans', sans-serif;
-    --font-body: 'Inter', sans-serif;
-    --font-mono: 'Space Mono', monospace;
-
-    /* Scientific Lab Palette */
-    --lab-cobalt: 215 100% 40%; /* #0052cc */
-    --lab-slate: 215 16% 47%;    /* #64748b */
-    --lab-border: 214 32% 91%;   /* #e2e8f0 */
-    --lab-accent: 142 71% 45%;   /* Clinical Green */
+    --font-display: 'Playfair Display', serif;
+    --font-body: 'DM Sans', sans-serif;
   }
 
   .dark {
-    --background: 150 10% 8%;
-    --foreground: 40 15% 92%;
-    --card: 150 10% 12%;
-    --card-foreground: 40 15% 92%;
-    --popover: 150 10% 12%;
-    --popover-foreground: 40 15% 92%;
-    --primary: 220 60% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 150 10% 18%;
-    --secondary-foreground: 40 15% 85%;
-    --muted: 150 8% 16%;
-    --muted-foreground: 150 5% 55%;
-    --accent: 220 50% 20%;
-    --accent-foreground: 220 60% 80%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 150 8% 20%;
-    --input: 150 8% 20%;
-    --ring: 220 60% 50%;
+    /* Muted dark mode following same principles */
+    --background: 60 6% 5%;
+    --foreground: 34 24% 90%;
+    --card: 60 6% 10%;
+    --card-foreground: 34 24% 95%;
+    --popover: 60 6% 10%;
+    --popover-foreground: 34 24% 95%;
+    --primary: 17 45% 59%;
+    --primary-foreground: 60 6% 5%;
+    --secondary: 33 5% 20%;
+    --secondary-foreground: 34 24% 90%;
+    --muted: 60 6% 15%;
+    --muted-foreground: 33 5% 60%;
+    --accent: 17 45% 20%;
+    --accent-foreground: 17 45% 80%;
+    --border: 60 6% 20%;
+    --input: 60 6% 20%;
+    --ring: 17 45% 59%;
   }
 }
 
@@ -86,40 +69,45 @@
   }
 
   body {
-    @apply bg-[#F8FAFC] text-foreground; /* Slate tinted white */
+    @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
   }
 
-  h1,
-  h2,
-  h3 {
-    @apply font-display tracking-tight text-slate-900;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-[0.03em] lowercase;
+    font-weight: 300;
+  }
+  
+  /* Sentence case for UI text, but headings often look better lowercase or sentence case in this aesthetic */
+  h1::first-letter, h2::first-letter, h3::first-letter {
+    text-transform: uppercase;
   }
 }
 
 @layer utilities {
   .font-display {
     font-family: var(--font-display);
+    @apply tracking-[0.03em];
   }
 
   .font-body {
     font-family: var(--font-body);
   }
 
-  .lab-border {
-    @apply border border-slate-200/60;
+  .premium-shadow {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   }
 
+  .premium-card {
+    @apply bg-card/40 backdrop-blur-sm border border-border/60 rounded-[--radius] premium-shadow;
+  }
+
+  /* Legacy aliases for easier transition */
   .lab-card {
-    @apply bg-white border border-[#e2e8f0] shadow-[0_1px_3px_0_rgba(0,0,0,0.02)];
+    @apply premium-card;
   }
 
-  .lab-grid {
-    background-image: radial-gradient(#cbd5e1 0.5px, transparent 0.5px);
-    background-size: 24px 24px;
-  }
-
-  .text-lab-mono {
-    @apply font-mono font-medium tracking-tighter;
+  .lab-border {
+    @apply border-border/40;
   }
 }

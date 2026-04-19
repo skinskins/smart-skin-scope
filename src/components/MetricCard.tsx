@@ -61,44 +61,44 @@ const MetricCard = ({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white border border-[#e2e8f0] p-5 hover:border-[#0052cc]/40 transition-all cursor-pointer h-full group relative overflow-hidden"
+        className="premium-card p-5 hover:border-primary/40 transition-all cursor-pointer h-full group relative overflow-hidden"
         onClick={() => setOpen(true)}
       >
-        <div className="absolute top-0 left-0 w-1 h-full bg-[#e2e8f0] group-hover:bg-[#0052cc] transition-colors" style={{ backgroundColor: color + '20' }} />
+        <div className="absolute top-0 left-0 w-1 h-full bg-border/40 group-hover:bg-primary/20 transition-colors" style={{ backgroundColor: color + '15' }} />
 
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div style={{ color }} className="transition-transform group-hover:scale-110 duration-200">
+            <div style={{ color }} className="transition-transform group-hover:scale-110 duration-200 opacity-80">
               {icon}
             </div>
-            <span className="text-[10px] font-mono font-bold text-[#64748b] uppercase tracking-widest">{label}</span>
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
           </div>
           {trend && (
             <div className={cn(
-              "px-1.5 py-0.5 border border-[#e2e8f0] font-mono font-bold text-[8px] uppercase tracking-tighter",
-              computedTone === "positive" ? "text-emerald-600 bg-emerald-50 border-emerald-100" :
-                computedTone === "negative" ? "text-rose-600 bg-rose-50 border-rose-100" :
-                  "text-slate-400 bg-slate-50"
+              "px-2 py-0.5 rounded-full border border-border/40 font-medium text-[8px] uppercase tracking-wide",
+              computedTone === "positive" ? "text-primary bg-primary/5" :
+                computedTone === "negative" ? "text-destructive bg-destructive/5" :
+                  "text-muted-foreground bg-muted/20"
             )}>
-              {trend.toUpperCase()}
+              {trend}
             </div>
           )}
         </div>
         <div className="flex items-end gap-1.5 mb-4">
-          <span className="text-4xl font-display font-extrabold text-[#0f172a] tracking-tighter leading-none">{value}</span>
-          <span className="text-[#94a3b8] font-mono font-bold text-[10px] mb-1">/{maxValue}</span>
+          <span className="text-4xl font-display text-foreground leading-none">{value}</span>
+          <span className="text-muted-foreground/60 font-medium text-[10px] mb-1">/{maxValue}</span>
         </div>
-        <div className="h-1 bg-[#f1f5f9] overflow-hidden">
+        <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
             transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-            className="h-full"
-            style={{ backgroundColor: color }}
+            className="h-full rounded-full"
+            style={{ backgroundColor: color, opacity: 0.7 }}
           />
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <p className="text-[8px] font-mono font-bold text-[#0052cc] opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Voir Détails →</p>
+          <p className="text-[8px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Voir détails →</p>
         </div>
       </motion.div>
 

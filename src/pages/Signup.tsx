@@ -188,7 +188,9 @@ const Signup = () => {
 
 
     return (
-        <div className="min-h-screen bg-white flex flex-col relative overflow-hidden">
+        <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
             <div className="p-6 relative z-10 flex items-center justify-between">
                 <motion.button
                     initial={{ opacity: 0 }}
@@ -197,12 +199,12 @@ const Signup = () => {
                         if (step > 1) setStep(step - 1);
                         else navigate("/onboarding");
                     }}
-                    className="w-10 h-10 flex items-center justify-center border border-[#111111]"
+                    className="w-12 h-12 flex items-center justify-center rounded-full border border-border/60 bg-white/50 hover:bg-white transition-all shadow-sm"
                 >
-                    <ArrowLeft size={18} className="text-[#111111]" />
+                    <ArrowLeft size={18} strokeWidth={1.5} className="text-foreground" />
                 </motion.button>
-                <div className="text-xs font-mono font-bold text-[#111111] tracking-[0.2em] border border-[#111111] py-2 px-4 italic">
-                    Step {step} / 5
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em] bg-white/40 px-5 py-2.5 rounded-full border border-border/40 backdrop-blur-sm">
+                    Étape {step} / 5
                 </div>
             </div>
 
@@ -216,69 +218,72 @@ const Signup = () => {
                 <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
                     {step === 1 && (
                         <>
-                            <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">Inscription</h1>
+                            <div className="mb-10">
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Inscription</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Créez votre profil biologique</p>
+                            </div>
                             <div className="space-y-6 flex-1">
-                                <div className="space-y-3">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Prénom</label>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Prénom</label>
                                     <div className="relative">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
-                                        <Input type="text" placeholder="Prénom" required
-                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs tracking-tight"
+                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                        <Input type="text" placeholder="Janvier" required
+                                            className="pl-12"
                                             value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Nom</label>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Nom</label>
                                     <div className="relative">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
-                                        <Input type="text" placeholder="Nom" required
-                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs tracking-tight"
+                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                        <Input type="text" placeholder="Doe" required
+                                            className="pl-12"
                                             value={lastName} onChange={(e) => setLastName(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Email</label>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Email</label>
                                     <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
                                         <Input type="email" placeholder="email@example.com" required
-                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs tracking-tight"
+                                            className="pl-12"
                                             value={email} onChange={(e) => setEmail(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Mot de passe</label>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Mot de passe</label>
                                     <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
                                         <Input type="password" placeholder="••••••••" required
-                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs tracking-tight"
+                                            className="pl-12"
                                             value={password} onChange={(e) => setPassword(e.target.value)} />
                                     </div>
-                                    <div className="px-1 space-y-2">
-                                        <p className={`text-xs font-mono font-bold flex items-center gap-2 uppercase tracking-tight ${password.length >= 8 ? 'text-[#22C55E]' : 'text-[#AAAAAA]'}`}>
-                                            <div className={`w-1.5 h-1.5 ${password.length >= 8 ? 'bg-[#22C55E]' : 'bg-[#E5E5E5]'}`} />
-                                            8 caractères min.
-                                        </p>
-                                        <p className={`text-xs font-mono font-bold flex items-center gap-2 uppercase tracking-tight ${/[A-Z]/.test(password) ? 'text-[#22C55E]' : 'text-[#AAAAAA]'}`}>
-                                            <div className={`w-1.5 h-1.5 ${/[A-Z]/.test(password) ? 'bg-[#22C55E]' : 'bg-[#E5E5E5]'}`} />
-                                            Une majuscule
-                                        </p>
-                                        <p className={`text-xs font-mono font-bold flex items-center gap-2 uppercase tracking-tight ${/[0-9]/.test(password) ? 'text-[#22C55E]' : 'text-[#AAAAAA]'}`}>
-                                            <div className={`w-1.5 h-1.5 ${/[0-9]/.test(password) ? 'bg-[#22C55E]' : 'bg-[#E5E5E5]'}`} />
-                                            Un chiffre
-                                        </p>
+                                    <div className="px-4 space-y-2.5 mt-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${password.length >= 8 ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
+                                            <p className={`text-[9px] font-bold uppercase tracking-wider ${password.length >= 8 ? 'text-primary' : 'text-muted-foreground/40'}`}>8 caractères min.</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(password) ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
+                                            <p className={`text-[9px] font-bold uppercase tracking-wider ${/[A-Z]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>Une majuscule</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${/[0-9]/.test(password) ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
+                                            <p className={`text-[9px] font-bold uppercase tracking-wider ${/[0-9]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>Un chiffre</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="pt-8 border-t border-[#E5E5E5]">
-                                <p className="text-xs font-mono font-bold text-[#111111] text-center leading-relaxed tracking-tight">
+                            <div className="pt-8 border-t border-border/40">
+                                <p className="text-[9px] font-bold text-muted-foreground text-center leading-relaxed tracking-widest uppercase opacity-60 px-4">
                                     En créant un compte, vous acceptez notre{" "}
-                                    <button type="button" onClick={() => navigate("/rgpd")} className="text-[#111111] hover:underline">politique de confidentialité</button>.
+                                    <button type="button" onClick={() => navigate("/rgpd")} className="text-primary hover:opacity-70 transition-all underline underline-offset-4">politique de confidentialité</button>
                                 </p>
                             </div>
-                            <div className="pt-4 text-center">
-                                <p className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em]">
+                            <div className="pt-6 text-center">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                                     Déjà un compte ?{" "}
-                                    <button type="button" onClick={() => navigate("/login")} className="text-[#111111] border-b border-[#111111] ml-1 uppercase">
+                                    <button type="button" onClick={() => navigate("/login")} className="text-primary border-b border-primary/20 ml-2 hover:border-primary transition-all">
                                         Se connecter
                                     </button>
                                 </p>
@@ -288,35 +293,33 @@ const Signup = () => {
 
                     {step === 2 && (
                         <>
-                            <div className="mb-12">
-                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">SOCIO-PRO</h1>
-                                <p className="text-xs font-mono font-bold text-[#111111] tracking-[0.2em]">(OPTIONNEL) DONNÉES STATISTIQUES</p>
+                            <div className="mb-10">
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Socio-professsionnel</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">(Optionnel) Données statistiques</p>
                             </div>
                             <div className="space-y-8 flex-1">
                                 <div className="space-y-4 relative">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">CATÉGORIE PROFESSIONNELLE</label>
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Catégorie professionnelle</label>
                                     <div className="relative">
-                                        <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
                                         <select
-                                            className="w-full pl-11 h-14 bg-white border border-[#111111] rounded-none focus:outline-none focus:border-[#111111] text-xs font-bold tracking-tight appearance-none"
+                                            className="w-full pl-12 h-14 bg-white border border-border/60 rounded-full focus:outline-none focus:border-primary text-xs font-bold tracking-tight appearance-none transition-all shadow-sm"
                                             value={profession}
                                             onChange={(e) => setProfession(e.target.value)}
                                         >
                                             <option value="">Sélectionner (optionnel)</option>
                                             {professions.map(prof => (
-                                                <option key={prof} value={prof}>{prof.toUpperCase()}</option>
+                                                <option key={prof} value={prof}>{prof}</option>
                                             ))}
                                         </select>
                                     </div>
                                 </div>
-                                <div className="space-y-4 pt-4 border-t border-[#E5E5E5]">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1 flex items-center gap-2">
-                                        QUELS CANAUX UTILISEZ-VOUS ?
-                                    </label>
+                                <div className="space-y-6 pt-10 border-t border-border/40">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Canaux de découverte</label>
                                     <div className="grid grid-cols-2 gap-3 mt-2">
                                         {channels.map(ch => (
                                             <button type="button" key={ch} onClick={() => toggleChannel(ch)}
-                                                className={`py-4 px-2 border transition-all text-xs font-bold tracking-tight ${usedChannels.includes(ch) ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${usedChannels.includes(ch) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {ch}
                                             </button>
                                         ))}
@@ -329,7 +332,7 @@ const Signup = () => {
                                                     placeholder="Veuillez préciser..."
                                                     value={otherChannel}
                                                     onChange={(e) => setOtherChannel(e.target.value)}
-                                                    className="bg-white border border-[#111111] rounded-none focus-visible:ring-0 h-14 font-bold text-xs tracking-tight"
+                                                    className="h-14"
                                                 />
                                             </motion.div>
                                         )}
@@ -341,26 +344,26 @@ const Signup = () => {
 
                     {step === 3 && (
                         <>
-                            <div className="mb-12">
-                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">PROFIL PHYSIQUE</h1>
-                                <p className="text-xs font-mono font-bold text-[#111111] tracking-[0.2em]">PERSONNALISATION DE L'ANALYSE</p>
+                            <div className="mb-10">
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Profil physique</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation de l'analyse</p>
                             </div>
                             <div className="space-y-8 flex-1">
                                 <div className="space-y-4 relative">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">ÂGE</label>
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Âge</label>
                                     <div className="relative">
-                                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
+                                        <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
                                         <Input type="number" placeholder="ex: 28" min="10" max="120"
-                                            className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 font-bold text-xs tracking-tight"
+                                            className="pl-12"
                                             value={age} onChange={(e) => setAge(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-4 pt-4 border-t border-[#E5E5E5]">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">SEXE</label>
+                                <div className="space-y-6 pt-10 border-t border-border/40">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Sexe</label>
                                     <div className="grid grid-cols-3 gap-3">
                                         {["Femme", "Homme", "Autre"].map(g => (
                                             <button type="button" key={g} onClick={() => setGender(g)}
-                                                className={`py-4 px-2 border transition-all text-xs font-bold tracking-tight ${gender === g ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
+                                                className={`py-4 px-2 border rounded-full transition-all text-[10px] font-bold uppercase tracking-widest ${gender === g ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {g}
                                             </button>
                                         ))}
@@ -372,32 +375,32 @@ const Signup = () => {
 
                     {step === 4 && (
                         <>
-                            <div className="mb-12">
-                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">DIAGNOSTIC PEAU</h1>
-                                <p className="text-xs font-mono font-bold text-[#111111] tracking-[0.2em]">IDENTIFICATION DU TYPE CUTANÉ</p>
+                            <div className="mb-10">
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Diagnostic peau</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Identification du type cutané</p>
                             </div>
                             <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar">
-                                <div className="space-y-4">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">TYPE DE PEAU</label>
+                                <div className="space-y-6">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Type de peau</label>
                                     <div className="grid grid-cols-2 gap-3 mb-4">
                                         {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
                                             <button type="button" key={type} onClick={() => { setSkinType(type); setQuizStarted(false); }}
-                                                className={`py-5 px-2 border transition-all text-sm font-bold tracking-tight ${skinType === type && !quizStarted ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
+                                                className={`py-5 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {type}
                                             </button>
                                         ))}
                                     </div>
                                     <button type="button" onClick={() => { setQuizStarted(!quizStarted); setSkinType(""); setQuizStep(1); }}
-                                        className={`w-full py-4 px-4 border text-xs font-bold uppercase tracking-[0.2em] transition-all ${quizStarted ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#111111] hover:bg-black hover:text-white'}`}>
-                                        DIAGNOSTIC ASSISTÉ
+                                        className={`w-full py-4 px-4 border rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${quizStarted ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-white text-primary border-primary hover:bg-primary/5'}`}>
+                                        Diagnostic assisté
                                     </button>
 
                                     <AnimatePresence>
                                         {quizStarted && (
-                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border border-[#111111] p-6 mt-6 overflow-hidden bg-[#F9F9F9]">
+                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="premium-card p-6 mt-6 overflow-hidden bg-white/40 border-primary/10">
                                                 {quizStep === 1 && (
                                                     <div className="space-y-6">
-                                                        <p className="text-xs font-bold text-[#111111] uppercase tracking-tight">1. RÉACTION APRÈS NETTOYAGE</p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">1. Réaction après nettoyage</p>
                                                         <div className="flex flex-col gap-3">
                                                             {[
                                                                 { label: "Elle tiraille et est inconfortable", val: "Sèche" },
@@ -407,7 +410,7 @@ const Signup = () => {
                                                                 { label: "Elle est rouge ou chauffe", val: "Sensible" }
                                                             ].map(opt => (
                                                                 <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q1: opt.val }); setQuizStep(2); }}
-                                                                    className="text-left py-4 px-6 border border-[#E5E5E5] text-xs font-bold tracking-tight hover:border-[#111111] transition-colors bg-white">
+                                                                    className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
                                                                     {opt.label}
                                                                 </button>
                                                             ))}
@@ -416,7 +419,7 @@ const Signup = () => {
                                                 )}
                                                 {quizStep === 2 && (
                                                     <div className="space-y-6">
-                                                        <p className="text-xs font-bold text-[#111111] uppercase tracking-tight">2. APPARENCE DES PORES</p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">2. Apparence des pores</p>
                                                         <div className="flex flex-col gap-3">
                                                             {[
                                                                 { label: "Presque invisibles", val: "Sèche" },
@@ -425,7 +428,7 @@ const Signup = () => {
                                                                 { label: "Petits mais réguliers", val: "Normale" }
                                                             ].map(opt => (
                                                                 <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q2: opt.val }); setQuizStep(3); }}
-                                                                    className="text-left py-4 px-6 border border-[#E5E5E5] text-xs font-bold tracking-tight hover:border-[#111111] transition-colors bg-white">
+                                                                    className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
                                                                     {opt.label}
                                                                 </button>
                                                             ))}
@@ -434,7 +437,7 @@ const Signup = () => {
                                                 )}
                                                 {quizStep === 3 && (
                                                     <div className="space-y-6">
-                                                        <p className="text-xs font-bold text-[#111111] uppercase tracking-tight">3. FRÉQUENCE DES IMPERFECTIONS</p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">3. Fréquence des imperfections</p>
                                                         <div className="flex flex-col gap-3">
                                                             {[
                                                                 { label: "Rarement ou jamais", val: "Sèche" },
@@ -443,7 +446,7 @@ const Signup = () => {
                                                                 { label: "Ma peau réagit aux produits", val: "Sensible" }
                                                             ].map(opt => (
                                                                 <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q3: opt.val }); setQuizStep(4); }}
-                                                                    className="text-left py-4 px-6 border border-[#E5E5E5] text-xs font-bold tracking-tight hover:border-[#111111] transition-colors bg-white">
+                                                                    className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
                                                                     {opt.label}
                                                                 </button>
                                                             ))}
@@ -452,7 +455,7 @@ const Signup = () => {
                                                 )}
                                                 {quizStep === 4 && (
                                                     <div className="space-y-6">
-                                                        <p className="text-xs font-bold text-[#111111] uppercase tracking-tight">4. TEXTURE AU TOUCHER</p>
+                                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">4. Texture au toucher</p>
                                                         <div className="flex flex-col gap-3">
                                                             {[
                                                                 { label: "Rugueuse ou squameuse", val: "Sèche" },
@@ -463,32 +466,24 @@ const Signup = () => {
                                                                 <button type="button" key={opt.val} onClick={() => {
                                                                     const finalAnswers = { ...quizAnswers, q4: opt.val };
                                                                     setQuizAnswers(finalAnswers);
-
-                                                                    // Calculate Result
                                                                     const scores = { Sèche: 0, Grasse: 0, Mixte: 0, Normale: 0, Sensible: 0 };
-
-                                                                    // We use finalAnswers here because setQuizAnswers is async
                                                                     if (finalAnswers.q1 === "Sèche") scores.Sèche += 2;
                                                                     if (finalAnswers.q1 === "Grasse") scores.Grasse += 2;
                                                                     if (finalAnswers.q1 === "Mixte") scores.Mixte += 2;
                                                                     if (finalAnswers.q1 === "Normale") scores.Normale += 2;
                                                                     if (finalAnswers.q1 === "Sensible") scores.Sensible += 2;
-
                                                                     if (finalAnswers.q2 === "Sèche") { scores.Sèche += 1; scores.Normale += 1; }
                                                                     if (finalAnswers.q2 === "Grasse") scores.Grasse += 2;
                                                                     if (finalAnswers.q2 === "Mixte") scores.Mixte += 2;
                                                                     if (finalAnswers.q2 === "Normale") scores.Normale += 2;
-
                                                                     if (finalAnswers.q3 === "Sèche") { scores.Sèche += 1; scores.Normale += 1; }
                                                                     if (finalAnswers.q3 === "Grasse") scores.Grasse += 2;
                                                                     if (finalAnswers.q3 === "Mixte") scores.Mixte += 2;
                                                                     if (finalAnswers.q3 === "Sensible") scores.Sensible += 2;
-
                                                                     if (finalAnswers.q4 === "Sèche") scores.Sèche += 2;
                                                                     if (finalAnswers.q4 === "Grasse") scores.Grasse += 2;
                                                                     if (finalAnswers.q4 === "Mixte") scores.Mixte += 2;
                                                                     if (finalAnswers.q4 === "Normale") scores.Normale += 2;
-
                                                                     let winner = "Normale";
                                                                     let maxScore = -1;
                                                                     Object.entries(scores).forEach(([type, score]) => {
@@ -497,11 +492,10 @@ const Signup = () => {
                                                                             winner = type;
                                                                         }
                                                                     });
-
                                                                     setSkinType(winner);
                                                                     setQuizStep(5);
                                                                 }}
-                                                                    className="text-left py-4 px-6 border border-[#E5E5E5] text-xs font-bold tracking-tight hover:border-[#111111] transition-colors bg-white">
+                                                                    className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
                                                                     {opt.label}
                                                                 </button>
                                                             ))}
@@ -510,32 +504,34 @@ const Signup = () => {
                                                 )}
                                                 {quizStep === 5 && (
                                                     <div className="space-y-6 text-center py-4">
-                                                        <div className="w-16 h-16 bg-[#111111] text-white rounded-full flex items-center justify-center mx-auto mb-4">
-                                                            <CheckCircle2 size={32} />
+                                                        <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                                                            <CheckCircle2 size={40} strokeWidth={1.5} />
                                                         </div>
-                                                        <h3 className="text-xl font-bold font-display text-[#111111] uppercase italic">ANALYSE TERMINÉE</h3>
-                                                        <div className="p-4 border border-[#111111] bg-white">
-                                                            <p className="text-xs font-mono font-bold text-[#AAAAAA] uppercase mb-1">TYPE DÉTECTÉ</p>
-                                                            <p className=" font-bold text-[#111111] uppercase tracking-[0.1em]">{skinType}</p>
+                                                        <h3 className="text-xl font-display text-foreground leading-tight">Analyse terminée</h3>
+                                                        <div className="p-6 rounded-3xl bg-white border border-primary/10 premium-shadow">
+                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 opacity-60">Type détecté</p>
+                                                            <p className="text-2xl font-display text-primary">{skinType}</p>
                                                         </div>
-                                                        <p className="text-xs text-[#555555] px-4">
-                                                            Sur la base de vos réponses, votre peau semble être de type <span className="font-bold underline">{skinType}</span>.
-                                                            Vous pouvez valider ce choix ou le modifier manuellement.
+                                                        <p className="text-[11px] text-muted-foreground leading-relaxed italic px-4">
+                                                            Votre peau semble être de type {skinType}.
+                                                            Validez pour enregistrer.
                                                         </p>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setQuizStarted(false)}
-                                                            className="w-full py-4 bg-[#111111] text-white text-xs font-bold uppercase tracking-[0.2em] hover:bg-black transition-all"
-                                                        >
-                                                            VALIDER LE DIAGNOSTIC
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setQuizStep(1)}
-                                                            className="text-xs font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] border-b border-[#AAAAAA]"
-                                                        >
-                                                            RECOMMENCER
-                                                        </button>
+                                                        <div className="flex flex-col gap-4 mt-8">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setQuizStarted(false)}
+                                                                className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow"
+                                                            >
+                                                                Valider
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setQuizStep(1)}
+                                                                className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
+                                                            >
+                                                                Recommencer
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </motion.div>
@@ -543,12 +539,12 @@ const Signup = () => {
                                     </AnimatePresence>
                                 </div>
 
-                                <div className="space-y-4 pt-8 border-t border-[#E5E5E5]">
-                                    <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">PROBLÈMES RENCONTRÉS</label>
+                                <div className="space-y-6 pt-10 border-t border-border/40">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Sensibilités prioritaires</label>
                                     <div className="grid grid-cols-2 gap-3 mt-2">
                                         {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
                                             <button type="button" key={prob} onClick={() => toggleProblem(prob)}
-                                                className={`py-4 px-2 border transition-all text-xs font-bold tracking-tight ${skinProblems.includes(prob) ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {prob}
                                             </button>
                                         ))}
@@ -560,15 +556,15 @@ const Signup = () => {
 
                     {step === 5 && (
                         <>
-                            <div className="mb-12">
-                                <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">OBJECTIFS</h1>
-                                <p className="text-xs font-mono font-bold text-[#111111] tracking-[0.2em]">QUELS SONT VOS OBJECTIFS ?</p>
+                            <div className="mb-10">
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Objectifs</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Quels sont vos objectifs ?</p>
                             </div>
                             <div className="space-y-6 flex-1 overflow-y-auto pb-4 custom-scrollbar">
                                 <div className="grid grid-cols-2 gap-3 mt-2">
                                     {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
                                         <button type="button" key={goal} onClick={() => toggleGoal(goal)}
-                                            className={`py-4 px-2 border transition-all text-xs font-bold tracking-tight ${skinGoals.includes(goal) ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white text-[#111111] border-[#E5E5E5] hover:border-[#111111]'}`}>
+                                            className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                             {goal}
                                         </button>
                                     ))}
@@ -577,14 +573,14 @@ const Signup = () => {
                         </>
                     )}
 
-                    <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-[#E5E5E5] z-20">
+                    <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-20 flex flex-col gap-4">
                         {step === 2 && (
                             <button
                                 type="button"
                                 onClick={() => setStep(step + 1)}
-                                className="w-full text-center mb-6 text-xs font-mono font-bold text-[#111111] tracking-[0.1em]"
+                                className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
                             >
-                                PASSER CETTE ÉTAPE
+                                Passer cette étape
                             </button>
                         )}
                         <button
@@ -597,9 +593,9 @@ const Signup = () => {
                                 (step === 4 && !skinType) ||
                                 (step === 5 && skinGoals.length === 0)
                             }
-                            className="w-full flex items-center justify-center gap-2 bg-[#111111] text-white py-5 font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-50"
+                            className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                         >
-                            {loading ? "ENREGISTREMENT..." : step === 5 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} />
+                            {loading ? "ENREGISTREMENT..." : step === 5 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
                         </button>
                     </div>
                 </form>
