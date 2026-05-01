@@ -160,6 +160,8 @@ const CheckinAdvice = () => {
     const [woreMakeup, setWoreMakeup] = useState<boolean | null>(null);
 
     const [dbCheckinDone, setDbCheckinDone] = useState(false);
+    const [selectedAdvice, setSelectedAdvice] = useState<AdviceItem | null>(null);
+
 
     const currentHour = new Date().getHours();
     const greeting = (currentHour >= 5 && currentHour < 16) ? "Bonjour" : "Bonsoir";
@@ -303,7 +305,15 @@ const CheckinAdvice = () => {
         else if (editingFactor === 'water') newFactors.waterStatus = editValue;
         else if (editingFactor === 'alcohol') newFactors.alcoholDrinks = editValue;
         else if (editingFactor === 'sport') newFactors.didSport = editValue;
-        else if (editingFactor === 'cycle') newFactors.cyclePhase = editValue;
+        else if (editingFactor === 'cycle') {
+            if (typeof editValue === 'object' && editValue !== null) {
+                newFactors.cyclePhase = editValue.phase;
+                newFactors.cycleDuration = editValue.cycleDuration;
+                newFactors.periodDuration = editValue.periodDuration;
+            } else {
+                newFactors.cyclePhase = editValue;
+            }
+        }
         else if (editingFactor === 'makeup') { newFactors.makeupRemoved = editValue; newFactors.woreMakeup = woreMakeup; }
         else if (editingFactor === 'alimentation') newFactors.foodQuality = editValue;
 
@@ -391,7 +401,14 @@ const CheckinAdvice = () => {
                     )}
                     <AnimatePresence mode="popLayout">
                         {adviceList.map((advice, idx) => (
-                            <motion.div key={advice.title} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: idx * 0.1 }} className="premium-card p-8 bg-white/60 hover:bg-white transition-all group overflow-hidden">
+                            <motion.div key={advice.title} 
+                                initial={{ opacity: 0, y: 10 }} 
+                                animate={{ opacity: 1, y: 0 }} 
+                                exit={{ opacity: 0, scale: 0.95 }} 
+                                transition={{ delay: idx * 0.1 }} 
+                                onClick={() => setSelectedAdvice(advice)}
+                                className="premium-card p-8 bg-white/60 hover:bg-white transition-all group overflow-hidden cursor-pointer active:scale-[0.98]"
+                            >
                                 <div className="flex gap-6">
                                     <div className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</div>
                                     <div className="flex-1">
@@ -399,20 +416,7 @@ const CheckinAdvice = () => {
                                             <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>
                                             <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
                                         </div>
-                                        <p className="text-[13px] text-foreground/80 leading-relaxed italic mb-6">{advice.text}</p>
-                                        {advice.ingredients && advice.ingredients.length > 0 && (
-                                            <div className="flex flex-wrap gap-2 mb-6">
-                                                {advice.ingredients.map(ing => (
-                                                    <span key={ing} className="px-4 py-1.5 bg-primary/5 text-primary text-[9px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{ing}</span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {advice.tip && (
-                                            <div className="flex gap-4 p-5 bg-primary/5 rounded-[24px] border border-primary/10">
-                                                <div className="bg-white rounded-full p-1.5 text-primary shadow-sm h-fit"><Info size={12} strokeWidth={2.5} /></div>
-                                                <p className="text-[11px] font-bold text-primary/80 leading-relaxed uppercase tracking-widest italic">{advice.tip}</p>
-                                            </div>
-                                        )}
+                                        <p className="text-[13px] text-foreground/80 leading-relaxed italic line-clamp-2">{advice.text}</p>
                                     </div>
                                 </div>
                             </motion.div>
@@ -420,6 +424,7 @@ const CheckinAdvice = () => {
                     </AnimatePresence>
                 </div>
             </section>
+
 
             {/* Environment Grid */}
             <section className="mb-20">
@@ -629,6 +634,46 @@ const CheckinAdvice = () => {
             </Dialog>
 
             <div className="mt-8 text-center"><button onClick={() => navigate("/rgpd")} className="text-[11px] text-muted-foreground hover:text-primary transition-colors cursor-pointer uppercase tracking-widest font-bold">Politique de confidentialité & RGPD</button></div>
+
+            {/* Modale de conseil détaillé */}
+            <Dialog open={!!selectedAdvice} onOpenChange={() => setSelectedAdvice(null)}>
+                <DialogContent className="max-w-sm rounded-[40px] border-none bg-background premium-shadow p-10">
+                    <DialogHeader className="mb-8">
+                        <div className="text-5xl mb-6">{selectedAdvice?.iconStr}</div>
+                        <DialogTitle className="text-2xl font-display text-foreground italic">{selectedAdvice?.title}</DialogTitle>
+                    </DialogHeader>
+                    
+                    <div className="space-y-8">
+                        <p className="text-sm text-foreground/80 leading-relaxed italic">{selectedAdvice?.text}</p>
+                        
+                        {selectedAdvice?.ingredients && selectedAdvice.ingredients.length > 0 && (
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Ingrédients cibles</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedAdvice.ingredients.map(ing => (
+                                        <span key={ing} className="px-4 py-2 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{ing}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedAdvice?.tip && (
+                            <div className="flex gap-4 p-6 bg-primary/5 rounded-[32px] border border-primary/10">
+                                <div className="bg-white rounded-full p-2 text-primary shadow-sm h-fit"><Info size={14} strokeWidth={2.5} /></div>
+                                <p className="text-[11px] font-bold text-primary/80 leading-relaxed uppercase tracking-widest italic">{selectedAdvice.tip}</p>
+                            </div>
+                        )}
+
+                        <button 
+                            onClick={() => setSelectedAdvice(null)}
+                            className="w-full h-16 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all mt-6"
+                        >
+                            Compris
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 };

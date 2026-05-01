@@ -143,6 +143,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string | null>(null);
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
+  const [selectedTip, setSelectedTip] = useState<{ icon: React.ReactNode; text: string; priority: string; ingredients?: string[] } | null>(null);
+
 
   // Check auth state and fetch remote daily checkin profile
   useEffect(() => {
@@ -622,7 +624,7 @@ const Dashboard = () => {
           if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} strokeWidth={1.5} />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high", ingredients: ["Rétinol (soir)", "Peptides", "Bakuchiol"] });
 
           const priorityOrder = { high: 0, medium: 1, low: 2 };
-          const sorted = tips.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 5);
+          const sorted = tips.sort((a, b) => priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder]).slice(0, 5);
 
           if (sorted.length === 0) {
             sorted.push({ icon: <Sparkles size={16} strokeWidth={1.5} className="text-primary" />, text: "Tout semble bien ! Continuez votre routine actuelle. 🎉", priority: "low" });
@@ -630,24 +632,51 @@ const Dashboard = () => {
 
           return sorted.map((tip, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-              className="flex flex-col gap-4 p-6 premium-card border-none group transition-all hover:bg-white/40">
+              onClick={() => setSelectedTip(tip)}
+              className="flex flex-col gap-4 p-6 premium-card border-none group transition-all hover:bg-white/40 cursor-pointer active:scale-[0.98]">
               <div className="flex items-start gap-4">
                 <span className="mt-0.5 flex-shrink-0 text-primary transition-colors">{tip.icon}</span>
-                <p className="text-sm text-foreground/80 leading-relaxed font-medium">{tip.text}</p>
+                <p className="text-sm text-foreground/80 leading-relaxed font-medium line-clamp-2">{tip.text}</p>
               </div>
-              {tip.ingredients && tip.ingredients.length > 0 && (
-                <div className="flex flex-wrap gap-2 ml-10">
-                  {tip.ingredients.map(ing => (
-                    <span key={ing} className="text-[9px] border border-primary/20 text-primary px-3 py-1 rounded-full font-medium uppercase tracking-wider bg-primary/5">
-                      {ing}
-                    </span>
-                  ))}
-                </div>
-              )}
             </motion.div>
           ));
         })()}
       </motion.div>
+
+      {/* Détail du conseil */}
+      <Dialog open={!!selectedTip} onOpenChange={() => setSelectedTip(null)}>
+        <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
+          <DialogHeader className="mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4">
+              {selectedTip?.icon}
+            </div>
+            <DialogTitle className="text-xl font-display text-foreground leading-tight">Conseil personnalisé</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <p className="text-sm text-foreground/80 leading-relaxed">{selectedTip?.text}</p>
+            
+            {selectedTip?.ingredients && selectedTip.ingredients.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ingrédients recommandés</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTip.ingredients.map(ing => (
+                    <span key={ing} className="text-[10px] border border-primary/20 text-primary px-3 py-1.5 rounded-full font-medium bg-primary/5 italic">
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setSelectedTip(null)}
+              className="w-full py-4 bg-primary text-primary-foreground rounded-full text-xs font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all mt-4"
+            >
+              Compris
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <h2 className="text-lg font-display text-foreground mb-10 text-center">Paramètres du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
