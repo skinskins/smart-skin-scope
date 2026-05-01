@@ -1,4 +1,4 @@
-export function calculateCyclePhase(lastPeriodDate: string | null) {
+export function calculateCyclePhase(lastPeriodDate: string | null, cycleDuration: number = 28, periodDuration: number = 5) {
     if (!lastPeriodDate) return { day: null, phase: "Inconnu", message: "Sélectionnez la date de vos dernières règles." };
     
     const today = new Date();
@@ -10,13 +10,14 @@ export function calculateCyclePhase(lastPeriodDate: string | null) {
     
     const diffTime = Math.abs(today.getTime() - periodDate.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const currentDay = (diffDays % 28) + 1;
+    const currentDay = (diffDays % cycleDuration) + 1;
     
     let phase = "";
-    if (currentDay <= 5) phase = "Menstruation";
-    else if (currentDay <= 13) phase = "Folliculaire";
-    else if (currentDay <= 16) phase = "Ovulatoire";
+    if (currentDay <= periodDuration) phase = "Menstruation";
+    else if (currentDay <= Math.floor(cycleDuration / 2) - 1) phase = "Folliculaire";
+    else if (currentDay <= Math.floor(cycleDuration / 2) + 2) phase = "Ovulatoire";
     else phase = "Lutéal";
     
     return { day: currentDay, phase, message: null };
 }
+

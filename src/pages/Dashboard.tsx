@@ -46,8 +46,11 @@ const defaultDailyLog = {
   waterGlasses: 6,
   sleepHours: 7.5,
   alcohol: false,
-  workoutIntensity: "Modéré"
+  workoutIntensity: "Modéré",
+  cycleDuration: 28,
+  periodDuration: 5
 };
+
 
 const cyclePhases = ["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
 const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
@@ -163,6 +166,8 @@ const Dashboard = () => {
                 alcoholDrinks: profile.alcohol_drinks ?? prev.alcoholDrinks,
                 lastPeriodDate: profile.last_period_date ?? prev.lastPeriodDate,
                 cyclePhase: profile.cycle_phase ?? prev.cyclePhase,
+                cycleDuration: profile.cycle_duration ?? prev.cycleDuration,
+                periodDuration: profile.period_duration ?? prev.periodDuration,
                 stressLevel: profile.stress_level ?? prev.stressLevel,
                 foodQuality: profile.food_quality ?? prev.foodQuality
               }));
@@ -715,11 +720,11 @@ const Dashboard = () => {
                   if (!dailyLog.lastPeriodDate) return (
                     <p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "Inconnu"}</p>
                   );
-                  const calc = calculateCyclePhase(dailyLog.lastPeriodDate);
+                  const calc = calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration);
                   return (
                     <div className="flex flex-col">
                       <p className="text-sm font-bold text-foreground">{calc.phase}</p>
-                      {calc.day && <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">Jour {calc.day}</p>}
+                      {calc.day && <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">Jour {calc.day} / {dailyLog.cycleDuration}</p>}
                     </div>
                   );
                 })()}

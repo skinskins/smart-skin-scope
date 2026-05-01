@@ -139,11 +139,11 @@ const CheckinAdvice = () => {
         const saved = localStorage.getItem("dailyCheckinData");
         const factors = saved ? JSON.parse(saved) : {};
         const manualLocSnippet = localStorage.getItem("manualLocation") || "Paris";
-        if (!factors.location) {
-            factors.location = manualLocSnippet;
-        }
+        if (!factors.cycleDuration) factors.cycleDuration = 28;
+        if (!factors.periodDuration) factors.periodDuration = 5;
         return factors;
     });
+
 
     const [guest, setGuest] = useState(() => {
         const saved = localStorage.getItem("guestProfile");
@@ -189,7 +189,11 @@ const CheckinAdvice = () => {
             updates.cycle_phase = typeof value === 'string' ? value : value.phase;
             if (typeof value === 'object' && value.date) updates.last_period_date = value.date;
             else if (factors.lastPeriodDate) updates.last_period_date = factors.lastPeriodDate;
+            
+            updates.cycle_duration = value.cycleDuration ?? factors.cycleDuration;
+            updates.period_duration = value.periodDuration ?? factors.periodDuration;
         }
+
         if (key === 'sport') updates.did_sport = value;
         if (key === 'makeup') updates.makeup_removed = value;
         if (key === 'alimentation') updates.food_quality = value;
@@ -233,10 +237,11 @@ const CheckinAdvice = () => {
             sleepHours: factors.sleepHours ?? 8,
             stressLevel: (factors.stressLevel ?? 1) * 2,
             alcoholLastNight: factors.alcoholDrinks ?? 0,
-            removedMakeupLastNight: factors.makeupRemoved ?? true,
+            makeupRemoved: factors.makeupRemoved ?? true,
             didSportToday: factors.didSport === true || (typeof factors.didSport === 'string' && factors.didSport !== "Non"),
-            cycleDay: calculateCyclePhase(factors.lastPeriodDate).day
+            cycleDay: calculateCyclePhase(factors.lastPeriodDate, factors.cycleDuration, factors.periodDuration).day
         };
+
         const advice = getActiveAdvice(ctx);
         if (advice.length === 0) {
             advice.push({
@@ -276,8 +281,11 @@ const CheckinAdvice = () => {
                             didSport: profileData.did_sport,
                             makeupRemoved: profileData.makeup_removed,
                             foodQuality: profileData.food_quality,
+                            cycleDuration: profileData.cycle_duration ?? 28,
+                            periodDuration: profileData.period_duration ?? 5,
                             location: profileData.manual_location || f.location,
                         }));
+
                     }
                 }
             }
@@ -508,7 +516,7 @@ const CheckinAdvice = () => {
                                             value={factors.lastPeriodDate || ""} 
                                             onChange={(e) => {
                                                 const date = e.target.value;
-                                                const calc = calculateCyclePhase(date);
+                                                const calc = calculateCyclePhase(date, factors.cycleDuration, factors.periodDuration);
                                                 setFactors(prev => ({ 
                                                     ...prev, 
                                                     lastPeriodDate: date,
@@ -520,7 +528,47 @@ const CheckinAdvice = () => {
                                         />
                                     </div>
 
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center px-1">
+                                                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</label>
+                                                <span className="text-[11px] font-bold text-primary">{factors.cycleDuration}j</span>
+                                            </div>
+                                            <Slider 
+                                                value={[factors.cycleDuration || 28]} 
+                                                min={20} 
+                                                max={40} 
+                                                step={1} 
+                                                onValueChange={(v) => {
+                                                    const dur = v[0];
+                                                    const calc = calculateCyclePhase(factors.lastPeriodDate, dur, factors.periodDuration);
+                                                    setFactors(prev => ({ ...prev, cycleDuration: dur, cyclePhase: calc.phase }));
+                                                    setEditValue({ phase: calc.phase, cycleDuration: dur, periodDuration: factors.periodDuration });
+                                                }} 
+                                            />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center px-1">
+                                                <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Règles</label>
+                                                <span className="text-[11px] font-bold text-primary">{factors.periodDuration}j</span>
+                                            </div>
+                                            <Slider 
+                                                value={[factors.periodDuration || 5]} 
+                                                min={2} 
+                                                max={10} 
+                                                step={1} 
+                                                onValueChange={(v) => {
+                                                    const dur = v[0];
+                                                    const calc = calculateCyclePhase(factors.lastPeriodDate, factors.cycleDuration, dur);
+                                                    setFactors(prev => ({ ...prev, periodDuration: dur, cyclePhase: calc.phase }));
+                                                    setEditValue({ phase: calc.phase, cycleDuration: factors.cycleDuration, periodDuration: dur });
+                                                }} 
+                                            />
+                                        </div>
+                                    </div>
+
                                     <div className="flex gap-2">
+
                                         {["Je ne sais pas", "Aucun"].map((opt) => (
                                             <button
                                                 key={opt}
@@ -542,7 +590,7 @@ const CheckinAdvice = () => {
 
                                 <div className="premium-card p-6 bg-primary/5 border-primary/10">
                                     {(() => {
-                                        const calc = calculateCyclePhase(factors.lastPeriodDate);
+                                        const calc = calculateCyclePhase(factors.lastPeriodDate, factors.cycleDuration, factors.periodDuration);
                                         if (calc.message) {
                                             return <p className="text-[11px] font-bold text-primary/60 uppercase tracking-widest text-center italic">{calc.message}</p>;
                                         }
@@ -550,9 +598,10 @@ const CheckinAdvice = () => {
                                             <div className="text-center space-y-2">
                                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Phase Actuelle</p>
                                                 <p className="text-2xl font-display text-primary">{calc.phase}</p>
-                                                <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic">Jour {calc.day} sur 28</p>
+                                                <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic">Jour {calc.day} sur {factors.cycleDuration}</p>
                                             </div>
                                         );
+
                                     })()}
                                 </div>
                             </div>

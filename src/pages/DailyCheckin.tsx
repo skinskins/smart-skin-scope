@@ -37,8 +37,12 @@ const DailyCheckin = () => {
         location: defaultDailyLog.location,
         weather: defaultDailyLog.weather,
         didSport: false,
-        sportIntensity: "Légère"
+        sportIntensity: "Légère",
+        cycleDuration: 28,
+        periodDuration: 5
     });
+
+
 
     const [makeupRemoved, setMakeupRemoved] = useState<boolean | null>(true);
     const [manualLocationState, setManualLocationState] = useState<string | null>(() => localStorage.getItem("manualLocation"));
@@ -122,7 +126,10 @@ const DailyCheckin = () => {
                         alcohol_drinks: finalAlcoholDrinks,
                         cycle_phase: data.cyclePhase,
                         last_period_date: data.lastPeriodDate,
+                        cycle_duration: data.cycleDuration,
+                        period_duration: data.periodDuration,
                         stress_level: data.stressLevel,
+
                         food_quality: data.foodQuality,
                         did_sport: data.didSport,
                         sport_intensity: data.didSport ? data.sportIntensity : null
@@ -297,7 +304,7 @@ const DailyCheckin = () => {
                                         value={data.lastPeriodDate || ""} 
                                         onChange={(e) => {
                                             const date = e.target.value;
-                                            const calc = calculateCyclePhase(date);
+                                            const calc = calculateCyclePhase(date, data.cycleDuration, data.periodDuration);
                                             setData(prev => ({ 
                                                 ...prev, 
                                                 lastPeriodDate: date,
@@ -306,6 +313,47 @@ const DailyCheckin = () => {
                                         }}
                                         className="rounded-2xl h-14 bg-muted/10 border-transparent focus:border-primary/20 transition-all font-mono"
                                     />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                Durée du cycle
+                                            </label>
+                                            <span className="text-sm font-bold text-primary">{data.cycleDuration} j</span>
+                                        </div>
+                                        <Slider 
+                                            value={[data.cycleDuration]} 
+                                            min={20} 
+                                            max={40} 
+                                            step={1} 
+                                            onValueChange={(v) => {
+                                                const dur = v[0];
+                                                const calc = calculateCyclePhase(data.lastPeriodDate, dur, data.periodDuration);
+                                                setData(prev => ({ ...prev, cycleDuration: dur, cyclePhase: calc.phase }));
+                                            }} 
+                                        />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                                Durée des règles
+                                            </label>
+                                            <span className="text-sm font-bold text-primary">{data.periodDuration} j</span>
+                                        </div>
+                                        <Slider 
+                                            value={[data.periodDuration]} 
+                                            min={2} 
+                                            max={10} 
+                                            step={1} 
+                                            onValueChange={(v) => {
+                                                const dur = v[0];
+                                                const calc = calculateCyclePhase(data.lastPeriodDate, data.cycleDuration, dur);
+                                                setData(prev => ({ ...prev, periodDuration: dur, cyclePhase: calc.phase }));
+                                            }} 
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="flex gap-3">
@@ -329,7 +377,7 @@ const DailyCheckin = () => {
 
                             <div className="p-8 rounded-[32px] bg-primary/5 border border-primary/10 transition-all">
                                 {(() => {
-                                    const calc = calculateCyclePhase(data.lastPeriodDate);
+                                    const calc = calculateCyclePhase(data.lastPeriodDate, data.cycleDuration, data.periodDuration);
                                     if (calc.message) {
                                         return <p className="text-[11px] font-bold text-primary/60 uppercase tracking-widest text-center italic">{calc.message}</p>;
                                     }
@@ -341,15 +389,16 @@ const DailyCheckin = () => {
                                                 <div className="h-1 flex-1 bg-primary/10 rounded-full overflow-hidden max-w-[100px]">
                                                     <motion.div 
                                                         initial={{ width: 0 }}
-                                                        animate={{ width: `${(calc.day || 1) / 28 * 100}%` }}
+                                                        animate={{ width: `${(calc.day || 1) / data.cycleDuration * 100}%` }}
                                                         className="h-full bg-primary"
                                                     />
                                                 </div>
-                                                <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic whitespace-nowrap">Jour {calc.day} / 28</p>
+                                                <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic whitespace-nowrap">Jour {calc.day} / {data.cycleDuration}</p>
                                             </div>
                                         </div>
                                     );
                                 })()}
+
                             </div>
                         </div>
                     </motion.section>
