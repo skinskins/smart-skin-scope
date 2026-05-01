@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import StravaConnect from "./StravaConnect";
 import { classifyStravaIntensity } from "@/data/stravaIntensity";
 import axios from "axios";
+import { calculateCyclePhase } from "@/utils/cycle";
 
 // ─── Types ───────────────────────────────────────────────────
 interface AdviceItem {
@@ -184,7 +185,11 @@ const CheckinAdvice = () => {
         if (key === 'stress') updates.stress_level = value;
         if (key === 'water') updates.water_glasses = value === "Trop" ? 12 : (value === "Suffisamment" ? 8 : 4);
         if (key === 'alcohol') updates.alcohol_drinks = value;
-        if (key === 'cycle') updates.cycle_phase = value;
+        if (key === 'cycle') {
+            updates.cycle_phase = typeof value === 'string' ? value : value.phase;
+            if (typeof value === 'object' && value.date) updates.last_period_date = value.date;
+            else if (factors.lastPeriodDate) updates.last_period_date = factors.lastPeriodDate;
+        }
         if (key === 'sport') updates.did_sport = value;
         if (key === 'makeup') updates.makeup_removed = value;
         if (key === 'alimentation') updates.food_quality = value;
@@ -230,7 +235,7 @@ const CheckinAdvice = () => {
             alcoholLastNight: factors.alcoholDrinks ?? 0,
             removedMakeupLastNight: factors.makeupRemoved ?? true,
             didSportToday: factors.didSport === true || (typeof factors.didSport === 'string' && factors.didSport !== "Non"),
-            cycleDay: factors.cyclePhase === "Menstruation" ? 2 : (["Je ne sais pas", "Folliculaire", "Aucun", "Autre"].includes(factors.cyclePhase || "") ? null : (factors.cyclePhase === "Lutéal" ? 20 : null))
+            cycleDay: calculateCyclePhase(factors.lastPeriodDate).day
         };
         const advice = getActiveAdvice(ctx);
         if (advice.length === 0) {
@@ -491,7 +496,67 @@ const CheckinAdvice = () => {
                         {editingFactor === 'location' && (<div className="space-y-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ville :</label><Input value={locationInput} onChange={(e) => setLocationInput(e.target.value)} placeholder="Ex: Paris" className="flex-1 rounded-full" /></div>)}
                         {editingFactor === 'sleep' && (<div className="space-y-6"><div className="flex justify-between items-end mb-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Durée</label><span className="text-4xl font-display text-foreground">{editValue}h</span></div><div className="px-1"><Slider value={[editValue]} min={0} max={15} step={0.5} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}
                         {editingFactor === 'stress' && (<div className="space-y-8"><div className="flex flex-col items-center gap-2 py-4"><span className="text-5xl font-display text-primary">{editValue}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic">{STRESS_LABELS[editValue]}</span></div><div className="flex justify-between gap-1">{[1, 2, 3, 4, 5].map(v => (<button key={v} onClick={() => setEditValue(v)} className={`w-12 h-12 rounded-full border text-sm font-bold transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-background border-border text-muted-foreground'}`}>{v}</button>))}</div></div>)}
-                        {editingFactor === 'cycle' && (<div className="grid grid-cols-2 gap-3">{["Je ne sais pas", "Menstruation", "Folliculaire", "Ovulatoire", "Lutéal", "Aucun", "Autre"].map(v => (<button key={v} onClick={() => setEditValue(v)} className={`py-4 px-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>{v}</button>))}</div>)}
+                        {editingFactor === 'cycle' && (
+                            <div className="space-y-8">
+                                <div className="space-y-4">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block px-1">
+                                            Date des dernières règles
+                                        </label>
+                                        <Input 
+                                            type="date" 
+                                            value={factors.lastPeriodDate || ""} 
+                                            onChange={(e) => {
+                                                const date = e.target.value;
+                                                const calc = calculateCyclePhase(date);
+                                                setFactors(prev => ({ 
+                                                    ...prev, 
+                                                    lastPeriodDate: date,
+                                                    cyclePhase: calc.phase
+                                                }));
+                                                setEditValue(calc.phase);
+                                            }}
+                                            className="rounded-2xl h-14 bg-muted/10 border-transparent focus:border-primary/20 transition-all font-mono"
+                                        />
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        {["Je ne sais pas", "Aucun"].map((opt) => (
+                                            <button
+                                                key={opt}
+                                                onClick={() => {
+                                                    setFactors(prev => ({ 
+                                                        ...prev, 
+                                                        lastPeriodDate: "",
+                                                        cyclePhase: opt
+                                                    }));
+                                                    setEditValue(opt);
+                                                }}
+                                                className={`flex-1 py-3 h-12 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${factors.cyclePhase === opt ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                                            >
+                                                {opt}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="premium-card p-6 bg-primary/5 border-primary/10">
+                                    {(() => {
+                                        const calc = calculateCyclePhase(factors.lastPeriodDate);
+                                        if (calc.message) {
+                                            return <p className="text-[11px] font-bold text-primary/60 uppercase tracking-widest text-center italic">{calc.message}</p>;
+                                        }
+                                        return (
+                                            <div className="text-center space-y-2">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Phase Actuelle</p>
+                                                <p className="text-2xl font-display text-primary">{calc.phase}</p>
+                                                <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic">Jour {calc.day} sur 28</p>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
+                        )}
                         {editingFactor === 'alcohol' && (<div className="space-y-8"><div className="grid grid-cols-2 gap-4"><button onClick={() => setEditValue(editValue > 0 ? editValue : 1)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue > 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Oui</button><button onClick={() => setEditValue(0)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Non</button></div>{editValue > 0 && (<div className="space-y-6"><div className="flex justify-between items-end"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">Quantité</label><span className="text-3xl font-display text-foreground">{editValue}</span></div><div className="px-1"><Slider value={[editValue]} min={1} max={10} step={1} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}</div>)}
                         {editingFactor === 'sport' && (<div className="grid grid-cols-2 gap-3">{workoutIntensities.map((i) => (<button key={i} onClick={() => setEditValue(i)} className={`py-4 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === i ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>{i}</button>))}</div>)}
                         {editingFactor === 'makeup' && (<div className="space-y-6">{makeupStep === 1 ? (<div className="space-y-8"><p className="text-sm font-medium text-foreground tracking-tight italic text-center">Étiez-vous maquillé(e) ?</p><div className="grid grid-cols-2 gap-4"><button onClick={() => setMakeupStep(2)} className="py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all bg-muted/10 border-transparent text-foreground/60">Oui</button><button onClick={() => { setEditValue(true); saveEdit(); }} className="py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all bg-muted/10 border-transparent text-foreground/60">Non</button></div></div>) : (<div className="space-y-8"><p className="text-sm font-medium text-foreground tracking-tight italic text-center">Nettoyé ce soir ?</p><div className="flex flex-col gap-3"><button onClick={() => setEditValue(true)} className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Oui, complet</button><button onClick={() => setEditValue(false)} className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Non</button></div><button onClick={() => setMakeupStep(1)} className="w-full text-[9px] font-bold text-muted-foreground uppercase text-center mt-4">Retour</button></div>)}</div>)}

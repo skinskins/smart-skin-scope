@@ -10,6 +10,7 @@ import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { calculateCyclePhase } from "@/utils/cycle";
 
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
@@ -38,6 +39,7 @@ const skinMetrics = [
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
   location: "Montreuil, 93",
+  lastPeriodDate: "" as string,
   cyclePhase: "Folliculaire",
   heartRate: 72,
   stressLevel: 3,
@@ -159,6 +161,7 @@ const Dashboard = () => {
                 sleepHours: profile.sleep_hours ?? prev.sleepHours,
                 waterGlasses: profile.water_glasses ?? prev.waterGlasses,
                 alcoholDrinks: profile.alcohol_drinks ?? prev.alcoholDrinks,
+                lastPeriodDate: profile.last_period_date ?? prev.lastPeriodDate,
                 cyclePhase: profile.cycle_phase ?? prev.cyclePhase,
                 stressLevel: profile.stress_level ?? prev.stressLevel,
                 foodQuality: profile.food_quality ?? prev.foodQuality
@@ -708,11 +711,18 @@ const Dashboard = () => {
               <FlaskConical size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
                 <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Cycle</p>
-                <select value={dailyLog.cyclePhase} onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => { setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle"); }}
-                  className="text-sm font-bold text-foreground bg-transparent border-none p-0 focus:outline-none w-full">
-                  {cyclePhases.map((p) => <option key={p} className="bg-background">{p}</option>)}
-                </select>
+                {(() => {
+                  if (!dailyLog.lastPeriodDate) return (
+                    <p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "Inconnu"}</p>
+                  );
+                  const calc = calculateCyclePhase(dailyLog.lastPeriodDate);
+                  return (
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-foreground">{calc.phase}</p>
+                      {calc.day && <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">Jour {calc.day}</p>}
+                    </div>
+                  );
+                })()}
                 <ManualLabel id="cycle" />
               </div>
             </div>

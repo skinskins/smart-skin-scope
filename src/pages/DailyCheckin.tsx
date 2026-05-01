@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import { calculateCyclePhase } from "@/utils/cycle";
 
 export const defaultDailyLog = {
     stressLevel: 3,
@@ -29,6 +30,7 @@ const DailyCheckin = () => {
         hasAlcohol: false,
         alcoholDrinks: 0,
         sleepHours: 7,
+        lastPeriodDate: "" as string,
         cyclePhase: "Folliculaire",
         stressLevel: 3,
         foodQuality: "moyen" as "bien" | "moyen" | "mauvais",
@@ -114,12 +116,12 @@ const DailyCheckin = () => {
             } else {
                 const { data: sessionData } = await supabase.auth.getSession();
                 if (sessionData?.session) {
-                    // @ts-ignore
                     await supabase.from("profiles").update({
                         sleep_hours: data.sleepHours,
                         water_glasses: mappedWaterGlasses,
                         alcohol_drinks: finalAlcoholDrinks,
                         cycle_phase: data.cyclePhase,
+                        last_period_date: data.lastPeriodDate,
                         stress_level: data.stressLevel,
                         food_quality: data.foodQuality,
                         did_sport: data.didSport,
@@ -284,24 +286,70 @@ const DailyCheckin = () => {
                         <h2 className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] px-4 flex items-center gap-3">
                             <Waves size={14} strokeWidth={1.5} /> Cycle hormonal
                         </h2>
-                        <div className="premium-card p-8">
-                            <p className="text-xs font-medium text-foreground tracking-tight uppercase opacity-60 tracking-widest mb-8">Phase actuelle</p>
-                            <div className="grid grid-cols-2 gap-4">
-                                {["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal", "Aucun", "Autre"].map(p => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setData({ ...data, cyclePhase: p })}
-                                        className={`py-5 px-2 rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest border ${data.cyclePhase === p ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 text-foreground/60 border-transparent hover:bg-muted/20'}`}
-                                    >
-                                        {p}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={() => setData({ ...data, cyclePhase: "Inclusif" })}
-                                    className={`col-span-2 py-4 px-2 rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest border ${data.cyclePhase === "Inclusif" ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 text-foreground/40 border-transparent hover:bg-muted/20'}`}
-                                >
-                                    Je ne sais pas
-                                </button>
+                        <div className="premium-card p-10 space-y-8">
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block px-1">
+                                        Date des dernières règles
+                                    </label>
+                                    <Input 
+                                        type="date" 
+                                        value={data.lastPeriodDate || ""} 
+                                        onChange={(e) => {
+                                            const date = e.target.value;
+                                            const calc = calculateCyclePhase(date);
+                                            setData(prev => ({ 
+                                                ...prev, 
+                                                lastPeriodDate: date,
+                                                cyclePhase: calc.phase
+                                            }));
+                                        }}
+                                        className="rounded-2xl h-14 bg-muted/10 border-transparent focus:border-primary/20 transition-all font-mono"
+                                    />
+                                </div>
+
+                                <div className="flex gap-3">
+                                    {["Je ne sais pas", "Aucun"].map((opt) => (
+                                        <button
+                                            key={opt}
+                                            onClick={() => {
+                                                setData(prev => ({ 
+                                                    ...prev, 
+                                                    lastPeriodDate: "",
+                                                    cyclePhase: opt
+                                                }));
+                                            }}
+                                            className={`flex-1 py-4 rounded-3xl border text-[10px] font-bold uppercase tracking-widest transition-all ${data.cyclePhase === opt ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                                        >
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="p-8 rounded-[32px] bg-primary/5 border border-primary/10 transition-all">
+                                {(() => {
+                                    const calc = calculateCyclePhase(data.lastPeriodDate);
+                                    if (calc.message) {
+                                        return <p className="text-[11px] font-bold text-primary/60 uppercase tracking-widest text-center italic">{calc.message}</p>;
+                                    }
+                                    return (
+                                        <div className="text-center space-y-3">
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Phase Actuelle</p>
+                                            <p className="text-4xl font-display text-primary leading-none">{calc.phase}</p>
+                                            <div className="flex items-center justify-center gap-2 pt-2">
+                                                <div className="h-1 flex-1 bg-primary/10 rounded-full overflow-hidden max-w-[100px]">
+                                                    <motion.div 
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${(calc.day || 1) / 28 * 100}%` }}
+                                                        className="h-full bg-primary"
+                                                    />
+                                                </div>
+                                                <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic whitespace-nowrap">Jour {calc.day} / 28</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </motion.section>
