@@ -46,9 +46,9 @@ const analysisSteps = [
 type DiagStep = "prep" | "capture" | "analyzing" | "results";
 
 const statusConfig = {
-  good: { color: "text-[#111111]", bg: "bg-white", border: "border-[#E5E5E5]", icon: <CheckCircle2 size={14} />, label: "BON" },
-  warning: { color: "text-[#111111]", bg: "bg-white", border: "border-[#111111]", icon: <AlertTriangle size={14} />, label: "ATTENTION" },
-  alert: { color: "text-[#111111]", bg: "bg-white", border: "border-[#111111] border-2", icon: <AlertTriangle size={14} />, label: "À TRAITER" },
+  good: { color: "text-primary", bg: "bg-primary/5", border: "border-primary/10", icon: <CheckCircle2 size={14} strokeWidth={1.5} />, label: "Optimal" },
+  warning: { color: "text-foreground", bg: "bg-white/60", border: "border-border/40", icon: <AlertTriangle size={14} strokeWidth={1.5} />, label: "Attention" },
+  alert: { color: "text-foreground", bg: "bg-primary/5", border: "border-primary/20", icon: <AlertTriangle size={14} strokeWidth={1.5} />, label: "Prioritaire" },
 };
 
 const trendIcon = (trend: "up" | "down" | "stable") => {
@@ -59,7 +59,7 @@ const trendIcon = (trend: "up" | "down" | "stable") => {
 
 const ScoreBadge = ({ score }: { score: number }) => {
   return (
-    <span className="text-[10px] font-mono font-bold text-[#111111] border border-[#111111] px-2 py-0.5 uppercase tracking-[0.1em]">
+    <span className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest whitespace-nowrap">
       {score}/100
     </span>
   );
@@ -217,13 +217,17 @@ const Diagnosis = () => {
   const alertCount = zones.filter((z) => z.status === "alert").length;
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10 text-center">
-        <div className="flex flex-col items-center gap-2 mb-4">
-          <Stethoscope size={24} className="text-[#111111]" />
-          <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em]">L'ANALYSE IA</h1>
+    <div className="min-h-screen bg-background pb-24 px-5 pt-10 max-w-lg mx-auto relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-12 text-center relative z-10">
+        <div className="flex flex-col items-center gap-4 mb-6">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+            <FlaskRound size={24} strokeWidth={1.5} />
+          </div>
+          <h1 className="text-4xl font-display text-foreground leading-tight">Analyse IA</h1>
         </div>
-        <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">Diagnostic dermatologique par intelligence artificielle</p>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Diagnostic dermatologique de précision</p>
       </motion.div>
 
       <input
@@ -239,23 +243,23 @@ const Diagnosis = () => {
         {/* Step 1: Preparation checklist */}
         {step === "prep" && (
           <motion.div key="prep" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col items-center">
-            <div className="w-full bg-white border border-[#E5E5E5] p-6 mb-8">
-              <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-6">Protocole de préparation</p>
-              <div className="space-y-4">
+            className="flex flex-col items-center relative z-10">
+            <div className="premium-card p-8 mb-8 bg-white/60">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-8 ml-2">Protocole de préparation</p>
+              <div className="space-y-6">
                 {prepChecklist.map((item, i) => (
                   <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}
-                    className="flex items-center gap-4 group">
-                    <div className="w-10 h-10 border border-[#E5E5E5] flex items-center justify-center text-[#111111] flex-shrink-0 group-hover:border-[#111111] transition-colors">
+                    className="flex items-center gap-5 group">
+                    <div className="w-12 h-12 rounded-2xl bg-white border border-border/40 flex items-center justify-center text-primary flex-shrink-0 group-hover:border-primary/40 transition-all shadow-sm">
                       {item.icon}
                     </div>
-                    <p className="text-sm text-[#111111] font-medium leading-tight">{item.text}</p>
+                    <p className="text-[13px] text-foreground font-medium leading-relaxed italic">{item.text}</p>
                   </motion.div>
                 ))}
               </div>
             </div>
-            <Button onClick={() => setStep("capture")} className="rounded-none h-14 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black w-full">
-              S'identifier
+            <Button onClick={() => setStep("capture")} className="h-14 bg-primary text-primary-foreground font-bold uppercase tracking-widest rounded-full hover:opacity-90 w-full premium-shadow transition-all active:scale-[0.98]">
+              Commencer
             </Button>
           </motion.div>
         )}
@@ -263,39 +267,41 @@ const Diagnosis = () => {
         {/* Step 2: Capture photo */}
         {step === "capture" && (
           <motion.div key="capture" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col items-center">
+            className="flex flex-col items-center relative z-10">
 
             {capturedImage ? (
-              <div className="relative w-full mb-6 border border-[#111111]">
+              <div className="relative w-full mb-8 rounded-[40px] border border-border/40 overflow-hidden shadow-2xl">
                 <img
                   src={capturedImage}
                   alt="Votre photo"
-                  className="w-full h-72 object-cover"
+                  className="w-full h-80 object-cover"
                 />
                 <button
                   onClick={() => { setCapturedImage(null); setImageBase64(null); }}
-                  className="absolute top-4 right-4 bg-white border border-[#111111] px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.1em] text-[#111111]"
+                  className="absolute top-6 right-6 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest text-foreground shadow-lg hover:bg-white transition-all"
                 >
                   Changer
                 </button>
               </div>
             ) : (
-              <div className="w-full mb-6">
+              <div className="w-full mb-8">
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-72 bg-white border-2 border-dashed border-[#E5E5E5] flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-[#111111] transition-colors"
+                  className="w-full h-80 bg-white/40 border-2 border-dashed border-primary/20 rounded-[40px] flex flex-col items-center justify-center gap-6 cursor-pointer hover:border-primary/40 transition-all group"
                 >
-                  <Camera size={32} className="text-[#AAAAAA]" />
+                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-primary/40 group-hover:text-primary transition-colors shadow-sm">
+                    <Camera size={32} strokeWidth={1.5} />
+                  </div>
                   <div className="text-center">
-                    <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">Prendre une photo</p>
-                    <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-1">JPG, PNG • MAX 10 MO</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Prendre une photo</p>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest mt-2">Format portrait idéal</p>
                   </div>
                 </div>
 
-                <div className="flex gap-4 mt-4">
+                <div className="flex gap-4 mt-6">
                   <Button
                     variant="outline"
-                    className="flex-1 rounded-none border-[#E5E5E5] h-12 text-[10px] font-mono font-bold uppercase tracking-[0.1em] hover:border-[#111111]"
+                    className="flex-1 rounded-full border-border/60 bg-white/50 h-14 text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-white transition-all"
                     onClick={() => {
                       if (fileInputRef.current) {
                         fileInputRef.current.removeAttribute("capture");
@@ -303,12 +309,12 @@ const Diagnosis = () => {
                       }
                     }}
                   >
-                    <Upload size={14} className="mr-2" />
+                    <Upload size={14} className="mr-3 opacity-60" />
                     Album
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex-1 rounded-none border-[#E5E5E5] h-12 text-[10px] font-mono font-bold uppercase tracking-[0.1em] hover:border-[#111111]"
+                    className="flex-1 rounded-full border-border/60 bg-white/50 h-14 text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-white transition-all"
                     onClick={() => {
                       if (fileInputRef.current) {
                         fileInputRef.current.setAttribute("capture", "user");
@@ -316,7 +322,7 @@ const Diagnosis = () => {
                       }
                     }}
                   >
-                    <Camera size={14} className="mr-2" />
+                    <Camera size={14} className="mr-3 opacity-60" />
                     Appareil
                   </Button>
                 </div>
@@ -324,19 +330,19 @@ const Diagnosis = () => {
             )}
 
             {aiError && (
-              <div className="w-full border border-red-500 p-4 mb-6">
-                <p className="text-[10px] font-mono font-bold text-red-500 uppercase tracking-[0.1em]">{aiError}</p>
+              <div className="w-full bg-red-50 border border-red-100 p-6 rounded-3xl mb-8">
+                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest opacity-80">{aiError}</p>
               </div>
             )}
 
             <Button
               onClick={startAnalysis}
               disabled={!imageBase64}
-              className="rounded-none h-14 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black w-full shadow-none disabled:opacity-30"
+              className="h-14 bg-primary text-primary-foreground font-bold uppercase tracking-widest rounded-full hover:opacity-90 w-full premium-shadow transition-all active:scale-[0.98] disabled:opacity-30"
             >
               Lancer l'Analyse
             </Button>
-            <button onClick={() => setStep("prep")} className="mt-4 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] border-b border-transparent hover:border-[#AAAAAA]">
+            <button onClick={() => setStep("prep")} className="mt-8 text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors italic opacity-60">
               Retour
             </button>
           </motion.div>
@@ -345,67 +351,67 @@ const Diagnosis = () => {
         {/* Step 3: Analyzing */}
         {step === "analyzing" && (
           <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="flex flex-col items-center py-20">
+            className="flex flex-col items-center py-20 relative z-10">
             {capturedImage && (
-              <div className="relative w-40 h-40 border border-[#111111] overflow-hidden mb-10">
-                <img src={capturedImage} alt="" className="w-full h-full object-cover grayscale opacity-50" />
+              <div className="relative w-48 h-48 rounded-full border border-primary/20 overflow-hidden mb-12 shadow-2xl">
+                <img src={capturedImage} alt="" className="w-full h-full object-cover grayscale opacity-40" />
                 <motion.div
-                  className="absolute left-0 right-0 h-px bg-[#111111]"
-                  animate={{ top: ["0%", "100%", "0%"] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  className="absolute left-0 right-0 h-1 bg-primary blur-[2px] opacity-60"
+                  animate={{ top: ["20%", "80%", "20%"] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
               </div>
             )}
-            <p className="text-2xl font-bold font-display text-[#111111] uppercase tracking-[0.1em] mb-2 text-center">ANALYSE EN COURS</p>
-            <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-10">{analysisSteps[currentAnalysisStep]}</p>
+            <h2 className="text-3xl font-display text-foreground leading-tight mb-3 text-center">Analyse en cours</h2>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-12 italic opacity-60">{analysisSteps[currentAnalysisStep]}</p>
 
-            <div className="w-full max-w-xs border border-[#E5E5E5] p-1">
+            <div className="w-full max-w-xs h-1.5 bg-muted/10 rounded-full overflow-hidden mb-4">
               <motion.div
-                className="h-2 bg-[#111111]"
+                className="h-full bg-primary"
                 initial={{ width: "0%" }}
                 animate={{ width: `${analysisProgress}%` }}
               />
             </div>
-            <p className="text-[10px] font-mono font-bold text-[#111111] mt-4 tracking-[0.1em]">{Math.round(analysisProgress)}%</p>
+            <p className="text-[10px] font-bold text-primary tracking-widest">{Math.round(analysisProgress)}%</p>
           </motion.div>
         )}
 
         {/* Step 4: Results */}
         {step === "results" && aiResult && (
-          <motion.div key="results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <motion.div key="results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="relative z-10">
 
             {/* Photo + global score hero */}
             <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-              className="bg-white border border-[#111111] p-8 mb-6 text-center relative overflow-hidden">
+              className="premium-card p-10 mb-8 bg-white border-primary/10 text-center relative overflow-hidden">
               <div className="relative z-10">
                 {capturedImage && (
-                  <div className="w-24 h-24 border border-[#111111] mx-auto mb-6 overflow-hidden">
+                  <div className="w-32 h-32 rounded-full border border-primary/10 mx-auto mb-8 overflow-hidden shadow-sm">
                     <img src={capturedImage} alt="" className="w-full h-full object-cover" />
                   </div>
                 )}
-                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-4">SCORE DERMATOLOGIQUE</p>
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <span className="text-7xl font-bold text-[#111111] tracking-tighter">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-6">Score dermatologique global</p>
+                <div className="flex items-center justify-center gap-3 mb-6">
+                  <span className="text-8xl font-display text-primary leading-none">
                     {globalScore}
                   </span>
-                  <span className="text-2xl font-mono text-[#AAAAAA] font-bold">/100</span>
+                  <span className="text-2xl font-display text-primary/30 mt-8">/100</span>
                 </div>
-                <p className="text-sm text-[#111111] font-bold uppercase tracking-tight leading-snug max-w-xs mx-auto mb-8">{aiResult.summary}</p>
+                <p className="text-[15px] font-display text-foreground leading-relaxed italic max-w-xs mx-auto mb-10">{aiResult.summary}</p>
 
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   {goodCount > 0 && (
-                    <span className="border border-[#E5E5E5] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
-                      {goodCount} OK
+                    <span className="bg-primary/5 text-primary text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest">
+                      {goodCount} Zones Optimales
                     </span>
                   )}
                   {warningCount > 0 && (
-                    <span className="border border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
-                      {warningCount} ATTENTION
+                    <span className="bg-white/40 border border-border/40 text-foreground text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest shadow-sm">
+                      {warningCount} Vigilances
                     </span>
                   )}
                   {alertCount > 0 && (
-                    <span className="border-2 border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
-                      {alertCount} PRIORITAIRE
+                    <span className="bg-primary/10 border border-primary/20 text-primary text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest premium-shadow">
+                      {alertCount} Prioritaires
                     </span>
                   )}
                 </div>
@@ -414,14 +420,14 @@ const Diagnosis = () => {
 
             {/* Correlations */}
             {aiResult.correlations && aiResult.correlations.length > 0 && (
-              <div className="bg-white border border-[#E5E5E5] p-6 mb-6">
-                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">Corrélations détectées</p>
-                <div className="space-y-3">
+              <div className="premium-card p-8 mb-6 bg-white/60">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 ml-1">Analyse des corrélations</p>
+                <div className="space-y-4">
                   {aiResult.correlations.map((c, i) => (
-                    <p key={i} className="text-xs text-[#111111] flex items-start gap-3">
-                      <span className="w-1.5 h-1.5 bg-[#111111] mt-1 flex-shrink-0" />
-                      {c}
-                    </p>
+                    <div key={i} className="flex items-start gap-4">
+                      <div className="w-2 h-2 rounded-full bg-primary/20 mt-1.5 flex-shrink-0" />
+                      <p className="text-[13px] text-foreground leading-relaxed italic">{c}</p>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -429,11 +435,11 @@ const Diagnosis = () => {
 
             {/* Recommended ingredients */}
             {aiResult.ingredients && aiResult.ingredients.length > 0 && (
-              <div className="bg-white border border-[#E5E5E5] p-6 mb-6">
-                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">Actifs recommandés</p>
+              <div className="premium-card p-8 mb-8 bg-white/60">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6 ml-1">Actifs recommandés</p>
                 <div className="flex flex-wrap gap-2">
                   {aiResult.ingredients.map((ing, i) => (
-                    <span key={i} className="border border-[#111111] text-[#111111] text-[10px] font-mono font-bold px-3 py-1 uppercase tracking-[0.1em]">
+                    <span key={i} className="bg-primary text-primary-foreground text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest premium-shadow">
                       {ing}
                     </span>
                   ))}
@@ -442,8 +448,8 @@ const Diagnosis = () => {
             )}
 
             {/* Zone cards */}
-            <h2 className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em] mb-6 px-1">Analyse par zone</h2>
-            <div className="space-y-3 mb-10">
+            <h2 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-6 px-1 ml-4">Cartographie cutanée</h2>
+            <div className="space-y-4 mb-12">
               {zones.map((zone, i) => {
                 const config = statusConfig[zone.status];
                 return (
@@ -453,30 +459,32 @@ const Diagnosis = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07 }}
                     onClick={() => setSelectedZone(zone)}
-                    className={`w-full bg-white border ${config.border} p-6 text-left hover:bg-muted/5 transition-colors group`}
+                    className={`w-full bg-white border border-border/40 p-8 rounded-[32px] text-left hover:border-primary/20 transition-all group relative overflow-hidden active:scale-[0.99]`}
                   >
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-[#111111] uppercase tracking-tight">{zone.label}</p>
-                          <div className="flex items-center gap-3">
-                            {trendIcon(zone.trend)}
-                            <ScoreBadge score={zone.score} />
-                          </div>
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-xl ${config.bg} ${config.color} group-hover:scale-110 transition-transform`}>
+                                {config.icon}
+                            </div>
+                            <p className="text-[13px] font-bold text-foreground uppercase tracking-widest">{zone.label}</p>
                         </div>
-                      </div>
+                        <div className="flex items-center gap-4">
+                            <div className="p-1.5 rounded-lg bg-muted/5 group-hover:bg-primary/5 transition-colors">
+                            {trendIcon(zone.trend)}
+                            </div>
+                            <ScoreBadge score={zone.score} />
+                        </div>
                     </div>
-                    <p className="text-xs text-[#AAAAAA] font-medium leading-relaxed uppercase tracking-tight">{zone.summary}</p>
-                    <div className="flex items-center justify-end mt-4 gap-2 text-[10px] text-[#111111] font-mono font-bold uppercase tracking-[0.1em]">
-                      <span>Conseils</span>
-                      <ChevronRight size={12} />
+                    <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic truncate pr-8">{zone.summary}</p>
+                    <div className="absolute bottom-8 right-8 text-primary/20 group-hover:text-primary transition-colors">
+                      <ChevronRight size={18} strokeWidth={2.5} />
                     </div>
                   </motion.button>
                 );
               })}
             </div>
 
-            <Button onClick={reset} className="w-full rounded-none h-14 bg-[#111111] text-white font-bold uppercase tracking-[0.1em] hover:bg-black">
+            <Button onClick={reset} className="w-full h-14 bg-primary text-primary-foreground font-bold uppercase tracking-widest rounded-full hover:opacity-90 premium-shadow transition-all active:scale-[0.98]">
               Nouveau Diagnostic
             </Button>
           </motion.div>
@@ -484,39 +492,42 @@ const Diagnosis = () => {
       </AnimatePresence>
 
       <Dialog open={!!selectedZone} onOpenChange={() => setSelectedZone(null)}>
-        <DialogContent className="max-w-sm rounded-none border border-[#111111]">
-          <DialogHeader>
-            <DialogTitle className="text-[#111111] flex items-center gap-3 uppercase tracking-tight font-bold">
-              {selectedZone && (
-                <>
-                  {selectedZone.label}
-                  <ScoreBadge score={selectedZone.score} />
-                </>
-              )}
-            </DialogTitle>
-            <DialogDescription className="pt-4 text-sm text-[#111111] leading-relaxed uppercase tracking-tight">{selectedZone?.detail}</DialogDescription>
-          </DialogHeader>
-          {selectedZone && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em]">
-                {trendIcon(selectedZone.trend)}
-                <span>
-                  TENDANCE : {selectedZone.trend === "up" ? "AMÉLIORATION" : selectedZone.trend === "down" ? "RÉGRESSION" : "STABLE"}
-                </span>
+        <DialogContent className="max-w-sm rounded-[40px] border-none bg-background p-0 overflow-hidden">
+          <div className="p-8 space-y-8">
+            <DialogHeader className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <DialogTitle className="text-4xl font-display text-foreground leading-none">
+                        {selectedZone?.label}
+                    </DialogTitle>
+                    {selectedZone && <ScoreBadge score={selectedZone.score} />}
+                </div>
+                <div className="flex items-center gap-3 text-[10px] font-bold text-primary uppercase tracking-widest pb-6 border-b border-primary/10">
+                    {trendIcon(selectedZone?.trend || "stable")}
+                    <span>
+                    Tendance : {selectedZone?.trend === "up" ? "Amélioration" : selectedZone?.trend === "down" ? "Points de vigilance" : "Stable"}
+                    </span>
+                </div>
+                <DialogDescription className="text-[13px] text-foreground leading-relaxed italic pt-2">
+                    {selectedZone?.detail}
+                </DialogDescription>
+            </DialogHeader>
+
+            {selectedZone && (
+              <div className="space-y-6">
+                <div className="premium-card p-8 bg-white/60 space-y-6">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Recommandations</p>
+                    <ul className="space-y-6">
+                        {selectedZone.tips.map((tip, i) => (
+                            <li key={i} className="text-[12px] text-foreground leading-relaxed italic flex items-start gap-4">
+                                <div className="w-1.5 h-1.5 rounded-full bg-primary/30 mt-1.5 flex-shrink-0" />
+                                {tip}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
               </div>
-              <div className="bg-white border border-[#E5E5E5] p-6">
-                <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.1em] mb-4">RECOMMANDATIONS</p>
-                <ul className="space-y-3">
-                  {selectedZone.tips.map((tip, i) => (
-                    <li key={i} className="text-xs text-[#111111] flex items-start gap-3 uppercase tracking-tight">
-                      <span className="w-1.5 h-1.5 bg-[#111111] mt-1 flex-shrink-0" />
-                      {tip}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

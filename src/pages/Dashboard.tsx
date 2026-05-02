@@ -10,6 +10,7 @@ import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { calculateCyclePhase } from "@/utils/cycle";
 
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
@@ -29,23 +30,27 @@ const trendToneForMetric = (label: string, trend?: MetricTrend): TrendTone | und
 };
 
 const skinMetrics = [
-  { label: "Hydratation", value: 72, color: "#0052cc", icon: <Droplets size={18} />, trend: "up" as const, detail: "Estimation par rapport à l'indice d'hydratation de référence." },
-  { label: "Éclat", value: 65, color: "#0ea5e9", icon: <Sun size={18} />, trend: "stable" as const, detail: "Indice de réflectivité cutanée calculé par photométrie." },
-  { label: "Rougeurs", value: 28, color: "#ef4444", icon: <Flame size={18} />, trend: "down" as const, detail: "Concentration de micro-inflammation détectée." },
-  { label: "Texture", value: 80, color: "#64748b", icon: <Fingerprint size={18} />, trend: "up" as const, detail: "Indice de lissage et régularité du grain de peau." },
-  { label: "Sébum", value: 45, color: "#f59e0b", icon: <CircleDot size={18} />, trend: "stable" as const, detail: "Niveau de lipides de surface (Zone T)." }];
+  { label: "Hydratation", value: 72, color: "#C4846A", icon: <Droplets size={18} strokeWidth={1.5} />, trend: "up" as const, detail: "Estimation par rapport à l'indice d'hydratation de référence." },
+  { label: "Éclat", value: 65, color: "#8A9E89", icon: <Sun size={18} strokeWidth={1.5} />, trend: "stable" as const, detail: "Indice de réflectivité cutanée calculé par photométrie." },
+  { label: "Rougeurs", value: 28, color: "#C08484", icon: <Flame size={18} strokeWidth={1.5} />, trend: "down" as const, detail: "Concentration de micro-inflammation détectée." },
+  { label: "Texture", value: 80, color: "#9A9590", icon: <Fingerprint size={18} strokeWidth={1.5} />, trend: "up" as const, detail: "Indice de lissage et régularité du grain de peau." },
+  { label: "Sébum", value: 45, color: "#A89A82", icon: <CircleDot size={18} strokeWidth={1.5} />, trend: "stable" as const, detail: "Niveau de lipides de surface (Zone T)." }];
 
 const defaultDailyLog = {
   weather: { temp: 24, humidity: 55, uv: 6, pollution: "Faible" },
   location: "Montreuil, 93",
+  lastPeriodDate: "" as string,
   cyclePhase: "Folliculaire",
   heartRate: 72,
   stressLevel: 3,
   waterGlasses: 6,
   sleepHours: 7.5,
   alcohol: false,
-  workoutIntensity: "Modéré"
+  workoutIntensity: "Modéré",
+  cycleDuration: 28,
+  periodDuration: 5
 };
+
 
 const cyclePhases = ["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
 const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
@@ -138,6 +143,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string | null>(null);
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
+  const [selectedTip, setSelectedTip] = useState<{ icon: React.ReactNode; text: string; priority: string; ingredients?: string[] } | null>(null);
+
 
   // Check auth state and fetch remote daily checkin profile
   useEffect(() => {
@@ -159,7 +166,10 @@ const Dashboard = () => {
                 sleepHours: profile.sleep_hours ?? prev.sleepHours,
                 waterGlasses: profile.water_glasses ?? prev.waterGlasses,
                 alcoholDrinks: profile.alcohol_drinks ?? prev.alcoholDrinks,
+                lastPeriodDate: profile.last_period_date ?? prev.lastPeriodDate,
                 cyclePhase: profile.cycle_phase ?? prev.cyclePhase,
+                cycleDuration: profile.cycle_duration ?? prev.cycleDuration,
+                periodDuration: profile.period_duration ?? prev.periodDuration,
                 stressLevel: profile.stress_level ?? prev.stressLevel,
                 foodQuality: profile.food_quality ?? prev.foodQuality
               }));
@@ -474,15 +484,15 @@ const Dashboard = () => {
 
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-6 max-w-lg mx-auto">
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-        <p className="text-[#0052cc] text-[10px] font-mono font-bold uppercase tracking-widest mb-2">Bonjour {userName ? userName : ""} ✨</p>
-        <h1 className="text-2xl font-display font-extrabold text-[#0f172a] leading-none tracking-tight">VOTRE PEAU AUJOURD'HUI</h1>
+    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-10 text-center">
+        <p className="text-primary text-[11px] font-medium uppercase tracking-[0.2em] mb-3">Bonjour {userName ? userName : ""} ✨</p>
+        <h1 className="text-3xl font-display text-foreground leading-tight">Votre peau aujourd'hui</h1>
       </motion.div>
 
       {/* Diagnostic CTA + Score combined panel */}
       <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="bg-white border border-[#e2e8f0] p-8 mb-8 relative overflow-hidden shadow-sm">
+        className="premium-card p-8 mb-8 relative overflow-hidden">
 
         <div className="relative flex items-start gap-5">
           {/* Diagnostic photo + past days vertical */}
@@ -491,7 +501,7 @@ const Dashboard = () => {
               initial={hasTodayDiag ? { scale: 0.8, opacity: 0, rotateY: 90 } : { scale: 1, opacity: 1 }}
               animate={{ scale: 1, opacity: 1, rotateY: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 18, delay: 0.3 }}
-              className={`w-24 h-24 border flex items-center justify-center overflow-hidden ${hasTodayDiag ? 'border-[#111111]' : 'border-[#E5E5E5] bg-white'}`}
+              className={`w-24 h-24 rounded-2xl border flex items-center justify-center overflow-hidden premium-shadow ${hasTodayDiag ? 'border-foreground/20' : 'border-border bg-background/50'}`}
             >
               {hasTodayDiag ?
                 <motion.img
@@ -502,20 +512,20 @@ const Dashboard = () => {
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
                 /> :
-                <div className="flex flex-col items-center gap-1.5 opacity-40">
-                  <Camera size={24} className="text-[#AAAAAA]" />
-                  <span className="text-[10px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em]">Pas encore</span>
+                <div className="flex flex-col items-center gap-1.5 opacity-30">
+                  <Camera size={24} strokeWidth={1.5} className="text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-[0.05em]">Pas encore</span>
                 </div>
               }
             </motion.div>
             {pastDays.length > 0 &&
-              <div className="flex flex-col gap-1 w-full">
+              <div className="flex flex-col gap-1.5 w-full">
                 {pastDays.map((day) =>
                   <button key={day.label}
-                    className="flex items-center justify-between gap-2 border border-[#E5E5E5] px-2.5 py-1 transition-colors w-full"
+                    className="flex items-center justify-between gap-2 border border-border/60 bg-background/30 rounded-lg px-2.5 py-1.5 transition-colors w-full group/day"
                     onClick={() => {/* TODO: show past diagnostic */ }}>
-                    <span className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.05em]">{day.label}</span>
-                    <span className={`text-[11px] font-bold ${day.hasDiag ? 'text-[#111111]' : 'text-[#AAAAAA]'}`}>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{day.label}</span>
+                    <span className={`text-[11px] font-bold ${day.hasDiag ? 'text-foreground' : 'text-muted-foreground/50'}`}>
                       {day.score}
                     </span>
                   </button>
@@ -526,33 +536,30 @@ const Dashboard = () => {
 
           {/* Score + info */}
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex-shrink-0 cursor-pointer" onClick={() => setScoreOpen(true)}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex-shrink-0 cursor-pointer transition-transform hover:scale-105" onClick={() => setScoreOpen(true)}>
                 <SkinScoreRing score={currentScore} size={130} />
               </div>
-              <div className="text-center space-y-2">
-                <p className="text-sm text-[#111111]">Votre peau est <span className="font-bold underline">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
-                <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">
-                  <Calendar size={11} /><span>Dernier diag : {formatDiagDate()}</span>
+              <div className="text-center space-y-3">
+                <p className="text-sm text-foreground/80">Votre peau est <span className="font-semibold text-primary">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
+                <div className="flex items-center justify-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <Calendar size={11} strokeWidth={1.5} /><span>Dernier diag : {formatDiagDate()}</span>
                 </div>
-                <button onClick={() => setScoreOpen(true)} className="text-[11px] text-[#111111] font-bold uppercase tracking-[0.1em] border-b border-[#111111]">
-                  Voir le détail
-                </button>
               </div>
             </div>
           </div>
         </div>
 
         <button onClick={() => navigate("/diagnosis")}
-          className="relative mt-8 w-full flex items-center justify-between bg-[#111111] text-white px-6 py-4 hover:bg-black transition-colors">
+          className="relative mt-10 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-full px-8 py-5 hover:bg-primary/90 transition-all premium-shadow active:scale-[0.98]">
           <div className="flex items-center gap-4">
-            <Stethoscope size={20} />
+            <Stethoscope size={20} strokeWidth={1.5} />
             <div className="text-left">
-              <p className="text-sm font-bold uppercase tracking-[0.05em]">Faire un diagnostic</p>
-              <p className="text-[11px] opacity-60 font-mono tracking-[0.1em] uppercase">Analysez votre peau en 30s</p>
+              <p className="text-sm font-bold uppercase tracking-widest">Faire un diagnostic</p>
+              <p className="text-[10px] opacity-70 font-medium tracking-wide uppercase">Analyse instantanée</p>
             </div>
           </div>
-          <ChevronRight size={18} className="opacity-60" />
+          <ChevronRight size={18} className="opacity-70" />
         </button>
       </motion.div>
 
@@ -584,113 +591,126 @@ const Dashboard = () => {
         Conseils du jour
       </h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
-        className="bg-card  p-4  mb-5 space-y-3">
+        className="space-y-4 mb-10">
         {(() => {
           const tips: { icon: React.ReactNode; text: string; priority: "high" | "medium" | "low"; ingredients?: string[] }[] = [];
 
-          // Tips basés sur les métriques de peau
+          // Tips logic is fine as remains unchanged
           const hydration = skinMetrics.find(m => m.label === "Hydratation")!;
           const redness = skinMetrics.find(m => m.label === "Rougeurs")!;
           const glow = skinMetrics.find(m => m.label === "Éclat")!;
           const sebum = skinMetrics.find(m => m.label === "Sébum")!;
           const texture = skinMetrics.find(m => m.label === "Texture")!;
 
-          if (hydration.value < 70) tips.push({ icon: <GlassWater size={16} />, text: "Hydratation faible — pensez à boire davantage et appliquer un sérum hydratant.", priority: "high", ingredients: ["Acide hyaluronique", "Glycérine", "Céramides", "Aloe vera"] });
-          if (redness.value > 35) tips.push({ icon: <ShieldAlert size={16} />, text: "Rougeurs élevées — évitez les produits agressifs et privilégiez des soins apaisants.", priority: "high", ingredients: ["Niacinamide", "Centella asiatica", "Bisabolol", "Avoine colloïdale"] });
-          if (glow.value < 60) tips.push({ icon: <Sparkles size={16} />, text: "Éclat en berne — un sérum vitamine C le matin peut faire la différence.", priority: "medium", ingredients: ["Vitamine C (acide ascorbique)", "Alpha-arbutine", "Acide kojique"] });
-          if (sebum.value > 60) tips.push({ icon: <CircleDot size={16} />, text: "Excès de sébum — utilisez un nettoyant doux et évitez les crèmes trop riches.", priority: "medium", ingredients: ["Niacinamide", "Acide salicylique (BHA)", "Zinc", "Argile verte"] });
-          if (texture.value < 65) tips.push({ icon: <Fingerprint size={16} />, text: "Texture irrégulière — une exfoliation douce 2x/semaine peut aider.", priority: "medium", ingredients: ["Rétinol", "AHA (acide glycolique)", "PHA", "Bakuchiol"] });
+          if (hydration.value < 70) tips.push({ icon: <GlassWater size={16} strokeWidth={1.5} />, text: "Hydratation faible — pensez à boire davantage et appliquer un sérum hydratant.", priority: "high", ingredients: ["Acide hyaluronique", "Glycérine", "Céramides", "Aloe vera"] });
+          if (redness.value > 35) tips.push({ icon: <ShieldAlert size={16} strokeWidth={1.5} />, text: "Rougeurs élevées — évitez les produits agressifs et privilégiez des soins apaisants.", priority: "high", ingredients: ["Niacinamide", "Centella asiatica", "Bisabolol", "Avoine colloïdale"] });
+          if (glow.value < 60) tips.push({ icon: <Sparkles size={16} strokeWidth={1.5} />, text: "Éclat en berne — un sérum vitamine C le matin peut faire la différence.", priority: "medium", ingredients: ["Vitamine C (acide ascorbique)", "Alpha-arbutine", "Acide kojique"] });
+          if (sebum.value > 60) tips.push({ icon: <CircleDot size={16} strokeWidth={1.5} />, text: "Excès de sébum — utilisez un nettoyant doux et évitez les crèmes trop riches.", priority: "medium", ingredients: ["Niacinamide", "Acide salicylique (BHA)", "Zinc", "Argile verte"] });
+          if (texture.value < 65) tips.push({ icon: <Fingerprint size={16} strokeWidth={1.5} />, text: "Texture irrégulière — une exfoliation douce 2x/semaine peut aider.", priority: "medium", ingredients: ["Rétinol", "AHA (acide glycolique)", "PHA", "Bakuchiol"] });
 
-          // Tips basés sur le diagnostic (zones)
           if (diagResult?.zones) {
             const alertZones = diagResult.zones.filter(z => z.status === "alert");
             const warningZones = diagResult.zones.filter(z => z.status === "warning");
             if (alertZones.length > 0) {
-              tips.push({ icon: <Stethoscope size={16} className="text-destructive" />, text: `Diagnostic : zone${alertZones.length > 1 ? "s" : ""} ${alertZones.map(z => z.label).join(", ")} en alerte — consultez un dermatologue si persistant.`, priority: "high", ingredients: ["Niacinamide 10%", "Centella asiatica", "Panthénol"] });
+              tips.push({ icon: <Stethoscope size={16} strokeWidth={1.5} className="text-destructive" />, text: `Diagnostic : zone${alertZones.length > 1 ? "s" : ""} ${alertZones.map(z => z.label).join(", ")} en alerte — consultez un dermatologue si persistant.`, priority: "high", ingredients: ["Niacinamide 10%", "Centella asiatica", "Panthénol"] });
             }
             if (warningZones.length > 0) {
-              tips.push({ icon: <Stethoscope size={16} className="text-skin-glow" />, text: `Zone${warningZones.length > 1 ? "s" : ""} ${warningZones.map(z => z.label).join(", ")} à surveiller — adaptez votre routine sur ces zones.`, priority: "medium", ingredients: ["Acide azélaïque", "Niacinamide", "Extrait de réglisse"] });
-            }
-            // Low-scoring zones ingredient reco
-            const lowZones = diagResult.zones.filter(z => z.score < 50);
-            if (lowZones.length > 0 && !alertZones.length) {
-              tips.push({ icon: <FlaskRound size={16} className="text-primary" />, text: `Score faible sur ${lowZones.map(z => z.label).join(", ")} — renforcez les soins ciblés sur ces zones.`, priority: "medium", ingredients: ["Sérum réparateur", "Huile de jojoba", "Vitamine E"] });
+              tips.push({ icon: <Stethoscope size={16} strokeWidth={1.5} className="text-primary" />, text: `Zone${warningZones.length > 1 ? "s" : ""} ${warningZones.map(z => z.label).join(", ")} à surveiller — adaptez votre routine sur ces zones.`, priority: "medium", ingredients: ["Acide azélaïque", "Niacinamide", "Extrait de réglisse"] });
             }
           }
 
-          // Tips basés sur les paramètres du jour
-          if (dailyLog.weather.uv >= 6) tips.push({ icon: <Sun size={16} />, text: `UV à ${dailyLog.weather.uv} — réappliquez votre SPF toutes les 2h, surtout en extérieur.`, priority: "high" });
-          if (dailyLog.weather.humidity < 40) tips.push({ icon: <Droplets size={16} />, text: "Air sec aujourd'hui — renforcez l'hydratation avec un brumisateur ou une crème riche.", priority: "medium", ingredients: ["Acide hyaluronique", "Squalane"] });
-          if (dailyLog.weather.humidity > 75) tips.push({ icon: <Droplets size={16} />, text: "Forte humidité — allégez votre routine pour éviter les pores bouchés.", priority: "medium" });
-          if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high", ingredients: ["Rétinol (soir)", "Peptides", "Bakuchiol"] });
-          if (dailyLog.alcohol) tips.push({ icon: <Wine size={16} />, text: "Alcool détecté — hydratez-vous davantage pour compenser la déshydratation cutanée.", priority: "medium" });
-          if (dailyLog.waterGlasses < 5) tips.push({ icon: <GlassWater size={16} />, text: `Seulement ${dailyLog.waterGlasses} verres d'eau — visez au moins 6 à 8 verres par jour.`, priority: "high" });
-          if (dailyLog.cyclePhase === "Lutéal") tips.push({ icon: <Heart size={16} />, text: "Phase lutéale — votre peau peut être plus grasse, privilégiez un nettoyage doux.", priority: "low", ingredients: ["Acide salicylique", "Niacinamide", "Tea tree"] });
-          if (dailyLog.cyclePhase === "Menstruation") tips.push({ icon: <Heart size={16} />, text: "Phase menstruelle — peau sensible, optez pour des soins doux et apaisants.", priority: "low", ingredients: ["Avoine", "Aloe vera", "Camomille"] });
+          if (dailyLog.weather.uv >= 6) tips.push({ icon: <Sun size={16} strokeWidth={1.5} />, text: `UV à ${dailyLog.weather.uv} — réappliquez votre SPF toutes les 2h, surtout en extérieur.`, priority: "high" });
+          if (dailyLog.weather.humidity < 40) tips.push({ icon: <Droplets size={16} strokeWidth={1.5} />, text: "Air sec aujourd'hui — renforcez l'hydratation avec un brumisateur ou une crème riche.", priority: "medium", ingredients: ["Acide hyaluronique", "Squalane"] });
+          if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} strokeWidth={1.5} />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high", ingredients: ["Rétinol (soir)", "Peptides", "Bakuchiol"] });
 
-          // Trier par priorité et limiter à 5
           const priorityOrder = { high: 0, medium: 1, low: 2 };
-          const sorted = tips.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]).slice(0, 5);
+          const sorted = tips.sort((a, b) => priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder]).slice(0, 5);
 
           if (sorted.length === 0) {
-            sorted.push({ icon: <Sparkles size={16} className="text-primary" />, text: "Tout semble bien ! Continuez votre routine actuelle. 🎉", priority: "low" });
+            sorted.push({ icon: <Sparkles size={16} strokeWidth={1.5} className="text-primary" />, text: "Tout semble bien ! Continuez votre routine actuelle. 🎉", priority: "low" });
           }
 
           return sorted.map((tip, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-              className="flex flex-col gap-3 p-5 border border-[#e2e8f0] bg-white relative overflow-hidden group hover:border-[#0052cc]/30 transition-colors">
+              onClick={() => setSelectedTip(tip)}
+              className="flex flex-col gap-4 p-6 premium-card border-none group transition-all hover:bg-white/40 cursor-pointer active:scale-[0.98]">
               <div className="flex items-start gap-4">
-                <span className="mt-0.5 flex-shrink-0 text-[#64748b] group-hover:text-[#0052cc] transition-colors">{tip.icon}</span>
-                <p className="text-sm text-[#334155] leading-relaxed font-medium">{tip.text}</p>
+                <span className="mt-0.5 flex-shrink-0 text-primary transition-colors">{tip.icon}</span>
+                <p className="text-sm text-foreground/80 leading-relaxed font-medium line-clamp-2">{tip.text}</p>
               </div>
-              {tip.ingredients && tip.ingredients.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 ml-9">
-                  {tip.ingredients.map(ing => (
-                    <span key={ing} className="text-[8px] border border-[#e2e8f0] text-[#0052cc] px-2 py-0.5 font-mono font-bold uppercase tracking-wider bg-blue-50/50">
-                      {ing}
-                    </span>
-                  ))}
-                </div>
-              )}
             </motion.div>
           ));
         })()}
       </motion.div>
 
-      {/* Facteurs quotidiens */}
-      <h2 className="text-xl font-display font-bold text-[#111111] mb-6 uppercase tracking-[0.05em]">Paramètres du jour</h2>
+      {/* Détail du conseil */}
+      <Dialog open={!!selectedTip} onOpenChange={() => setSelectedTip(null)}>
+        <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
+          <DialogHeader className="mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4">
+              {selectedTip?.icon}
+            </div>
+            <DialogTitle className="text-xl font-display text-foreground leading-tight">Conseil personnalisé</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            <p className="text-sm text-foreground/80 leading-relaxed">{selectedTip?.text}</p>
+            
+            {selectedTip?.ingredients && selectedTip.ingredients.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ingrédients recommandés</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTip.ingredients.map(ing => (
+                    <span key={ing} className="text-[10px] border border-primary/20 text-primary px-3 py-1.5 rounded-full font-medium bg-primary/5 italic">
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setSelectedTip(null)}
+              className="w-full py-4 bg-primary text-primary-foreground rounded-full text-xs font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all mt-4"
+            >
+              Compris
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <h2 className="text-lg font-display text-foreground mb-10 text-center">Paramètres du jour</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-        className="bg-white border border-[#E5E5E5] p-6 mb-8">
+        className="premium-card p-8 mb-8">
         {/* Location row */}
         <button onClick={() => openEditDialog("location")} className="text-left w-full focus:outline-none">
-          <div className="flex items-center gap-4 mb-6 pb-6 border-b border-[#E5E5E5] hover:bg-muted/10 p-2 transition-colors">
-            <MapPin size={18} className="text-[#111111]" />
+          <div className="flex items-center gap-4 mb-8 pb-8 border-b border-border/40 group hover:bg-muted/5 p-2 rounded-xl transition-colors">
+            <MapPin size={18} strokeWidth={1.5} className="text-primary" />
             <div>
-              <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Localisation</p>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-base font-bold text-[#111111]">{dailyLog.location}</p>
-                <Pencil size={12} className="text-[#AAAAAA]/40" />
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Localisation</p>
+              <div className="flex items-center gap-2 mt-1.3">
+                <p className="text-base font-semibold text-foreground">{dailyLog.location}</p>
+                <Pencil size={12} strokeWidth={1.5} className="text-muted-foreground/30" />
               </div>
             </div>
-            <span className="ml-auto flex items-center gap-2 text-[10px] font-mono text-[#111111] font-bold uppercase tracking-[0.1em]">
-              <span className="w-1.5 h-1.5 bg-[#111111] animate-pulse" />
-              En direct
+            <span className="ml-auto flex items-center gap-2 text-[10px] font-semibold text-primary/80 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+              Direct
             </span>
           </div>
         </button>
         <div className="grid grid-cols-4 gap-4 text-center">
           {[
-            { id: "temp", icon: <Thermometer size={18} />, val: `${dailyLog.weather.temp}°C`, sub: "Temp" },
-            { id: "humidity", icon: <Droplets size={18} />, val: `${dailyLog.weather.humidity}%`, sub: "Humidité" },
-            { id: "uv", icon: <Sun size={18} />, val: `${dailyLog.weather.uv}`, sub: "UV" },
-            { id: "air", icon: <CloudSun size={18} />, val: dailyLog.weather.pollution, sub: "Air" }].
+            { id: "temp", icon: <Thermometer size={18} strokeWidth={1.5} />, val: `${dailyLog.weather.temp}°`, sub: "Temp" },
+            { id: "humidity", icon: <Droplets size={18} strokeWidth={1.5} />, val: `${dailyLog.weather.humidity}%`, sub: "Humi" },
+            { id: "uv", icon: <Sun size={18} strokeWidth={1.5} />, val: `${dailyLog.weather.uv}`, sub: "UV" },
+            { id: "air", icon: <CloudSun size={18} strokeWidth={1.5} />, val: dailyLog.weather.pollution, sub: "Air" }].
             map((item) =>
               <FactorButton key={item.id} id={item.id}>
-                <div className="flex flex-col items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-transparent">
-                  <div className="text-[#111111]">{item.icon}</div>
+                <div className="flex flex-col items-center gap-3 hover:bg-white/40 p-3 rounded-2xl transition-all border border-transparent hover:premium-shadow">
+                  <div className="text-primary/70">{item.icon}</div>
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-[#111111] leading-tight uppercase">{item.val}</p>
-                    <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">{item.sub}</p>
+                    <p className="text-sm font-bold text-foreground leading-tight">{item.val}</p>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-60">{item.sub}</p>
                   </div>
                 </div>
               </FactorButton>
@@ -698,65 +718,70 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* Appareil connecté + lifestyle factors */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="bg-white border border-[#E5E5E5] p-6 mb-8">
-        <div className="flex items-center justify-between mb-6 pb-6 border-b border-[#E5E5E5]">
+        className="premium-card p-8 mb-10">
+        <div className="flex items-center justify-between mb-8 pb-8 border-b border-border/40">
           <div className="flex items-center gap-4">
             {deviceConnected ?
-              <Bluetooth size={18} className="text-[#111111]" /> :
-              <BluetoothOff size={18} className="text-[#AAAAAA]" />
+              <Bluetooth size={18} strokeWidth={1.5} className="text-primary" /> :
+              <BluetoothOff size={18} strokeWidth={1.5} className="text-muted-foreground/40" />
             }
             <div>
-              <p className="text-sm font-bold text-[#111111] uppercase tracking-[0.05em]">
-                {deviceConnected ? "Apple Watch connectée" : "Aucun appareil connecté"}
+              <p className="text-sm font-bold text-foreground/80 uppercase tracking-widest">
+                {deviceConnected ? "Apple Watch connectée" : "Aucun appareil"}
               </p>
-              <p className="text-[11px] text-[#AAAAAA] font-mono uppercase tracking-[0.1em] mt-1">
-                {deviceConnected ? "Sport, cycle, rythme cardiaque et sommeil synchronisés" : "Saisie manuelle"}
+              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1.5">
+                {deviceConnected ? "Synchronisation active" : "Saisie manuelle"}
               </p>
             </div>
           </div>
-          <button className="text-[11px] font-bold text-white px-4 py-2 bg-[#111111] uppercase tracking-[0.1em]">
+          <button className="text-[10px] font-bold text-primary px-5 py-2.5 rounded-full bg-primary/10 uppercase tracking-widest hover:bg-primary/20 transition-colors">
             {deviceConnected ? "Réglages" : "Connecter"}
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <FactorButton id="cycle">
-            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
-              <FlaskConical size={18} className="text-[#111111]" />
+            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
+              <FlaskConical size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Cycle</p>
-                <select value={dailyLog.cyclePhase} onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => { setDailyLog((d) => ({ ...d, cyclePhase: e.target.value })); markUpdated("cycle"); }}
-                  className="text-sm font-bold text-[#111111] bg-transparent border-none p-0 focus:outline-none w-full uppercase">
-                  {cyclePhases.map((p) => <option key={p} className="bg-white">{p}</option>)}
-                </select>
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Cycle</p>
+                {(() => {
+                  if (!dailyLog.lastPeriodDate) return (
+                    <p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "Inconnu"}</p>
+                  );
+                  const calc = calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration);
+                  return (
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-foreground">{calc.phase}</p>
+                      {calc.day && <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">Jour {calc.day} / {dailyLog.cycleDuration}</p>}
+                    </div>
+                  );
+                })()}
                 <ManualLabel id="cycle" />
               </div>
             </div>
           </FactorButton>
           <button onClick={() => openEditDialog("heartStress")} className="text-left w-full">
-            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
-              <Heart size={18} className="text-[#111111]" />
+            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
+              <Heart size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Cœur / Stress</p>
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Cœur / Stress</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-[#111111]">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
-                  {!deviceConnected && <Pencil size={12} className="text-[#AAAAAA]/40" />}
+                  <p className="text-sm font-bold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
                 </div>
                 <ManualLabel id="heartStress" />
               </div>
             </div>
           </button>
           <FactorButton id="water">
-            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
-              <Droplets size={18} className="text-[#111111]" />
+            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
+              <Droplets size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Eau</p>
-                <div className="flex gap-1 mt-1">
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Eau</p>
+                <div className="flex gap-1">
                   {[...Array(8)].map((_, i) =>
                     <button key={i} onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water"); }}
-                      className={`w-4 h-6 ${i < dailyLog.waterGlasses ? 'bg-[#111111]' : 'border border-[#E5E5E5]'}`} />
+                      className={`w-3.5 h-3.5 rounded-full transition-all ${i < dailyLog.waterGlasses ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
                   )}
                 </div>
                 <ManualLabel id="water" />
@@ -764,25 +789,22 @@ const Dashboard = () => {
             </div>
           </FactorButton>
           <button onClick={() => openEditDialog("sleep")} className="text-left w-full">
-            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
-              <Moon size={18} className="text-[#111111]" />
+            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
+              <Moon size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Sommeil</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-sm font-bold text-[#111111]">{dailyLog.sleepHours}h</p>
-                  {!deviceConnected && <Pencil size={12} className="text-[#AAAAAA]/40" />}
-                </div>
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Sommeil</p>
+                <p className="text-sm font-bold text-foreground">{dailyLog.sleepHours}h</p>
                 <ManualLabel id="sleep" />
               </div>
             </div>
           </button>
           <FactorButton id="alcohol">
-            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
-              <Wine size={18} className="text-[#111111]" />
+            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
+              <Wine size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Alcool</p>
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Alcool</p>
                 <button onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol"); }}
-                  className={`text-sm font-bold uppercase mt-1 ${dailyLog.alcohol ? 'text-[#111111] underline' : 'text-[#AAAAAA]'}`}>
+                  className={`text-sm font-bold ${dailyLog.alcohol ? 'text-primary' : 'text-foreground'}`}>
                   {dailyLog.alcohol ? "Oui" : "Non"}
                 </button>
                 <ManualLabel id="alcohol" />
@@ -790,14 +812,14 @@ const Dashboard = () => {
             </div>
           </FactorButton>
           <FactorButton id="workout">
-            <div className="flex items-center gap-3 hover:bg-muted/10 p-3 transition-colors border border-[#E5E5E5]">
-              <Dumbbell size={18} className="text-[#111111]" />
+            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
+              <Dumbbell size={18} strokeWidth={1.5} className="text-primary/70" />
               <div className="flex-1">
-                <p className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em]">Sport</p>
+                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Sport</p>
                 <select value={dailyLog.workoutIntensity} onClick={(e) => e.stopPropagation()}
                   onChange={(e) => { setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout"); }}
-                  className="text-sm font-bold text-[#111111] bg-transparent border-none p-0 focus:outline-none w-full uppercase mt-1">
-                  {intensities.map((i) => <option key={i} className="bg-white">{i}</option>)}
+                  className="text-sm font-bold text-foreground bg-transparent border-none p-0 focus:outline-none w-full">
+                  {intensities.map((i) => <option key={i} className="bg-background">{i}</option>)}
                 </select>
                 <ManualLabel id="workout" />
               </div>
@@ -808,31 +830,31 @@ const Dashboard = () => {
 
       {/* Dialogue facteur */}
       <Dialog open={!!factorOpen} onOpenChange={() => setFactorOpen(null)}>
-        <DialogContent className="max-w-sm rounded-none border border-[#111111]">
+        <DialogContent className="max-w-sm rounded-3xl border border-border/40 bg-background premium-shadow">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">{factorOpen ? factorDetails[factorOpen]?.title : ""}</DialogTitle>
-            <DialogDescription className="text-sm text-[#111111] leading-relaxed mt-2">{factorOpen ? factorDetails[factorOpen]?.desc : ""}</DialogDescription>
+            <DialogTitle className="text-xl font-display text-foreground">{factorOpen ? factorDetails[factorOpen]?.title : ""}</DialogTitle>
+            <DialogDescription className="text-sm text-foreground/70 leading-relaxed mt-2">{factorOpen ? factorDetails[factorOpen]?.desc : ""}</DialogDescription>
           </DialogHeader>
         </DialogContent>
       </Dialog>
 
       {/* Dialogue édition facteur manuel */}
       <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
-        <DialogContent className="max-w-sm rounded-none border border-[#111111]">
+        <DialogContent className="max-w-sm rounded-3xl border border-border/40 bg-background premium-shadow">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold font-display uppercase tracking-[0.05em] text-[#111111]">
+            <DialogTitle className="text-xl font-display text-foreground">
               {editingFactor === "heartStress" ? "Cœur & Stress" : editingFactor === "sleep" ? "Sommeil" : "Localisation"}
             </DialogTitle>
-            <DialogDescription className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mt-2 italic">Modifiez vos données manuellement</DialogDescription>
+            <DialogDescription className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-2 italic">Données manuelles</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6 pt-4">
             {editingFactor === "location" && (
               <div>
-                <label className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-2 block font-bold">Ville ou code postal</label>
+                <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Ville ou code postal</label>
                 <div className="flex gap-2">
-                  <Input type="text" value={editValues.location} onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))} placeholder="Ex: Paris, 75001" className="rounded-none border-[#E5E5E5] focus:border-[#111111] transition-colors" autoFocus />
-                  <button onClick={() => { setManualLocation(null); setEditingFactor(null); }} className="px-4 border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white transition-colors" title="Me localiser automatiquement">
-                    <MapPin size={18} />
+                  <Input type="text" value={editValues.location} onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))} placeholder="Ex: Montreuil" className="flex-1" autoFocus />
+                  <button onClick={() => { setManualLocation(null); setEditingFactor(null); }} className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-primary" title="Automatique">
+                    <MapPin size={18} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -840,15 +862,15 @@ const Dashboard = () => {
             {editingFactor === "heartStress" && (
               <>
                 <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Rythme cardiaque (bpm)</label>
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Rythme cardiaque (bpm)</label>
                   <Input type="number" value={editValues.heartRate} onChange={e => setEditValues(v => ({ ...v, heartRate: Number(e.target.value) }))} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-mono text-[#AAAAAA] uppercase tracking-[0.1em] mb-3 block font-bold">Niveau de stress (1-5)</label>
-                  <div className="flex gap-2">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Niveau de stress (1-5)</label>
+                  <div className="flex justify-between gap-1">
                     {[1, 2, 3, 4, 5].map(n => (
                       <button key={n} onClick={() => setEditValues(v => ({ ...v, stressLevel: n }))}
-                        className={`w-10 h-10 border text-sm font-bold transition-all ${editValues.stressLevel === n ? 'bg-[#111111] border-[#111111] text-white' : 'bg-white border-[#E5E5E5] text-[#AAAAAA]'}`}>
+                        className={`w-12 h-12 rounded-full border text-sm font-bold transition-all ${editValues.stressLevel === n ? 'bg-primary border-primary text-primary-foreground premium-shadow' : 'bg-background border-border text-muted-foreground'}`}>
                         {n}
                       </button>
                     ))}
@@ -858,12 +880,12 @@ const Dashboard = () => {
             )}
             {editingFactor === "sleep" && (
               <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Heures de sommeil</label>
+                <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Heures de sommeil</label>
                 <Input type="number" step="0.5" value={editValues.sleepHours} onChange={e => setEditValues(v => ({ ...v, sleepHours: Number(e.target.value) }))} />
               </div>
             )}
             <button onClick={saveEditFactor}
-              className="w-full py-4 bg-[#111111] text-white text-sm font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors">
+              className="w-full py-4 bg-primary text-primary-foreground rounded-full text-sm font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all">
               Enregistrer
             </button>
           </div>
@@ -938,71 +960,70 @@ const Dashboard = () => {
 
       {/* Produits utilisés */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="bg-card  p-4  mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">Ma Routine</p>
+        className="premium-card p-8 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-semibold text-foreground/80 tracking-wide">Routine en cours</p>
             <button onClick={() => {
               setTempAmProducts(baseAmProducts);
               setTempPmProducts(basePmProducts);
               setRoutineSetupOpen(true);
-            }} className="p-1 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-primary">
-              <Pencil size={14} />
+            }} className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary transition-colors">
+              <Pencil size={12} strokeWidth={1.5} />
             </button>
           </div>
-          <div className="flex bg-muted rounded-full p-0.5">
+          <div className="flex bg-muted/40 rounded-full p-1 border border-border/20">
             <button onClick={() => { setProductTime("am"); setProductsSaved(false); }}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "am" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
-              ☀️ Matin
+              className={`px-5 py-1.5 rounded-full text-[10px] font-bold transition-all ${productTime === "am" ? 'bg-primary text-primary-foreground premium-shadow' : 'text-muted-foreground hover:text-foreground'}`}>
+              Matin
             </button>
             <button onClick={() => { setProductTime("pm"); setProductsSaved(false); }}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "pm" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
-              🌙 Soir
+              className={`px-5 py-1.5 rounded-full text-[10px] font-bold transition-all ${productTime === "pm" ? 'bg-primary text-primary-foreground premium-shadow' : 'text-muted-foreground hover:text-foreground'}`}>
+              Soir
             </button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2.5 mb-6">
           {currentProducts.map((p) =>
             <button key={p} onClick={() => toggleProduct(p)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selected.includes(p) ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'}`
+              className={`px-4 py-2 rounded-full text-[11px] font-semibold transition-all border ${selected.includes(p) ? 'bg-primary border-primary text-primary-foreground premium-shadow' : 'bg-background/40 border-border text-muted-foreground hover:border-primary/40'}`
               }>
-              {selected.includes(p) && <Check size={10} className="inline mr-1" />}{p}
+              {selected.includes(p) && <Check size={10} strokeWidth={2.5} className="inline mr-1.5" />}{p}
             </button>
           )}
         </div>
         <button onClick={saveProducts}
-          className={`w-full py-2 rounded-xl text-xs font-semibold transition-all ${productsSaved ? 'bg-accent text-primary' : 'bg-primary text-primary-foreground'}`
+          className={`w-full py-4 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${productsSaved ? 'bg-accent/10 text-accent-foreground border border-accent/20' : 'bg-primary text-primary-foreground premium-shadow hover:opacity-90'}`
           }>
-          {productsSaved ? "✓ Routine réalisée" : "Routine réalisée"}
+          {productsSaved ? "Routine enregistrée ✓" : "Valider mes soins"}
         </button>
 
         {/* Feedback popup */}
         <AnimatePresence>
           {productFeedback && (
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity: 0, y: 15, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className={`mt-3 rounded-xl p-3 border ${productFeedback.positive
-                ? "bg-primary/5 border-primary/15"
-                : "bg-destructive/5 border-destructive/15"
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              className={`mt-6 rounded-2xl p-5 border ${productFeedback.positive
+                ? "bg-primary/5 border-primary/20"
+                : "bg-destructive/5 border-destructive/20"
                 }`}
             >
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-3 mb-3">
                 {productFeedback.positive
-                  ? <ThumbsUp size={14} className="text-primary" />
-                  : <ShieldAlert size={14} className="text-destructive" />
+                  ? <ThumbsUp size={16} strokeWidth={1.5} className="text-primary" />
+                  : <ShieldAlert size={16} strokeWidth={1.5} className="text-destructive" />
                 }
-                <p className={`text-xs font-semibold ${productFeedback.positive ? "text-primary" : "text-destructive"}`}>
+                <p className={`text-sm font-semibold ${productFeedback.positive ? "text-primary" : "text-destructive"}`}>
                   {productFeedback.message}
                 </p>
               </div>
               {productFeedback.tips.map((tip, i) => (
-                <div key={i} className="ml-5 mb-1.5">
-                  <p className="text-[11px] text-foreground/80 leading-relaxed">• {tip.text}</p>
+                <div key={i} className="ml-7 mb-3 last:mb-0">
+                  <p className="text-xs text-foreground/70 leading-relaxed">• {tip.text}</p>
                   {tip.source && (
-                    <p className="text-[9px] text-muted-foreground/50 italic ml-2 mt-0.5">— {tip.source}</p>
+                    <p className="text-[9px] text-muted-foreground/40 italic mt-1 font-medium">— {tip.source}</p>
                   )}
                 </div>
               ))}
@@ -1012,8 +1033,8 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Métriques peau */}
-      <h2 className="text-lg font-display font-semibold text-foreground mb-3">Indicateurs de ma peau</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <h2 className="text-lg font-display text-foreground mb-8 text-center mt-12">Analyse de surface</h2>
+      <div className="grid grid-cols-2 gap-4">
         {skinMetrics.map((metric, i) =>
           <motion.div key={metric.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.05 }}>
             <MetricCard {...metric} trendTone={trendToneForMetric(metric.label, metric.trend)} />

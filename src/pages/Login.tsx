@@ -64,15 +64,17 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white p-6 flex flex-col relative overflow-hidden">
+        <div className="min-h-screen bg-background p-6 flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
             {/* Header */}
             <motion.button
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 onClick={() => navigate("/onboarding")}
-                className="w-10 h-10 flex items-center justify-center border border-[#111111] mb-12 mt-4 z-10 relative"
+                className="w-12 h-12 flex items-center justify-center rounded-full border border-border/60 bg-white/50 mb-12 mt-4 z-10 relative hover:bg-white transition-all"
             >
-                <ArrowLeft size={18} className="text-[#111111]" />
+                <ArrowLeft size={18} strokeWidth={1.5} className="text-foreground" />
             </motion.button>
 
             <motion.div
@@ -82,46 +84,49 @@ const Login = () => {
                 className="flex-1 flex flex-col justify-center z-10 max-w-sm mx-auto w-full"
             >
                 <div className="mb-12 text-center">
-                    <h1 className="text-3xl font-bold font-display text-[#111111] uppercase tracking-[0.05em] mb-4">Connexion</h1>
+                    <h1 className="text-4xl font-display text-foreground leading-tight mb-4">Connexion</h1>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Heureux de vous revoir</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
-                    <div className="space-y-4">
-                        <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Email</label>
-                        <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
-                            <Input
-                                type="email"
-                                placeholder="email@example.com"
-                                className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs tracking-tight"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Email</label>
+                            <div className="relative">
+                                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                <Input
+                                    type="email"
+                                    placeholder="email@example.com"
+                                    className="pl-12"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Mot de passe</label>
+                            <div className="relative">
+                                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                <Input
+                                    type="password"
+                                    placeholder="••••••••"
+                                    className="pl-12"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="space-y-4">
-                        <label className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] ml-1">Mot de passe</label>
-                        <div className="relative">
-                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AAAAAA]" size={16} />
-                            <Input
-                                type="password"
-                                placeholder="••••••••"
-                                className="pl-11 h-14 bg-white border border-[#111111] rounded-none focus-visible:ring-0 focus-visible:border-[#111111] font-bold text-xs tracking-tight"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end mt-2">
+                    <div className="flex justify-end mt-4">
                         <button
                             type="button"
                             onClick={handleForgotPassword}
                             disabled={loading}
-                            className="text-xs font-mono font-bold text-[#111111] tracking-[0.1em] hover:text-[#111111] disabled:opacity-50"
+                            className="text-[10px] font-bold text-primary uppercase tracking-widest hover:opacity-70 disabled:opacity-50 transition-all"
                         >
                             Mot de passe oublié ?
                         </button>
@@ -130,15 +135,15 @@ const Login = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[#111111] text-white h-14 font-bold uppercase tracking-[0.2em] mt-8 hover:bg-black transition-all disabled:opacity-50"
+                        className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow mt-10 hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                     >
                         {loading ? "AUTHENTIFICATION..." : "ACCÉDER"}
                     </button>
                 </form>
 
-                <p className="text-center text-xs font-mono font-bold text-[#111111] tracking-[0.1em] mt-auto pt-8">
+                <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-auto pt-12">
                     PAS ENCORE DE COMPTE ?{" "}
-                    <button onClick={() => navigate("/signup")} className="text-[#111111] border-b border-[#111111] ml-1">
+                    <button onClick={() => navigate("/signup")} className="text-primary border-b border-primary/20 ml-2 hover:border-primary transition-all">
                         Créer un compte
                     </button>
                 </p>
