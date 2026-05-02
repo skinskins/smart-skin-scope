@@ -18,7 +18,6 @@ import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 import ResetPassword from "./pages/ResetPassword";
 
 import DailyCheckin from "./pages/DailyCheckin";
-import CheckinAdvice from "./pages/CheckinAdvice";
 import RGPD from "./pages/RGPD";
 import StravaConnect from "./pages/StravaConnect";
 import Callback from "./pages/Callback";
@@ -94,15 +93,15 @@ const PublicOnlyGuard = ({ children }: { children: React.ReactNode }) => {
     return <div className="h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  // If guest exists, redirect away from public pages to checkin-advice
+  // If guest exists, redirect away from public pages to dashboard
   const isGuest = localStorage.getItem('guestProfile') !== null;
   if (!session && isGuest && (location.pathname === "/onboarding" || location.pathname === "/login" || location.pathname === "/signup")) {
-    return <Navigate to="/checkin-advice" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
-  // If connected and profile is complete, redirect to checkin-advice
+  // If connected and profile is complete, redirect to dashboard
   if (session && isProfileComplete) {
-    return <Navigate to="/checkin-advice" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // If connected but profile incomplete, allow only /signup
@@ -124,7 +123,6 @@ const App = () => (
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/checkin" element={<AuthGuard><DailyCheckin /></AuthGuard>} />
-          <Route path="/checkin-advice" element={<AuthGuard><CheckinAdvice /></AuthGuard>} />
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
