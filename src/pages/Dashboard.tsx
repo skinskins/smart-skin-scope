@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp, X } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp, X, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import faceScan from "@/assets/face-scan.png";
 import MetricCard from "@/components/MetricCard";
@@ -12,9 +12,11 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { calculateCyclePhase } from "@/utils/cycle";
+import { getActiveAdvice, Context, SKIN_TYPE_MAP, AdviceItem } from "@/utils/advice";
 import axios from "axios";
 import { classifyStravaIntensity } from "@/data/stravaIntensity";
 import StravaConnect from "./StravaConnect";
+import { useMemo } from "react";
 
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
@@ -151,8 +153,12 @@ const Dashboard = () => {
   const [editingFactor, setEditingFactor] = useState<string | null>(null);
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string | null>(null);
+  const [skinType, setSkinType] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editSkinType, setEditSkinType] = useState("");
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
-  const [selectedTip, setSelectedTip] = useState<{ icon: React.ReactNode; text: string; priority: string; ingredients?: string[] } | null>(null);
+  const [selectedTip, setSelectedTip] = useState<AdviceItem | null>(null);
   
   const [isStravaLoading, setIsStravaLoading] = useState(false);
 
@@ -228,6 +234,7 @@ const Dashboard = () => {
           .then(({ data, error }) => {
             if (data && !error) {
               const profile = data as any;
+              setSkinType(profile.skin_type || null);
               setDailyLog(prev => ({
                 ...prev,
                 heartRate: profile.heart_rate ?? prev.heartRate,
@@ -576,6 +583,30 @@ const Dashboard = () => {
     setEditingFactor(id);
   };
 
+  const saveProfile = async () => {
+    if (!editName && !editSkinType) return;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const updates: any = {};
+        if (editName) updates.first_name = editName;
+        if (editSkinType) updates.skin_type = editSkinType;
+        
+        await supabase.from("profiles").update(updates).eq("id", session.user.id);
+        
+        if (editName) {
+            await supabase.auth.updateUser({ data: { first_name: editName } });
+            setUserName(editName);
+        }
+        if (editSkinType) setSkinType(editSkinType);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+    setProfileOpen(false);
+  };
+
   const saveEditFactor = () => {
     if (!editingFactor) return;
 
@@ -611,101 +642,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-display text-foreground leading-tight">Votre peau aujourd'hui</h1>
       </motion.div>
 
-      {/* Diagnostic CTA + Score combined panel */}
-      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 }}
-        className="premium-card p-8 mb-8 relative overflow-hidden">
 
-        <div className="relative flex items-start gap-5">
-          {/* Diagnostic photo + past days vertical */}
-          <div className="flex-shrink-0 flex flex-col items-center gap-3">
-            <motion.div
-              initial={hasTodayDiag ? { scale: 0.8, opacity: 0, rotateY: 90 } : { scale: 1, opacity: 1 }}
-              animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-              transition={{ type: "spring", stiffness: 200, damping: 18, delay: 0.3 }}
-              className={`w-24 h-24 rounded-2xl border flex items-center justify-center overflow-hidden premium-shadow ${hasTodayDiag ? 'border-foreground/20' : 'border-border bg-background/50'}`}
-            >
-              {hasTodayDiag ?
-                <motion.img
-                  src={faceScan}
-                  alt="Dernier scan"
-                  className="w-full h-full object-cover"
-                  initial={{ scale: 1.3, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
-                /> :
-                <div className="flex flex-col items-center gap-1.5 opacity-30">
-                  <Camera size={24} strokeWidth={1.5} className="text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-[0.05em]">Pas encore</span>
-                </div>
-              }
-            </motion.div>
-            {pastDays.length > 0 &&
-              <div className="flex flex-col gap-1.5 w-full">
-                {pastDays.map((day) =>
-                  <button key={day.label}
-                    className="flex items-center justify-between gap-2 border border-border/60 bg-background/30 rounded-lg px-2.5 py-1.5 transition-colors w-full group/day"
-                    onClick={() => {/* TODO: show past diagnostic */ }}>
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{day.label}</span>
-                    <span className={`text-[11px] font-bold ${day.hasDiag ? 'text-foreground' : 'text-muted-foreground/50'}`}>
-                      {day.score}
-                    </span>
-                  </button>
-                )}
-              </div>
-            }
-          </div>
-
-          {/* Score + info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex-shrink-0 cursor-pointer transition-transform hover:scale-105" onClick={() => setScoreOpen(true)}>
-                <SkinScoreRing score={currentScore} size={130} />
-              </div>
-              <div className="text-center space-y-3">
-                <p className="text-sm text-foreground/80">Votre peau est <span className="font-semibold text-primary">{currentScore >= 70 ? "belle" : currentScore >= 50 ? "correcte" : "à surveiller"}</span></p>
-                <div className="flex items-center justify-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  <Calendar size={11} strokeWidth={1.5} /><span>Dernier diag : {formatDiagDate()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <button onClick={() => navigate("/diagnosis")}
-          className="relative mt-10 w-full flex items-center justify-between bg-primary text-primary-foreground rounded-full px-8 py-5 hover:bg-primary/90 transition-all premium-shadow active:scale-[0.98]">
-          <div className="flex items-center gap-4">
-            <Stethoscope size={20} strokeWidth={1.5} />
-            <div className="text-left">
-              <p className="text-sm font-bold uppercase tracking-widest">Faire un diagnostic</p>
-              <p className="text-[10px] opacity-70 font-medium tracking-wide uppercase">Analyse instantanée</p>
-            </div>
-          </div>
-          <ChevronRight size={18} className="opacity-70" />
-        </button>
-      </motion.div>
-
-      {/* Détail du score */}
-      <Dialog open={scoreOpen} onOpenChange={setScoreOpen}>
-        <DialogContent className="max-w-sm rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Détail du score</DialogTitle>
-            <DialogDescription>Comment votre score de {currentScore}/100 est calculé</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            {skinMetrics.map((m) =>
-              <div key={m.label} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-muted-foreground">{m.icon}{m.label}</span>
-                <span className="font-semibold text-foreground">{m.value}</span>
-              </div>
-            )}
-            <div className="border-t border-border pt-2 mt-2 flex justify-between text-sm">
-              <span className="text-muted-foreground font-medium">Moyenne pondérée</span>
-              <span className="font-semibold text-primary">{currentScore}</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground">Score = moyenne pondérée. Rougeurs inversées (bas = mieux).</p>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Conseils personnalisés */}
       <h2 className="text-xl font-display font-bold text-[#111111] mb-6 uppercase tracking-[0.05em]">
@@ -714,50 +651,80 @@ const Dashboard = () => {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
         className="space-y-4 mb-10">
         {(() => {
-          const tips: { icon: React.ReactNode; text: string; priority: "high" | "medium" | "low"; ingredients?: string[] }[] = [];
+          const skinTypeKey = SKIN_TYPE_MAP[skinType || ""] ?? "normal";
+          
+          const ctx: Context = {
+              skinType: skinTypeKey,
+              uvIndex: Math.floor(dailyLog.weather?.uv ?? 0),
+              tempC: dailyLog.weather?.temp ?? 20,
+              humidity: dailyLog.weather?.humidity ?? 50,
+              aqi: dailyLog.weather?.aqiScore ?? 25,
+              sleepHours: dailyLog.sleepHours ?? 8,
+              stressLevel: (dailyLog.stressLevel ?? 1) * 2,
+              alcoholLastNight: dailyLog.alcoholDrinks ?? 0,
+              removedMakeupLastNight: dailyLog.makeupRemoved ?? true,
+              didSportToday: dailyLog.didSport !== "Non",
+              cycleDay: calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration).day
+          };
 
-          // Tips logic is fine as remains unchanged
-          const hydration = skinMetrics.find(m => m.label === "Hydratation")!;
-          const redness = skinMetrics.find(m => m.label === "Rougeurs")!;
-          const glow = skinMetrics.find(m => m.label === "Éclat")!;
-          const sebum = skinMetrics.find(m => m.label === "Sébum")!;
-          const texture = skinMetrics.find(m => m.label === "Texture")!;
+          const adviceList = getActiveAdvice(ctx);
 
-          if (hydration.value < 70) tips.push({ icon: <GlassWater size={16} strokeWidth={1.5} />, text: "Hydratation faible — pensez à boire davantage et appliquer un sérum hydratant.", priority: "high", ingredients: ["Acide hyaluronique", "Glycérine", "Céramides", "Aloe vera"] });
-          if (redness.value > 35) tips.push({ icon: <ShieldAlert size={16} strokeWidth={1.5} />, text: "Rougeurs élevées — évitez les produits agressifs et privilégiez des soins apaisants.", priority: "high", ingredients: ["Niacinamide", "Centella asiatica", "Bisabolol", "Avoine colloïdale"] });
-          if (glow.value < 60) tips.push({ icon: <Sparkles size={16} strokeWidth={1.5} />, text: "Éclat en berne — un sérum vitamine C le matin peut faire la différence.", priority: "medium", ingredients: ["Vitamine C (acide ascorbique)", "Alpha-arbutine", "Acide kojique"] });
-          if (sebum.value > 60) tips.push({ icon: <CircleDot size={16} strokeWidth={1.5} />, text: "Excès de sébum — utilisez un nettoyant doux et évitez les crèmes trop riches.", priority: "medium", ingredients: ["Niacinamide", "Acide salicylique (BHA)", "Zinc", "Argile verte"] });
-          if (texture.value < 65) tips.push({ icon: <Fingerprint size={16} strokeWidth={1.5} />, text: "Texture irrégulière — une exfoliation douce 2x/semaine peut aider.", priority: "medium", ingredients: ["Rétinol", "AHA (acide glycolique)", "PHA", "Bakuchiol"] });
-
+          // Integrate Diagnostic alerts if they exist
           if (diagResult?.zones) {
             const alertZones = diagResult.zones.filter(z => z.status === "alert");
             const warningZones = diagResult.zones.filter(z => z.status === "warning");
+            
             if (alertZones.length > 0) {
-              tips.push({ icon: <Stethoscope size={16} strokeWidth={1.5} className="text-destructive" />, text: `Diagnostic : zone${alertZones.length > 1 ? "s" : ""} ${alertZones.map(z => z.label).join(", ")} en alerte — consultez un dermatologue si persistant.`, priority: "high", ingredients: ["Niacinamide 10%", "Centella asiatica", "Panthénol"] });
-            }
-            if (warningZones.length > 0) {
-              tips.push({ icon: <Stethoscope size={16} strokeWidth={1.5} className="text-primary" />, text: `Zone${warningZones.length > 1 ? "s" : ""} ${warningZones.map(z => z.label).join(", ")} à surveiller — adaptez votre routine sur ces zones.`, priority: "medium", ingredients: ["Acide azélaïque", "Niacinamide", "Extrait de réglisse"] });
+              adviceList.unshift({
+                iconStr: "🩺",
+                title: "Alerte Diagnostic",
+                text: `Zone${alertZones.length > 1 ? "s" : ""} ${alertZones.map(z => z.label).join(", ")} en alerte — consultez un dermatologue si persistant.`,
+                tip: "Utilisez des soins apaisants et évitez les actifs irritants sur ces zones.",
+                group: "g3",
+                priority: "high",
+                ingredients: ["Niacinamide 10%", "Centella asiatica", "Panthénol"]
+              });
+            } else if (warningZones.length > 0) {
+              adviceList.push({
+                iconStr: "🩺",
+                title: "Zones à surveiller",
+                text: `Zone${warningZones.length > 1 ? "s" : ""} ${warningZones.map(z => z.label).join(", ")} à surveiller — adaptez votre routine sur ces zones.`,
+                tip: "Privilégiez des soins ciblés pour stabiliser ces zones.",
+                group: "g1",
+                priority: "medium",
+                ingredients: ["Acide azélaïque", "Niacinamide", "Extrait de réglisse"]
+              });
             }
           }
 
-          if (dailyLog.weather.uv >= 6) tips.push({ icon: <Sun size={16} strokeWidth={1.5} />, text: `UV à ${dailyLog.weather.uv} — réappliquez votre SPF toutes les 2h, surtout en extérieur.`, priority: "high" });
-          if (dailyLog.weather.humidity < 40) tips.push({ icon: <Droplets size={16} strokeWidth={1.5} />, text: "Air sec aujourd'hui — renforcez l'hydratation avec un brumisateur ou une crème riche.", priority: "medium", ingredients: ["Acide hyaluronique", "Squalane"] });
-          if (dailyLog.sleepHours < 7) tips.push({ icon: <Moon size={16} strokeWidth={1.5} />, text: "Sommeil insuffisant — votre peau se régénère la nuit, essayez de dormir 7h+.", priority: "high", ingredients: ["Rétinol (soir)", "Peptides", "Bakuchiol"] });
-
-          const priorityOrder = { high: 0, medium: 1, low: 2 };
-          const sorted = tips.sort((a, b) => priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder]).slice(0, 5);
-
-          if (sorted.length === 0) {
-            sorted.push({ icon: <Sparkles size={16} strokeWidth={1.5} className="text-primary" />, text: "Tout semble bien ! Continuez votre routine actuelle. 🎉", priority: "low" });
+          if (adviceList.length === 0) {
+            return (
+              <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                className="flex flex-col gap-4 p-6 premium-card border-none bg-white/40">
+                <div className="flex items-start gap-4">
+                  <span className="mt-0.5 flex-shrink-0 text-primary transition-colors"><Sparkles size={16} strokeWidth={1.5} /></span>
+                  <p className="text-sm text-foreground/80 leading-relaxed font-medium">Tout semble bien ! Continuez votre routine actuelle. 🎉</p>
+                </div>
+              </motion.div>
+            );
           }
 
-          return sorted.map((tip, i) => (
+          return adviceList.map((advice, i) => (
             <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 + i * 0.05 }}
-              onClick={() => setSelectedTip(tip)}
-              className="flex flex-col gap-4 p-6 premium-card border-none group transition-all hover:bg-white/40 cursor-pointer active:scale-[0.98]">
-              <div className="flex items-start gap-4">
-                <span className="mt-0.5 flex-shrink-0 text-primary transition-colors">{tip.icon}</span>
-                <p className="text-sm text-foreground/80 leading-relaxed font-medium line-clamp-2">{tip.text}</p>
+              onClick={() => setSelectedTip(advice)}
+              className="flex flex-col gap-4 p-8 premium-card border-none group transition-all hover:bg-white/40 cursor-pointer active:scale-[0.98] bg-white/60">
+              <div className="flex gap-6">
+                <span className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+                  </div>
+                  <p className="text-[13px] text-foreground/80 leading-relaxed italic mb-4">{advice.text}</p>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase tracking-[0.1em] opacity-60 group-hover:opacity-100 transition-opacity">
+                    Voir les détails et ingrédients <ChevronRight size={10} strokeWidth={3} />
+                  </div>
+                </div>
               </div>
             </motion.div>
           ));
@@ -767,21 +734,19 @@ const Dashboard = () => {
       {/* Détail du conseil */}
       <Dialog open={!!selectedTip} onOpenChange={() => setSelectedTip(null)}>
         <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
-          <DialogHeader className="mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-4">
-              {selectedTip?.icon}
-            </div>
-            <DialogTitle className="text-xl font-display text-foreground leading-tight">Conseil personnalisé</DialogTitle>
+          <DialogHeader className="mb-8">
+            <div className="text-5xl mb-6">{selectedTip?.iconStr}</div>
+            <DialogTitle className="text-2xl font-display text-foreground italic">{selectedTip?.title}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6">
-            <p className="text-sm text-foreground/80 leading-relaxed">{selectedTip?.text}</p>
+          <div className="space-y-8">
+            <p className="text-sm text-foreground/80 leading-relaxed italic">{selectedTip?.text}</p>
             
             {selectedTip?.ingredients && selectedTip.ingredients.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ingrédients recommandés</p>
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Ingrédients cibles</p>
                 <div className="flex flex-wrap gap-2">
                   {selectedTip.ingredients.map(ing => (
-                    <span key={ing} className="text-[10px] border border-primary/20 text-primary px-3 py-1.5 rounded-full font-medium bg-primary/5 italic">
+                    <span key={ing} className="px-4 py-2 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">
                       {ing}
                     </span>
                   ))}
@@ -789,9 +754,16 @@ const Dashboard = () => {
               </div>
             )}
 
+            {selectedTip?.tip && (
+              <div className="flex gap-4 p-6 bg-primary/5 rounded-[32px] border border-primary/10">
+                <div className="bg-white rounded-full p-2 text-primary shadow-sm h-fit"><Lightbulb size={14} strokeWidth={2.5} /></div>
+                <p className="text-[11px] font-bold text-primary/80 leading-relaxed  tracking-widest italic">{selectedTip.tip}</p>
+              </div>
+            )}
+
             <button 
               onClick={() => setSelectedTip(null)}
-              className="w-full py-4 bg-primary text-primary-foreground rounded-full text-xs font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all mt-4"
+              className="w-full h-16 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all mt-6"
             >
               Compris
             </button>
@@ -813,10 +785,10 @@ const Dashboard = () => {
                         <Pencil size={12} strokeWidth={1.5} className="text-muted-foreground/30" />
                     </div>
                 </div>
-                <span className="ml-auto flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest"><span className="w-2 h-2 bg-primary rounded-full animate-pulse" />Live</span>
+                <span className="ml-auto flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest"><span className="w-2 h-2 bg-primary rounded-full animate-pulse" />Actuellement</span>
             </div>
         </button>
-        <div className="grid grid-cols-2 gap-x-12 gap-y-10 px-4">
+        <div className="flex gap-x-12 gap-y-10 px-4">
             {[
                 { id: "temp", icon: <Thermometer size={16} />, val: `${dailyLog.weather?.temp ?? 20}°C`, sub: "Température" },
                 { id: "humidity", icon: <Droplets size={16} />, val: `${dailyLog.weather?.humidity ?? 50}%`, sub: "Humidité" },
@@ -1036,155 +1008,8 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialogue Setup Routine */}
-      <Dialog open={routineSetupOpen} onOpenChange={setRoutineSetupOpen}>
-        <DialogContent className="max-w-sm rounded-2xl h-[85vh] flex flex-col p-4">
-          <DialogHeader className="pt-2">
-            <DialogTitle className="text-foreground">Ma Routine</DialogTitle>
-            <DialogDescription>Quels produits utilisez-vous habituellement ?</DialogDescription>
-          </DialogHeader>
 
-          <div className="flex bg-muted  p-1 mb-2">
-            <button onClick={() => setSetupTimeTab("am")}
-              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${setupTimeTab === "am" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
-              ☀️ Matin
-            </button>
-            <button onClick={() => setSetupTimeTab("pm")}
-              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${setupTimeTab === "pm" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
-              🌙 Soir
-            </button>
-          </div>
 
-          <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-1 pb-4">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Produits standards</p>
-              <div className="flex flex-col gap-1.5">
-                {Array.from(new Set([...ALL_PRODUCTS, ...userCustomProducts])).map(p => {
-                  const isActive = setupTimeTab === "am" ? tempAmProducts.includes(p) : tempPmProducts.includes(p);
-                  const isCustom = !ALL_PRODUCTS.includes(p);
-                  return (
-                    <div key={p} className="flex gap-2">
-                      <button onClick={() => toggleSetupProduct(p)} className={`flex-1 flex justify-between items-center px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-card text-foreground/80 hover:bg-accent'}`}>
-                        {p}
-                        {isActive && <Check size={14} />}
-                      </button>
-                      {isCustom && (
-                        <button onClick={() => {
-                          setUserCustomProducts(prev => prev.filter(x => x !== p));
-                          setTempAmProducts(prev => prev.filter(x => x !== p));
-                          setTempPmProducts(prev => prev.filter(x => x !== p));
-                        }} className="px-3 py-2.5 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 hover:bg-destructive/20 transition-colors">
-                          <X size={16} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ajouter un produit (ex: Crème VICHY)</p>
-              <div className="flex gap-2">
-                <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Nom du produit" className="text-sm rounded-xl" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
-                <button onClick={addCustomSetupProduct} className="bg-primary text-primary-foreground px-4 rounded-xl text-sm font-semibold hover:opacity-90 transition-all">
-                  Ajouter
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <button onClick={saveRoutineConfig} className="w-full py-3.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground shadow-elevated hover:opacity-90 transition-opacity">
-              Valider ma configuration
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Produits utilisés */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="premium-card p-8 mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-semibold text-foreground/80 tracking-wide">Routine en cours</p>
-            <button onClick={() => {
-              setTempAmProducts(baseAmProducts);
-              setTempPmProducts(basePmProducts);
-              setRoutineSetupOpen(true);
-            }} className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary transition-colors">
-              <Pencil size={12} strokeWidth={1.5} />
-            </button>
-          </div>
-          <div className="flex bg-muted/40 rounded-full p-1 border border-border/20">
-            <button onClick={() => { setProductTime("am"); setProductsSaved(false); }}
-              className={`px-5 py-1.5 rounded-full text-[10px] font-bold transition-all ${productTime === "am" ? 'bg-primary text-primary-foreground premium-shadow' : 'text-muted-foreground hover:text-foreground'}`}>
-              Matin
-            </button>
-            <button onClick={() => { setProductTime("pm"); setProductsSaved(false); }}
-              className={`px-5 py-1.5 rounded-full text-[10px] font-bold transition-all ${productTime === "pm" ? 'bg-primary text-primary-foreground premium-shadow' : 'text-muted-foreground hover:text-foreground'}`}>
-              Soir
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2.5 mb-6">
-          {currentProducts.map((p) =>
-            <button key={p} onClick={() => toggleProduct(p)}
-              className={`px-4 py-2 rounded-full text-[11px] font-semibold transition-all border ${selected.includes(p) ? 'bg-primary border-primary text-primary-foreground premium-shadow' : 'bg-background/40 border-border text-muted-foreground hover:border-primary/40'}`
-              }>
-              {selected.includes(p) && <Check size={10} strokeWidth={2.5} className="inline mr-1.5" />}{p}
-            </button>
-          )}
-        </div>
-        <button onClick={saveProducts}
-          className={`w-full py-4 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${productsSaved ? 'bg-accent/10 text-accent-foreground border border-accent/20' : 'bg-primary text-primary-foreground premium-shadow hover:opacity-90'}`
-          }>
-          {productsSaved ? "Routine enregistrée ✓" : "Valider mes soins"}
-        </button>
-
-        {/* Feedback popup */}
-        <AnimatePresence>
-          {productFeedback && (
-            <motion.div
-              initial={{ opacity: 0, y: 15, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.98 }}
-              className={`mt-6 rounded-2xl p-5 border ${productFeedback.positive
-                ? "bg-primary/5 border-primary/20"
-                : "bg-destructive/5 border-destructive/20"
-                }`}
-            >
-              <div className="flex items-center gap-3 mb-3">
-                {productFeedback.positive
-                  ? <ThumbsUp size={16} strokeWidth={1.5} className="text-primary" />
-                  : <ShieldAlert size={16} strokeWidth={1.5} className="text-destructive" />
-                }
-                <p className={`text-sm font-semibold ${productFeedback.positive ? "text-primary" : "text-destructive"}`}>
-                  {productFeedback.message}
-                </p>
-              </div>
-              {productFeedback.tips.map((tip, i) => (
-                <div key={i} className="ml-7 mb-3 last:mb-0">
-                  <p className="text-xs text-foreground/70 leading-relaxed">• {tip.text}</p>
-                  {tip.source && (
-                    <p className="text-[9px] text-muted-foreground/40 italic mt-1 font-medium">— {tip.source}</p>
-                  )}
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-
-      {/* Métriques peau */}
-      <h2 className="text-lg font-display text-foreground mb-8 text-center mt-12">Analyse de surface</h2>
-      <div className="grid grid-cols-2 gap-4">
-        {skinMetrics.map((metric, i) =>
-          <motion.div key={metric.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.05 }}>
-            <MetricCard {...metric} trendTone={trendToneForMetric(metric.label, metric.trend)} />
-          </motion.div>
-        )}
-      </div>
     </div>);
 
 };
