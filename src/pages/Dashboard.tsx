@@ -10,7 +10,11 @@ import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { calculateCyclePhase } from "@/utils/cycle";
+import axios from "axios";
+import { classifyStravaIntensity } from "@/data/stravaIntensity";
+import StravaConnect from "./StravaConnect";
 
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
@@ -48,12 +52,17 @@ const defaultDailyLog = {
   alcohol: false,
   workoutIntensity: "Modéré",
   cycleDuration: 28,
-  periodDuration: 5
+  periodDuration: 5,
+  makeupRemoved: true,
+  didSport: "Non",
+  stravaData: null as any,
+  foodQuality: "Équilibrée",
 };
 
 
 const cyclePhases = ["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
-const intensities = ["Aucun", "Léger", "Modéré", "Intense"];
+const workoutIntensities = ["Non", "Léger", "Modéré", "Intense"];
+const STRESS_LABELS = ["", "Zen", "Calme", "Modéré", "Élevé", "Extrême"];
 
 const ALL_PRODUCTS = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux", "Rétinol", "Masque", "Huile de soin", "Exfoliant AHA/BHA", "Traitement local"];
 
@@ -144,7 +153,66 @@ const Dashboard = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
   const [selectedTip, setSelectedTip] = useState<{ icon: React.ReactNode; text: string; priority: string; ingredients?: string[] } | null>(null);
+  
+  const [isStravaLoading, setIsStravaLoading] = useState(false);
 
+  useEffect(() => {
+    const fetchStravaActivities = async () => {
+        const athleteId = localStorage.getItem("athleteId");
+        if (!athleteId) return;
+
+        setIsStravaLoading(true);
+        try {
+            const res = await axios.get(`https://smart-skin-scope.onrender.com/activities?athleteId=${athleteId}`);
+            const activities = res.data;
+
+            if (activities && activities.length > 0) {
+                const now = new Date();
+                const yesterday = new Date(now);
+                yesterday.setDate(now.getDate() - 1);
+                yesterday.setHours(0, 0, 0, 0);
+
+                const recentActivities = activities.filter((a: any) => {
+                    const date = new Date(a.start_date);
+                    return date >= yesterday;
+                });
+
+                if (recentActivities.length > 0) {
+                    const latest = recentActivities[0];
+                    const result = classifyStravaIntensity(latest, 48);
+
+                    const intensityMap: Record<string, string> = {
+                        "none": "Non",
+                        "light": "Léger",
+                        "moderate": "Modéré",
+                        "intense": "Intense"
+                    };
+
+                    const mappedIntensity = intensityMap[result.level] || "Non";
+
+                    setDailyLog(prev => {
+                        const updated = {
+                            ...prev,
+                            didSport: mappedIntensity,
+                            stravaData: {
+                                sport: result.sport,
+                                label: result.label,
+                                duration: result.durationMin
+                            }
+                        };
+                        localStorage.setItem("dailyCheckinData", JSON.stringify(updated));
+                        return updated;
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching strava activities", error);
+        } finally {
+            setIsStravaLoading(false);
+        }
+    };
+    fetchStravaActivities();
+  }, []);
 
   // Check auth state and fetch remote daily checkin profile
   useEffect(() => {
@@ -207,6 +275,59 @@ const Dashboard = () => {
 
   // Temp edit values
   const [editValues, setEditValues] = useState({ heartRate: 72, stressLevel: 3, sleepHours: 7.5, location: defaultDailyLog.location });
+  
+  const [editValue, setEditValue] = useState<any>(null);
+  const [locationInput, setLocationInput] = useState("");
+  const [makeupStep, setMakeupStep] = useState(1);
+  const [woreMakeup, setWoreMakeup] = useState<boolean | null>(null);
+
+  const saveEdit = async () => {
+        if (!editingFactor) return;
+        let newLog = { ...dailyLog };
+        let syncValue = editValue;
+        
+        if (editingFactor === 'location') { syncValue = locationInput; newLog.location = locationInput; setManualLocation(locationInput); }
+        else if (editingFactor === 'sleep') newLog.sleepHours = editValue;
+        else if (editingFactor === 'stress') newLog.stressLevel = editValue;
+        else if (editingFactor === 'water') newLog.waterGlasses = editValue === "Trop" ? 12 : (editValue === "Suffisamment" ? 8 : 4);
+        else if (editingFactor === 'alcohol') newLog.alcoholDrinks = editValue;
+        else if (editingFactor === 'sport') newLog.didSport = editValue;
+        else if (editingFactor === 'cycle') {
+            if (typeof editValue === 'object' && editValue !== null) {
+                newLog.cyclePhase = editValue.phase;
+                newLog.cycleDuration = editValue.cycleDuration;
+                newLog.periodDuration = editValue.periodDuration;
+            } else {
+                newLog.cyclePhase = editValue;
+            }
+        }
+        else if (editingFactor === 'makeup') { newLog.makeupRemoved = editValue; }
+        else if (editingFactor === 'alimentation') newLog.foodQuality = editValue;
+
+        setDailyLog(newLog);
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+            const updates: any = {};
+            if (editingFactor === 'sleep') updates.sleep_hours = syncValue;
+            if (editingFactor === 'stress') updates.stress_level = syncValue;
+            if (editingFactor === 'water') updates.water_glasses = newLog.waterGlasses;
+            if (editingFactor === 'alcohol') updates.alcohol_drinks = syncValue;
+            if (editingFactor === 'sport') updates.did_sport = syncValue;
+            if (editingFactor === 'makeup') updates.makeup_removed = syncValue;
+            if (editingFactor === 'alimentation') updates.food_quality = syncValue;
+            if (editingFactor === 'location') updates.manual_location = syncValue;
+            if (editingFactor === 'cycle') {
+                updates.cycle_phase = typeof syncValue === 'string' ? syncValue : syncValue.phase;
+                if (typeof syncValue === 'object' && syncValue.date) updates.last_period_date = syncValue.date;
+                updates.cycle_duration = syncValue.cycleDuration ?? newLog.cycleDuration;
+                updates.period_duration = syncValue.periodDuration ?? newLog.periodDuration;
+            }
+            await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
+        }
+        
+        setEditingFactor(null);
+  };
 
   const markUpdated = useCallback((factorId: string) => {
     setManualUpdates(prev => ({ ...prev, [factorId]: Date.now() }));
@@ -678,155 +799,84 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      <h2 className="text-lg font-display text-foreground mb-10 text-center">Paramètres du jour</h2>
+      {/* Analyses environnantes (formerly Paramètres du jour) */}
+      <h2 className="text-lg font-display text-foreground mb-10 text-center">Analyses environnantes</h2>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-        className="premium-card p-8 mb-8">
-        {/* Location row */}
-        <button onClick={() => openEditDialog("location")} className="text-left w-full focus:outline-none">
-          <div className="flex items-center gap-4 mb-8 pb-8 border-b border-border/40 group hover:bg-muted/5 p-2 rounded-xl transition-colors">
-            <MapPin size={18} strokeWidth={1.5} className="text-primary" />
-            <div>
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Localisation</p>
-              <div className="flex items-center gap-2 mt-1.3">
-                <p className="text-base font-semibold text-foreground">{dailyLog.location}</p>
-                <Pencil size={12} strokeWidth={1.5} className="text-muted-foreground/30" />
-              </div>
-            </div>
-            <span className="ml-auto flex items-center gap-2 text-[10px] font-semibold text-primary/80 uppercase tracking-widest">
-              <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-              Direct
-            </span>
-          </div>
-        </button>
-        <div className="grid grid-cols-4 gap-4 text-center">
-          {[
-            { id: "temp", icon: <Thermometer size={18} strokeWidth={1.5} />, val: `${dailyLog.weather.temp}°`, sub: "Temp" },
-            { id: "humidity", icon: <Droplets size={18} strokeWidth={1.5} />, val: `${dailyLog.weather.humidity}%`, sub: "Humi" },
-            { id: "uv", icon: <Sun size={18} strokeWidth={1.5} />, val: `${dailyLog.weather.uv}`, sub: "UV" },
-            { id: "air", icon: <CloudSun size={18} strokeWidth={1.5} />, val: dailyLog.weather.pollution, sub: "Air" }].
-            map((item) =>
-              <FactorButton key={item.id} id={item.id}>
-                <div className="flex flex-col items-center gap-3 hover:bg-white/40 p-3 rounded-2xl transition-all border border-transparent hover:premium-shadow">
-                  <div className="text-primary/70">{item.icon}</div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-foreground leading-tight">{item.val}</p>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-60">{item.sub}</p>
-                  </div>
+        className="premium-card p-10 mb-8">
+        <button onClick={() => { setEditingFactor('location'); setEditValue(dailyLog.location || "Paris"); setLocationInput(dailyLog.location || "Paris"); }} className="text-left w-full group mb-10 pb-10 border-b border-border/40">
+            <div className="flex items-center gap-6">
+                <div className="w-12 h-12 rounded-full border border-border/60 bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><MapPin size={22} strokeWidth={1.5} /></div>
+                <div className="flex-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Position actuelle</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xl font-bold text-foreground">{dailyLog.location || "Paris"}</p>
+                        <Pencil size={12} strokeWidth={1.5} className="text-muted-foreground/30" />
+                    </div>
                 </div>
-              </FactorButton>
-            )}
+                <span className="ml-auto flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest"><span className="w-2 h-2 bg-primary rounded-full animate-pulse" />Live</span>
+            </div>
+        </button>
+        <div className="grid grid-cols-2 gap-x-12 gap-y-10 px-4">
+            {[
+                { id: "temp", icon: <Thermometer size={16} />, val: `${dailyLog.weather?.temp ?? 20}°C`, sub: "Température" },
+                { id: "humidity", icon: <Droplets size={16} />, val: `${dailyLog.weather?.humidity ?? 50}%`, sub: "Humidité" },
+                { id: "uv", icon: <Sun size={16} />, val: dailyLog.weather?.uv ?? 0, sub: "Index UV" },
+                { id: "air", icon: <CloudSun size={16} />, val: dailyLog.weather?.pollution ?? "Bon", sub: "Qualité Air" }
+            ].map((item) => (
+                <div key={item.id} className="flex flex-col items-center text-center gap-3">
+                    <div className="text-muted-foreground opacity-40">{item.icon}</div>
+                    <div className="space-y-1.5">
+                        <p className="text-sm font-bold text-foreground">{item.val}</p>
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">{item.sub}</p>
+                    </div>
+                </div>
+            ))}
         </div>
       </motion.div>
 
+      {/* Suivi Biologique */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-        className="premium-card p-8 mb-10">
-        <div className="flex items-center justify-between mb-8 pb-8 border-b border-border/40">
-          <div className="flex items-center gap-4">
-            {deviceConnected ?
-              <Bluetooth size={18} strokeWidth={1.5} className="text-primary" /> :
-              <BluetoothOff size={18} strokeWidth={1.5} className="text-muted-foreground/40" />
-            }
-            <div>
-              <p className="text-sm font-bold text-foreground/80 uppercase tracking-widest">
-                {deviceConnected ? "Apple Watch connectée" : "Aucun appareil"}
-              </p>
-              <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide mt-1.5">
-                {deviceConnected ? "Synchronisation active" : "Saisie manuelle"}
-              </p>
-            </div>
-          </div>
-          <button className="text-[10px] font-bold text-primary px-5 py-2.5 rounded-full bg-primary/10 uppercase tracking-widest hover:bg-primary/20 transition-colors">
-            {deviceConnected ? "Réglages" : "Connecter"}
-          </button>
+        className="mb-10">
+        <div className="flex flex-col items-center mb-10">
+            <h2 className="text-lg font-display text-foreground mb-4">Suivi biologique</h2>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <FactorButton id="cycle">
-            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
-              <FlaskConical size={18} strokeWidth={1.5} className="text-primary/70" />
-              <div className="flex-1">
-                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Cycle</p>
-                {(() => {
-                  if (!dailyLog.lastPeriodDate) return (
-                    <p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "Inconnu"}</p>
-                  );
-                  const calc = calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration);
-                  return (
-                    <div className="flex flex-col">
-                      <p className="text-sm font-bold text-foreground">{calc.phase}</p>
-                      {calc.day && <p className="text-[8px] font-bold text-primary/40 uppercase tracking-widest">Jour {calc.day} / {dailyLog.cycleDuration}</p>}
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('cycle'); setEditValue(dailyLog.cyclePhase || "Aucun"); }}>
+                <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Calendar size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+                <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Cycle</p><p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "N/A"}</p></div>
+            </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('stress'); setEditValue(dailyLog.stressLevel ?? 3); }}>
+                <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Heart size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+                <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Stress</p><p className="text-sm font-bold text-foreground">{dailyLog.stressLevel !== undefined ? `${dailyLog.stressLevel}/5` : "N/A"}</p></div>
+            </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('makeup'); setEditValue(dailyLog.makeupRemoved ?? false); setMakeupStep(1); }}>
+                <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Sparkles size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+                <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Peau</p><p className="text-sm font-bold text-foreground">{dailyLog.makeupRemoved !== undefined ? (dailyLog.makeupRemoved ? "Nette" : "Maquillée") : "N/A"}</p></div>
+            </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('alcohol'); setEditValue(dailyLog.alcoholDrinks ?? 0); }}>
+                <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Wine size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+                <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Alcool</p><p className="text-sm font-bold text-foreground">{dailyLog.alcoholDrinks > 0 ? `${dailyLog.alcoholDrinks} u.` : "Aucun"}</p></div>
+            </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('sleep'); setEditValue(dailyLog.sleepHours ?? 8); }}>
+                <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Moon size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+                <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Sommeil</p><p className="text-sm font-bold text-foreground">{dailyLog.sleepHours ? `${dailyLog.sleepHours}h` : "N/A"}</p></div>
+            </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('sport'); setEditValue(dailyLog.didSport || "Non"); }}>
+                <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Dumbbell size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+                <div>
+                  <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Activité</p>
+                  <p className="text-sm font-bold text-foreground">{dailyLog.didSport || "Non"}</p>
+                  {dailyLog.stravaData && dailyLog.didSport !== "Non" && (
+                    <div className="flex items-center gap-1.5 mt-2 text-[8px] font-mono font-bold text-[#FC4C02] uppercase tracking-[0.05em]">
+                        <span className="w-1.5 h-1.5 bg-[#FC4C02] rounded-full animate-pulse" />
+                        Synchro : {dailyLog.stravaData.sport}
                     </div>
-                  );
-                })()}
-                <ManualLabel id="cycle" />
-              </div>
-            </div>
-          </FactorButton>
-          <button onClick={() => openEditDialog("heartStress")} className="text-left w-full">
-            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
-              <Heart size={18} strokeWidth={1.5} className="text-primary/70" />
-              <div className="flex-1">
-                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Cœur / Stress</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-foreground">{dailyLog.heartRate} bpm · {dailyLog.stressLevel}/5</p>
-                </div>
-                <ManualLabel id="heartStress" />
-              </div>
-            </div>
-          </button>
-          <FactorButton id="water">
-            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
-              <Droplets size={18} strokeWidth={1.5} className="text-primary/70" />
-              <div className="flex-1">
-                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-2">Eau</p>
-                <div className="flex gap-1">
-                  {[...Array(8)].map((_, i) =>
-                    <button key={i} onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, waterGlasses: i + 1 })); markUpdated("water"); }}
-                      className={`w-3.5 h-3.5 rounded-full transition-all ${i < dailyLog.waterGlasses ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
                   )}
                 </div>
-                <ManualLabel id="water" />
-              </div>
             </div>
-          </FactorButton>
-          <button onClick={() => openEditDialog("sleep")} className="text-left w-full">
-            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
-              <Moon size={18} strokeWidth={1.5} className="text-primary/70" />
-              <div className="flex-1">
-                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Sommeil</p>
-                <p className="text-sm font-bold text-foreground">{dailyLog.sleepHours}h</p>
-                <ManualLabel id="sleep" />
-              </div>
-            </div>
-          </button>
-          <FactorButton id="alcohol">
-            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
-              <Wine size={18} strokeWidth={1.5} className="text-primary/70" />
-              <div className="flex-1">
-                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Alcool</p>
-                <button onClick={(e) => { e.stopPropagation(); setDailyLog((d) => ({ ...d, alcohol: !d.alcohol })); markUpdated("alcohol"); }}
-                  className={`text-sm font-bold ${dailyLog.alcohol ? 'text-primary' : 'text-foreground'}`}>
-                  {dailyLog.alcohol ? "Oui" : "Non"}
-                </button>
-                <ManualLabel id="alcohol" />
-              </div>
-            </div>
-          </FactorButton>
-          <FactorButton id="workout">
-            <div className="flex items-center gap-4 hover:bg-white/40 p-4 rounded-2xl transition-all border border-border/20">
-              <Dumbbell size={18} strokeWidth={1.5} className="text-primary/70" />
-              <div className="flex-1">
-                <p className="text-[9px] font-medium text-muted-foreground uppercase tracking-widest mb-1">Sport</p>
-                <select value={dailyLog.workoutIntensity} onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => { setDailyLog((d) => ({ ...d, workoutIntensity: e.target.value })); markUpdated("workout"); }}
-                  className="text-sm font-bold text-foreground bg-transparent border-none p-0 focus:outline-none w-full">
-                  {intensities.map((i) => <option key={i} className="bg-background">{i}</option>)}
-                </select>
-                <ManualLabel id="workout" />
-              </div>
-            </div>
-          </FactorButton>
         </div>
       </motion.div>
+
 
       {/* Dialogue facteur */}
       <Dialog open={!!factorOpen} onOpenChange={() => setFactorOpen(null)}>
@@ -840,55 +890,149 @@ const Dashboard = () => {
 
       {/* Dialogue édition facteur manuel */}
       <Dialog open={!!editingFactor} onOpenChange={() => setEditingFactor(null)}>
-        <DialogContent className="max-w-sm rounded-3xl border border-border/40 bg-background premium-shadow">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-display text-foreground">
-              {editingFactor === "heartStress" ? "Cœur & Stress" : editingFactor === "sleep" ? "Sommeil" : "Localisation"}
-            </DialogTitle>
-            <DialogDescription className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-2 italic">Données manuelles</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-6 pt-4">
-            {editingFactor === "location" && (
-              <div>
-                <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Ville ou code postal</label>
-                <div className="flex gap-2">
-                  <Input type="text" value={editValues.location} onChange={e => setEditValues(v => ({ ...v, location: e.target.value }))} placeholder="Ex: Montreuil" className="flex-1" autoFocus />
-                  <button onClick={() => { setManualLocation(null); setEditingFactor(null); }} className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-primary" title="Automatique">
-                    <MapPin size={18} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            )}
-            {editingFactor === "heartStress" && (
-              <>
-                <div>
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Rythme cardiaque (bpm)</label>
-                  <Input type="number" value={editValues.heartRate} onChange={e => setEditValues(v => ({ ...v, heartRate: Number(e.target.value) }))} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Niveau de stress (1-5)</label>
-                  <div className="flex justify-between gap-1">
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <button key={n} onClick={() => setEditValues(v => ({ ...v, stressLevel: n }))}
-                        className={`w-12 h-12 rounded-full border text-sm font-bold transition-all ${editValues.stressLevel === n ? 'bg-primary border-primary text-primary-foreground premium-shadow' : 'bg-background border-border text-muted-foreground'}`}>
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-            {editingFactor === "sleep" && (
-              <div>
-                <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-3 block">Heures de sommeil</label>
-                <Input type="number" step="0.5" value={editValues.sleepHours} onChange={e => setEditValues(v => ({ ...v, sleepHours: Number(e.target.value) }))} />
-              </div>
-            )}
-            <button onClick={saveEditFactor}
-              className="w-full py-4 bg-primary text-primary-foreground rounded-full text-sm font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all">
-              Enregistrer
-            </button>
-          </div>
+        <DialogContent className="max-w-sm rounded-[40px] border border-border/40 bg-background premium-shadow">
+            <DialogHeader>
+                <DialogTitle className="text-xl font-display text-foreground">{editingFactor?.toUpperCase()}</DialogTitle>
+            </DialogHeader>
+            <div className="py-6">
+                {editingFactor === 'location' && (<div className="space-y-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ville :</label><Input value={locationInput} onChange={(e) => setLocationInput(e.target.value)} placeholder="Ex: Paris" className="flex-1 rounded-full" /></div>)}
+                {editingFactor === 'sleep' && (<div className="space-y-6"><div className="flex justify-between items-end mb-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Durée</label><span className="text-4xl font-display text-foreground">{editValue}h</span></div><div className="px-1"><Slider value={[editValue || 8]} min={0} max={15} step={0.5} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}
+                {editingFactor === 'stress' && (<div className="space-y-8"><div className="flex flex-col items-center gap-2 py-4"><span className="text-5xl font-display text-primary">{editValue}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic">{STRESS_LABELS[editValue] || ""}</span></div><div className="flex justify-between gap-1">{[1, 2, 3, 4, 5].map(v => (<button key={v} onClick={() => setEditValue(v)} className={`w-12 h-12 rounded-full border text-sm font-bold transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-background border-border text-muted-foreground'}`}>{v}</button>))}</div></div>)}
+                {editingFactor === 'cycle' && (
+                    <div className="space-y-8">
+                        <div className="space-y-4">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block px-1">
+                                    Date des dernières règles
+                                </label>
+                                <Input 
+                                    type="date" 
+                                    value={dailyLog.lastPeriodDate || ""} 
+                                    onChange={(e) => {
+                                        const date = e.target.value;
+                                        const calc = calculateCyclePhase(date, dailyLog.cycleDuration, dailyLog.periodDuration);
+                                        setDailyLog(prev => ({ 
+                                            ...prev, 
+                                            lastPeriodDate: date,
+                                            cyclePhase: calc.phase
+                                        }));
+                                        setEditValue({ phase: calc.phase, cycleDuration: dailyLog.cycleDuration, periodDuration: dailyLog.periodDuration, date: date });
+                                    }}
+                                    className="rounded-2xl h-14 bg-muted/10 border-transparent focus:border-primary/20 transition-all font-mono"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center px-1">
+                                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</label>
+                                        <span className="text-[11px] font-bold text-primary">{dailyLog.cycleDuration}j</span>
+                                    </div>
+                                    <Slider 
+                                        value={[dailyLog.cycleDuration || 28]} 
+                                        min={20} 
+                                        max={40} 
+                                        step={1} 
+                                        onValueChange={(v) => {
+                                            const dur = v[0];
+                                            const calc = calculateCyclePhase(dailyLog.lastPeriodDate, dur, dailyLog.periodDuration);
+                                            setDailyLog(prev => ({ ...prev, cycleDuration: dur, cyclePhase: calc.phase }));
+                                            setEditValue({ phase: calc.phase, cycleDuration: dur, periodDuration: dailyLog.periodDuration });
+                                        }} 
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center px-1">
+                                        <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Règles</label>
+                                        <span className="text-[11px] font-bold text-primary">{dailyLog.periodDuration}j</span>
+                                    </div>
+                                    <Slider 
+                                        value={[dailyLog.periodDuration || 5]} 
+                                        min={2} 
+                                        max={10} 
+                                        step={1} 
+                                        onValueChange={(v) => {
+                                            const dur = v[0];
+                                            const calc = calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dur);
+                                            setDailyLog(prev => ({ ...prev, periodDuration: dur, cyclePhase: calc.phase }));
+                                            setEditValue({ phase: calc.phase, cycleDuration: dailyLog.cycleDuration, periodDuration: dur });
+                                        }} 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                                {["Je ne sais pas", "Aucun"].map((opt) => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => {
+                                            setDailyLog(prev => ({ 
+                                                ...prev, 
+                                                lastPeriodDate: "",
+                                                cyclePhase: opt
+                                            }));
+                                            setEditValue(opt);
+                                        }}
+                                        className={`flex-1 py-3 h-12 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${dailyLog.cyclePhase === opt ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="premium-card p-6 bg-primary/5 border-primary/10">
+                            {(() => {
+                                const calc = calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration);
+                                if (calc.message) {
+                                    return <p className="text-[11px] font-bold text-primary/60 uppercase tracking-widest text-center italic">{calc.message}</p>;
+                                }
+                                return (
+                                    <div className="text-center space-y-2">
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Phase Actuelle</p>
+                                        <p className="text-2xl font-display text-primary">{calc.phase}</p>
+                                        <p className="text-[11px] font-bold text-primary/40 uppercase tracking-widest italic">Jour {calc.day} sur {dailyLog.cycleDuration}</p>
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                )}
+                {editingFactor === 'alcohol' && (<div className="space-y-8"><div className="grid grid-cols-2 gap-4"><button onClick={() => setEditValue(editValue > 0 ? editValue : 1)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue > 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Oui</button><button onClick={() => setEditValue(0)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Non</button></div>{editValue > 0 && (<div className="space-y-6"><div className="flex justify-between items-end"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">Quantité</label><span className="text-3xl font-display text-foreground">{editValue}</span></div><div className="px-1"><Slider value={[editValue]} min={1} max={10} step={1} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}</div>)}
+                {editingFactor === 'sport' && (
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-3">
+                            {workoutIntensities.map((i) => (
+                                <button 
+                                    key={i} 
+                                    onClick={() => setEditValue(i)} 
+                                    className={`py-4 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === i ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                                >
+                                    {i}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="pt-4 border-t border-border/40 space-y-4">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 text-center">Optimiser avec Strava</p>
+                            {dailyLog.stravaData && !isStravaLoading && (
+                                <p className="text-[10px] font-bold text-[#FC4C02] uppercase tracking-widest mb-3 text-center">
+                                    Dernière activité : {dailyLog.stravaData.sport} ({dailyLog.stravaData.duration} min)
+                                </p>
+                            )}
+                            <div className="flex justify-center">
+                                <StravaConnect compact />
+                            </div>
+                            {isStravaLoading && (
+                                <p className="text-[10px] font-bold text-muted-foreground animate-pulse uppercase tracking-widest mt-2 text-center">
+                                    Synchronisation...
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+                {editingFactor === 'makeup' && (<div className="space-y-6">{makeupStep === 1 ? (<div className="space-y-8"><p className="text-sm font-medium text-foreground tracking-tight italic text-center">Étiez-vous maquillé(e) ?</p><div className="grid grid-cols-2 gap-4"><button onClick={() => setMakeupStep(2)} className="py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all bg-muted/10 border-transparent text-foreground/60">Oui</button><button onClick={() => { setEditValue(true); saveEdit(); }} className="py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all bg-muted/10 border-transparent text-foreground/60">Non</button></div></div>) : (<div className="space-y-8"><p className="text-sm font-medium text-foreground tracking-tight italic text-center">Nettoyé ce soir ?</p><div className="flex flex-col gap-3"><button onClick={() => setEditValue(true)} className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Oui, complet</button><button onClick={() => setEditValue(false)} className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Non</button></div><button onClick={() => setMakeupStep(1)} className="w-full text-[9px] font-bold text-muted-foreground uppercase text-center mt-4">Retour</button></div>)}</div>)}
+            </div>
+            <button onClick={saveEdit} className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow">Enregistrer</button>
         </DialogContent>
       </Dialog>
 

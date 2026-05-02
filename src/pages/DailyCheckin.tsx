@@ -69,7 +69,7 @@ const DailyCheckin = () => {
         const today = new Date().toISOString().split('T')[0];
 
         if (lastCheckin === today && !isOnboarding) {
-            navigate("/checkin-advice", { replace: true });
+            navigate("/dashboard", { replace: true });
         }
     }, [isOnboarding, navigate]);
 
@@ -143,10 +143,10 @@ const DailyCheckin = () => {
             console.error("Erreur d'enregistrement réseau", e);
         }
 
-        if (isOnboarding) {
-            navigate("/checkin-advice", { state: { ...location.state } });
+        if (location.state?.isOnboarding) {
+            navigate("/dashboard", { state: { ...location.state } });
         } else {
-            navigate("/checkin-advice");
+            navigate("/dashboard");
         }
     };
 

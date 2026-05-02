@@ -17,10 +17,10 @@ const Callback: React.FC = () => {
         const athleteId = res.data.athleteId;
 
         localStorage.setItem("athleteId", athleteId);
-        window.location.href = "/checkin-advice";
+        window.location.href = "/dashboard";
       } catch (err) {
         console.error("Error exchanging token", err);
-        window.location.href = "/checkin-advice";
+        window.location.href = "/dashboard";
       }
     };
 

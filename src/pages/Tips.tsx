@@ -1,465 +1,159 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, ChevronRight, Droplets, Sun, Moon, Flame, Fingerprint, CircleDot, FlaskConical, ShieldCheck, Leaf, AlertTriangle, CheckCircle2, TrendingDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
+import { Sparkles, ChevronRight, Info } from "lucide-react";
+import { getActiveAdvice, Context, SKIN_TYPE_MAP, AdviceItem } from "@/utils/advice";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { calculateCyclePhase } from "@/utils/cycle";
 
-/* ─── Questions ─── */
-interface Question {
-  id: string;
-  text: string;
-  options: { label: string; value: number }[];
-}
-
-const questions: Question[] = [
-  {
-    id: "water", text: "Combien de verres d'eau aujourd'hui ?", options: [
-      { label: "0–2", value: 1 }, { label: "3–5", value: 2 }, { label: "6–8", value: 3 }, { label: "8+", value: 4 }
-    ]
-  },
-  {
-    id: "sunscreen", text: "Avez-vous appliqué de la crème solaire ?", options: [
-      { label: "Non", value: 1 }, { label: "Une fois", value: 2 }, { label: "Réappliqué", value: 4 }
-    ]
-  },
-  {
-    id: "sleep", text: "Heures de sommeil cette nuit ?", options: [
-      { label: "<5h", value: 1 }, { label: "5–6h", value: 2 }, { label: "7–8h", value: 3 }, { label: "8+", value: 4 }
-    ]
-  },
-  {
-    id: "stress", text: "Niveau de stress aujourd'hui ?", options: [
-      { label: "Élevé", value: 1 }, { label: "Modéré", value: 2 }, { label: "Faible", value: 3 }, { label: "Aucun", value: 4 }
-    ]
-  },
-  {
-    id: "diet", text: "Qualité de votre alimentation ?", options: [
-      { label: "Mauvaise", value: 1 }, { label: "Correcte", value: 2 }, { label: "Bonne", value: 3 }, { label: "Excellente", value: 4 }
-    ]
-  },
-];
-
-/* ─── Dashboard metrics (simulated — same as Dashboard.tsx) ─── */
-const dashboardMetrics = {
-  hydratation: 72,
-  eclat: 65,
-  rougeurs: 28,
-  texture: 80,
-  sebum: 45,
-  uv: 6,
-  humidity: 55,
-  sleepHours: 7.5,
-  stressLevel: 3,
-  waterGlasses: 6,
-  alcohol: false,
-  cyclePhase: "Folliculaire",
-};
-
-/* ─── Diagnosis zone data (simulated — same as Diagnosis.tsx) ─── */
-const diagnosisZones = {
-  forehead: { score: 62, status: "warning" as const, label: "Front" },
-  leftCheek: { score: 45, status: "alert" as const, label: "Joue gauche" },
-  rightCheek: { score: 48, status: "alert" as const, label: "Joue droite" },
-  tzone: { score: 40, status: "alert" as const, label: "Zone T" },
-  chin: { score: 78, status: "good" as const, label: "Menton" },
-  jaw: { score: 76, status: "good" as const, label: "Mâchoire" },
-};
-
-/* ─── Tip generation engine ─── */
-interface DetailedTip {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  products: string[];
-  ingredients: string[];
-  priority: "high" | "medium" | "low";
-  source: string; // what triggered this tip
-}
-
-function generateTips(answers: Record<string, number>): DetailedTip[] {
-  const tips: DetailedTip[] = [];
-  const hasDiag = true; // we always show diagnostic-based tips
-
-  // ─── Quiz-based tips ───
-  if (answers.water <= 2) {
-    tips.push({
-      icon: <Droplets size={18} />,
-      title: "Hydratation insuffisante",
-      description: "Votre apport en eau est trop faible. La déshydratation accentue les rides, ternit le teint et fragilise la barrière cutanée. Visez minimum 1,5L/jour en augmentant progressivement.",
-      products: ["Sérum Hyaluronique Concentré", "Brume hydratante visage", "Crème riche en céramides"],
-      ingredients: ["Acide hyaluronique (bas & haut poids moléculaire)", "Glycérine végétale", "Bétaïne", "Aloe vera"],
-      priority: "high",
-      source: "Quiz : faible hydratation",
-    });
-  } else if (answers.water === 3) {
-    tips.push({
-      icon: <Droplets size={18} />,
-      title: "Hydratation à optimiser",
-      description: "Votre consommation d'eau est correcte mais peut être améliorée. Pensez à boire avant d'avoir soif et à intégrer des aliments riches en eau (concombre, pastèque).",
-      products: ["Sérum aqua-boost léger", "Lotion tonique hydratante"],
-      ingredients: ["Acide hyaluronique", "Niacinamide", "Panthénol"],
-      priority: "low",
-      source: "Quiz : hydratation moyenne",
-    });
-  }
-
-  if (answers.sunscreen <= 1) {
-    tips.push({
-      icon: <Sun size={18} />,
-      title: "Protection solaire absente — URGENT",
-      description: `Sans crème solaire avec un indice UV de ${dashboardMetrics.uv}, votre peau subit des dommages photo-induits : taches, rides prématurées et risque de mélanome. C'est le geste anti-âge n°1.`,
-      products: ["SPF 50+ texture fluide (La Roche-Posay Shaka Fluid)", "Spray solaire réapplication (Bioderma Photoderm)", "Stick solaire zones sensibles"],
-      ingredients: ["Filtres minéraux (oxyde de zinc, dioxyde de titane)", "Vitamine E (antioxydant)", "Tinosorb S (filtre photostable)"],
-      priority: "high",
-      source: `Quiz + UV actuel : ${dashboardMetrics.uv}`,
-    });
-  } else if (answers.sunscreen === 2) {
-    tips.push({
-      icon: <Sun size={18} />,
-      title: "Réappliquez votre solaire",
-      description: `Avec un UV de ${dashboardMetrics.uv}, une seule application ne suffit pas. La protection diminue après 2h d'exposition, la transpiration et le contact avec le visage.`,
-      products: ["Brume solaire SPF50 pour réapplication", "Poudre solaire minérale (pratique en journée)"],
-      ingredients: ["Filtres UVA/UVB photostables", "Niacinamide (anti-taches)"],
-      priority: "medium",
-      source: `Quiz + UV : ${dashboardMetrics.uv}`,
-    });
-  }
-
-  if (answers.sleep <= 2) {
-    tips.push({
-      icon: <Moon size={18} />,
-      title: "Sommeil insuffisant — impact majeur",
-      description: "Moins de 6h de sommeil réduit de 30% la production de collagène nocturne et augmente le cortisol (stress cutané). Votre peau ne se régénère pas correctement.",
-      products: ["Soin de nuit riche au rétinol", "Masque de nuit réparateur", "Huile visage nourrissante (avant le coucher)"],
-      ingredients: ["Rétinol (0.3% pour débuter)", "Peptides de cuivre", "Squalane", "Beurre de karité"],
-      priority: "high",
-      source: "Quiz : sommeil < 6h",
-    });
-  }
-
-  if (answers.stress <= 1) {
-    tips.push({
-      icon: <Flame size={18} />,
-      title: "Stress élevé — peau réactive",
-      description: `Votre niveau de stress (${dashboardMetrics.stressLevel}/5 sur le dashboard) combiné à votre réponse confirme un impact cutané : le cortisol augmente la production de sébum, fragilise la barrière et peut déclencher des poussées inflammatoires.`,
-      products: ["Sérum apaisant anti-rougeurs", "Crème barrière réparatrice", "Roll-on huiles essentielles détente"],
-      ingredients: ["Centella asiatica (cicatrisation)", "Bisabolol (anti-inflammatoire)", "Niacinamide B3 (renforce la barrière)", "CBD topique (apaisant)"],
-      priority: "high",
-      source: `Quiz stress + Dashboard stress : ${dashboardMetrics.stressLevel}/5`,
-    });
-  }
-
-  if (answers.diet <= 2) {
-    tips.push({
-      icon: <Leaf size={18} />,
-      title: "Alimentation à revoir",
-      description: "Une alimentation riche en sucres rapides et produits transformés stimule la glycation (vieillissement) et l'inflammation. Privilégiez les antioxydants et les oméga-3.",
-      products: ["Complément oméga-3 (huile de poisson ou algues)", "Sérum vitamine C topique le matin"],
-      ingredients: ["Vitamine C (L-ascorbic acid 15-20%)", "Vitamine E", "Resvératrol", "Zinc (en complément oral)"],
-      priority: "medium",
-      source: "Quiz : alimentation médiocre",
-    });
-  }
-
-  // ─── Dashboard metrics-based tips ───
-  if (dashboardMetrics.rougeurs > 20) {
-    tips.push({
-      icon: <Flame size={18} />,
-      title: "Rougeurs détectées sur le dashboard",
-      description: `Votre indice de rougeurs est à ${dashboardMetrics.rougeurs}%. Cela indique une inflammation cutanée active, possiblement aggravée par le stress, l'alimentation ou des produits inadaptés.`,
-      products: ["Crème anti-rougeurs (Avène Antirougeurs Fort)", "Eau micellaire ultra-douce", "Masque apaisant à l'avoine"],
-      ingredients: ["Centella asiatica", "Allantoïne", "Bisabolol", "Avoine colloïdale"],
-      priority: "medium",
-      source: `Dashboard rougeurs : ${dashboardMetrics.rougeurs}%`,
-    });
-  }
-
-  if (dashboardMetrics.sebum < 50) {
-    // sebum ok but t-zone is alert
-  }
-
-  if (dashboardMetrics.eclat < 70) {
-    tips.push({
-      icon: <Sparkles size={18} />,
-      title: "Éclat à booster",
-      description: `Score éclat de ${dashboardMetrics.eclat}%. Le teint manque de luminosité, souvent lié au manque de sommeil, à la déshydratation et à l'accumulation de cellules mortes.`,
-      products: ["Peeling doux AHA/PHA (The Ordinary 30% AHA)", "Sérum vitamine C 15%", "Masque éclat illuminateur"],
-      ingredients: ["Acide glycolique (AHA 5-10%)", "Vitamine C stabilisée", "Niacinamide 5%", "Acide lactique"],
-      priority: "medium",
-      source: `Dashboard éclat : ${dashboardMetrics.eclat}%`,
-    });
-  }
-
-  // ─── Diagnosis zone-based tips ───
-  if (hasDiag) {
-    if (diagnosisZones.tzone.status === "alert") {
-      tips.push({
-        icon: <CircleDot size={18} />,
-        title: "Zone T critique — pores et sébum",
-        description: `Score zone T : ${diagnosisZones.tzone.score}/100. Pores très dilatés et excès de sébum détectés. Le double nettoyage et les actifs sébo-régulateurs sont essentiels.`,
-        products: ["Huile démaquillante (1er nettoyage)", "Gel nettoyant salicylique (2e nettoyage)", "Sérum niacinamide 10% + zinc", "Masque argile verte Cattier"],
-        ingredients: ["BHA / Acide salicylique 2%", "Niacinamide + Zinc PCA", "Argile verte / kaolin", "Charbon actif"],
-        priority: "high",
-        source: `Diagnostic zone T : ${diagnosisZones.tzone.score}/100`,
-      });
-    }
-
-    if (diagnosisZones.leftCheek.status === "alert" || diagnosisZones.rightCheek.status === "alert") {
-      tips.push({
-        icon: <AlertTriangle size={18} />,
-        title: "Joues irritées — barrière fragilisée",
-        description: `Joue gauche ${diagnosisZones.leftCheek.score}/100, joue droite ${diagnosisZones.rightCheek.score}/100. Rougeurs et boutons inflammatoires. La barrière cutanée est compromise. Simplifiez votre routine et renforcez la barrière.`,
-        products: ["Crème réparatrice barrière (CeraVe, La Roche-Posay Cicaplast)", "Taie d'oreiller en soie", "Nettoyant surgras sans sulfates"],
-        ingredients: ["Céramides (NP, AP, EOP)", "Panthénol / provitamine B5", "Madécassoside", "Squalane"],
-        priority: "high",
-        source: `Diagnostic joues : ${diagnosisZones.leftCheek.score} & ${diagnosisZones.rightCheek.score}/100`,
-      });
-    }
-
-    if (diagnosisZones.forehead.status === "warning") {
-      tips.push({
-        icon: <Fingerprint size={18} />,
-        title: "Front — rides et déshydratation",
-        description: `Score front : ${diagnosisZones.forehead.score}/100. Les rides d'expression sont accentuées par la déshydratation. Un combo hydratation intense + anti-rides ciblé est recommandé.`,
-        products: ["Sérum hyaluronique multi-poids", "Crème au rétinol 0.5% (le soir)", "Patchs hydrogel front"],
-        ingredients: ["Rétinol / rétinaldéhyde", "Acide hyaluronique", "Peptides (Matrixyl, Argireline)", "Vitamine E"],
-        priority: "medium",
-        source: `Diagnostic front : ${diagnosisZones.forehead.score}/100`,
-      });
-    }
-  }
-
-  // ─── Cycle-based tips ───
-  if (dashboardMetrics.cyclePhase === "Folliculaire") {
-    tips.push({
-      icon: <FlaskConical size={18} />,
-      title: "Phase folliculaire — profitez-en",
-      description: "Les œstrogènes remontent : c'est le meilleur moment pour les exfoliants et traitements actifs (rétinol, AHA). Votre peau tolère mieux les actifs puissants pendant cette phase.",
-      products: ["Peeling AHA 10%", "Sérum rétinol", "Masque purifiant"],
-      ingredients: ["Acide glycolique", "Rétinol", "BHA", "Vitamine C"],
-      priority: "low",
-      source: `Dashboard cycle : ${dashboardMetrics.cyclePhase}`,
-    });
-  }
-
-  // Sort by priority
-  const priorityOrder = { high: 0, medium: 1, low: 2 };
-  tips.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-
-  return tips;
-}
-
-/* ─── UI Components ─── */
-const priorityConfig = {
-  high: { border: "border-primary/20", bg: "bg-primary/5", label: "Action immédiate", color: "text-primary" },
-  medium: { border: "border-border/40", bg: "bg-white/60", label: "Recommandé", color: "text-foreground" },
-  low: { border: "border-border/20", bg: "bg-white/40", label: "Conseil bien-être", color: "text-muted-foreground" },
-};
-
-const TipCard = ({ tip, index }: { tip: DetailedTip; index: number }) => {
-  const [open, setOpen] = useState(false);
-  const config = priorityConfig[tip.priority];
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08 }}
-      className={`bg-white border ${config.border} rounded-[32px] group transition-all hover:border-primary/20 overflow-hidden relative shadow-sm`}
-    >
-      {/* Collapsed summary — always visible */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full text-left p-8 flex items-center gap-5"
-      >
-        <div className={`w-12 h-12 rounded-2xl ${config.bg} flex items-center justify-center ${config.color} flex-shrink-0 group-hover:scale-110 transition-transform`}>
-          {tip.icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-col gap-1 mb-1">
-            <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${config.color} opacity-60`}>
-              {config.label}
-            </span>
-            <h3 className="text-[15px] font-display text-foreground leading-tight">{tip.title}</h3>
-          </div>
-          <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">{tip.source}</p>
-        </div>
-        <div className={`w-8 h-8 rounded-full border border-border/40 flex items-center justify-center text-primary/40 transition-all ${open ? 'rotate-90 bg-primary/5 border-primary/20 text-primary' : ''}`}>
-          <ChevronRight size={14} strokeWidth={2.5} />
-        </div>
-      </button>
-
-      {/* Expanded details */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden"
-          >
-            <div className="px-8 pb-8 pt-0 space-y-8">
-              <p className="text-[13px] text-foreground/80 leading-relaxed italic">{tip.description}</p>
-
-              {/* Products */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 decoration-primary/30 decoration-2 underline underline-offset-4">
-                  <ShieldCheck size={12} className="text-primary" strokeWidth={1.5} />
-                  Recommandations produits
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {tip.products.map((p, i) => (
-                    <span key={i} className="text-[10px] bg-white border border-border/40 text-foreground px-4 py-2 rounded-full font-bold uppercase tracking-widest shadow-sm">
-                      {p}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Ingredients */}
-              <div className="space-y-4">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2 decoration-primary/30 decoration-2 underline underline-offset-4">
-                  <FlaskConical size={12} className="text-primary" strokeWidth={1.5} />
-                  Actifs à privilégier
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {tip.ingredients.map((ing, i) => (
-                    <span key={i} className="text-[10px] bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold uppercase tracking-widest premium-shadow">
-                      {ing}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
-
-/* ─── Main component ─── */
 const Tips = () => {
-  const persistedRaw = localStorage.getItem("currentTipsSession");
-  const persisted = persistedRaw ? JSON.parse(persistedRaw) : null;
+    const [selectedAdvice, setSelectedAdvice] = useState<AdviceItem | null>(null);
 
-  const [step, setStep] = useState(persisted?.step || 0);
-  const [answers, setAnswers] = useState<Record<string, number>>(persisted?.answers || {});
-  const [done, setDone] = useState(persisted?.done || false);
-  const diagResult = useDiagnosisResult();
+    const factors = useMemo(() => {
+        const saved = localStorage.getItem("dailyCheckinData");
+        const parsed = saved ? JSON.parse(saved) : {};
+        if (!parsed.cycleDuration) parsed.cycleDuration = 28;
+        if (!parsed.periodDuration) parsed.periodDuration = 5;
+        return parsed;
+    }, []);
 
-  useEffect(() => {
-    localStorage.setItem("currentTipsSession", JSON.stringify({ step, answers, done }));
-  }, [step, answers, done]);
+    const guest = useMemo(() => {
+        const saved = localStorage.getItem("guestProfile");
+        return saved ? JSON.parse(saved) : {};
+    }, []);
 
-  const current = questions[step];
+    const isAllFactorsDone = useMemo(() => {
+        const required = ['sleepHours', 'stressLevel', 'waterStatus', 'alcoholDrinks', 'cyclePhase', 'didSport', 'makeupRemoved', 'foodQuality'];
+        return required.every(key => {
+            const val = factors[key];
+            return val !== undefined && val !== null && val !== "" && val !== "N/A";
+        });
+    }, [factors]);
 
-  const answer = (qId: string, val: number) => {
-    const newAnswers = { ...answers, [qId]: val };
-    setAnswers(newAnswers);
-    if (step < questions.length - 1) {
-      setTimeout(() => setStep(s => s + 1), 300);
-    } else {
-      setTimeout(() => setDone(true), 300);
-    }
-  };
+    const adviceList = useMemo(() => {
+        if (!isAllFactorsDone) return [];
+        if (!factors.weather) return [];
+        const skinType = SKIN_TYPE_MAP[guest.skin_type] ?? "normal";
+        
+        const makeupRemoved = factors.makeupRemoved !== undefined ? factors.makeupRemoved : true;
+        const didSport = factors.didSport === true || (typeof factors.didSport === 'string' && factors.didSport !== "Non");
+        
+        const ctx: Context = {
+            skinType,
+            uvIndex: Math.floor(factors.weather?.uv ?? 0),
+            tempC: factors.weather?.temp ?? 20,
+            humidity: factors.weather?.humidity ?? 50,
+            aqi: factors.weather?.aqiScore ?? 25,
+            sleepHours: factors.sleepHours ?? 8,
+            stressLevel: (factors.stressLevel ?? 1) * 2,
+            alcoholLastNight: factors.alcoholDrinks ?? 0,
+            removedMakeupLastNight: makeupRemoved,
+            didSportToday: didSport,
+            cycleDay: calculateCyclePhase(factors.lastPeriodDate, factors.cycleDuration, factors.periodDuration).day
+        };
 
-  const tips = done ? generateTips(answers) : [];
-  const quizScore = done ? Math.round((Object.values(answers).reduce((a, b) => a + b, 0) / (questions.length * 4)) * 100) : 0;
-  const highCount = tips.filter(t => t.priority === "high").length;
+        const advice = getActiveAdvice(ctx);
+        if (advice.length === 0) {
+            advice.push({
+                iconStr: "✨",
+                title: "Tout va bien",
+                text: "Vos indicateurs sont au vert ! Maintenez votre belle routine actuelle.",
+                tip: "Continuez de bien hydrater votre peau chaque matin.",
+                group: "g1",
+                priority: "low"
+            });
+        }
+        return advice;
+    }, [factors, guest, isAllFactorsDone]);
 
-  const restart = () => {
-    setStep(0);
-    setAnswers({});
-    setDone(false);
-    localStorage.removeItem("currentTipsSession");
-  };
+    return (
+        <div className="min-h-screen bg-background pb-24 px-5 pt-10 max-w-lg mx-auto relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-  return (
-    <div className="min-h-screen bg-background pb-24 px-5 pt-10 max-w-lg mx-auto relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-12 text-center relative z-10">
-        <div className="flex flex-col items-center gap-4 mb-6">
-          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-            <Sparkles size={24} strokeWidth={1.5} />
-          </div>
-          <h1 className="text-4xl font-display text-foreground leading-tight">Le Quiz</h1>
-        </div>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation dermatologique avancée</p>
-      </motion.div>
-
-      {/* Progress bar */}
-      <div className="flex gap-2 mb-12 px-2 relative z-10">
-        {questions.map((_, i) => (
-          <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < step || done ? 'bg-primary' : 'bg-muted/10'
-            }`} />
-        ))}
-      </div>
-
-      <AnimatePresence mode="wait">
-        {!done ? (
-          <motion.div key={step} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="relative z-10">
-            <div className="premium-card p-10 bg-white/60">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-8 ml-1">Étape {step + 1} sur {questions.length}</p>
-              <h2 className="text-3xl font-display text-foreground leading-tight mb-10 italic">{current.text}</h2>
-              <div className="space-y-4">
-                {current.options.map(opt => (
-                  <button key={opt.label} onClick={() => answer(current.id, opt.value)}
-                    className={`w-full text-left px-8 py-5 rounded-[24px] border transition-all text-[11px] font-bold uppercase tracking-widest shadow-sm ${answers[current.id] === opt.value
-                      ? 'border-primary bg-primary text-primary-foreground premium-shadow'
-                      : 'border-border/40 bg-white/80 text-foreground hover:border-primary/40 hover:bg-white'
-                      }`}>
-                    <div className="flex items-center justify-between">
-                      {opt.label}
-                      <ChevronRight size={14} strokeWidth={2.5} className={answers[current.id] === opt.value ? 'text-primary-foreground' : 'text-primary/20'} />
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-12 text-center relative z-10">
+                <div className="flex flex-col items-center gap-4 mb-6">
+                    <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                        <Sparkles size={24} strokeWidth={1.5} />
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative z-10">
+                    <h1 className="text-4xl font-display text-foreground leading-tight">Conseils du jour</h1>
+                </div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Bio-Analyse Personnalisée</p>
+            </motion.div>
 
-            {/* Score summary */}
-            <div className="premium-card p-10 mb-8 bg-white border-primary/10 text-center">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6">Analyses bio-cutanées générées</p>
-              <p className="text-2xl font-display text-foreground leading-tight italic mb-8">
-                {quizScore > 75 ? "Protocoles optimaux détectés" : quizScore > 50 ? "Ajustements ciblés requis" : "Intervention prioritaire recommandée"}
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <span className="bg-primary/5 text-primary text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest border border-primary/10 shadow-sm">
-                  {tips.length} Conseils
-                </span>
-                {highCount > 0 && (
-                  <span className="bg-primary text-primary-foreground text-[9px] font-bold px-4 py-2 rounded-full uppercase tracking-widest premium-shadow">
-                    {highCount} Priorités
-                  </span>
+            <div className="space-y-6 relative z-10">
+                {!isAllFactorsDone ? (
+                    <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="premium-card p-10 bg-white/60 flex flex-col items-center gap-6 text-center border-primary/10">
+                        <div className="space-y-4">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-primary italic opacity-80">Check-in requis</p>
+                            <p className="text-[13px] text-foreground leading-relaxed italic">Complétez vos facteurs de vie sur la page d'accueil pour débloquer vos protocoles de soin personnalisés.</p>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <AnimatePresence mode="popLayout">
+                        {adviceList.map((advice, idx) => (
+                            <motion.div key={advice.title} 
+                                initial={{ opacity: 0, y: 10 }} 
+                                animate={{ opacity: 1, y: 0 }} 
+                                exit={{ opacity: 0, scale: 0.95 }} 
+                                transition={{ delay: idx * 0.1 }} 
+                                onClick={() => setSelectedAdvice(advice)}
+                                className="premium-card p-8 bg-white/60 hover:bg-white transition-all group overflow-hidden cursor-pointer active:scale-[0.98]"
+                            >
+                                <div className="flex gap-6">
+                                    <div className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+                                        </div>
+                                        <p className="text-[13px] text-foreground/80 leading-relaxed italic line-clamp-2">{advice.text}</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
                 )}
-              </div>
             </div>
 
-            {/* Data sources info */}
-            <div className="premium-card p-6 mb-8 bg-white/40 border-primary/5 italic">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-relaxed text-center opacity-60">
-                Synthèse multi-factorielle : Quiz + Dashboard + Métabolisme + Diagnostic IA.
-              </p>
-            </div>
+            {/* Modale de conseil détaillé */}
+            <Dialog open={!!selectedAdvice} onOpenChange={() => setSelectedAdvice(null)}>
+                <DialogContent className="max-w-sm rounded-[40px] border-none bg-background premium-shadow p-10">
+                    <DialogHeader className="mb-8">
+                        <div className="text-5xl mb-6">{selectedAdvice?.iconStr}</div>
+                        <DialogTitle className="text-2xl font-display text-foreground italic">{selectedAdvice?.title}</DialogTitle>
+                    </DialogHeader>
+                    
+                    <div className="space-y-8">
+                        <p className="text-sm text-foreground/80 leading-relaxed italic">{selectedAdvice?.text}</p>
+                        
+                        {selectedAdvice?.ingredients && selectedAdvice.ingredients.length > 0 && (
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-bold text-primary uppercase tracking-[0.2em]">Ingrédients cibles</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedAdvice.ingredients.map(ing => (
+                                        <span key={ing} className="px-4 py-2 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{ing}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-            {/* Tips list */}
-            <div className="space-y-3 mb-5">
-              {tips.map((tip, i) => (
-                <TipCard key={i} tip={tip} index={i} />
-              ))}
-            </div>
+                        {selectedAdvice?.tip && (
+                            <div className="flex gap-4 p-6 bg-primary/5 rounded-[32px] border border-primary/10">
+                                <div className="bg-white rounded-full p-2 text-primary shadow-sm h-fit"><Info size={14} strokeWidth={2.5} /></div>
+                                <p className="text-[11px] font-bold text-primary/80 leading-relaxed uppercase tracking-widest italic">{selectedAdvice.tip}</p>
+                            </div>
+                        )}
 
-            <Button onClick={restart} variant="outline" className="w-full h-14 border-border/60 bg-white/50 text-muted-foreground font-bold uppercase tracking-widest rounded-full hover:bg-white hover:text-primary transition-all">Réinitialiser le quiz</Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+                        <button 
+                            onClick={() => setSelectedAdvice(null)}
+                            className="w-full h-16 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all mt-6"
+                        >
+                            Compris
+                        </button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
 };
 
 export default Tips;
