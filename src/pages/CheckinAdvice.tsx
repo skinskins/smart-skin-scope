@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import PassportPromptCard from "@/features/passport/components/PassportPromptCard";
 import { toast } from "sonner";
 import StravaConnect from "./StravaConnect";
 import { classifyStravaIntensity } from "@/data/stravaIntensity";
@@ -198,33 +199,50 @@ const CheckinAdvice = () => {
         if (!session) return;
 
         const todayStr = new Date().toISOString().split('T')[0];
-        const updates: any = {
-            last_checkin_date: todayStr
-        };
+        const userId = session.user.id;
 
-        if (key === 'sleep') updates.sleep_hours = value;
-        if (key === 'stress') updates.stress_level = value;
-        if (key === 'water') updates.water_glasses = value === "Trop" ? 12 : (value === "Suffisamment" ? 8 : 4);
-        if (key === 'alcohol') updates.alcohol_drinks = value;
-        if (key === 'cycle') updates.cycle_phase = value;
-        if (key === 'sport') updates.did_sport = value;
-        if (key === 'makeup') updates.makeup_removed = value;
-        if (key === 'alimentation') updates.food_quality = value;
+        // --- Location stays on profiles (permanent data) ---
         if (key === 'location') {
-            updates.manual_location = value;
-            // Also update long-term storage
             localStorage.setItem("manualLocation", value);
             setManualLocationState(value);
+            await (supabase as any).from("profiles").update({ manual_location: value }).eq("id", userId);
+            return;
         }
 
-        // console.log(`[CheckinAdvice] Syncing ${key} to Supabase:`, value);
-        // const { data, error } = await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
-        // if (error) {
-        //     console.error(`[CheckinAdvice] Error syncing ${key}:`, error);
-        //     toast.error("Erreur de sauvegarde : Vérifiez la base de données.");
-        // } else {
-        //     console.log(`[CheckinAdvice] Multi-sync successful for ${key}.`);
-        // }
+        // --- Routine data → routine_logs ---
+        if (key === 'makeup') {
+            const { error } = await (supabase as any).from("routine_logs").upsert({
+                user_id: userId,
+                date: todayStr,
+                makeup_removed: value,
+            }, { onConflict: 'user_id,date' });
+            if (error) console.error("[CheckinAdvice] Error upserting routine_logs:", error);
+            // Also update last_checkin_date on profiles for new-day detection
+            await (supabase as any).from("profiles").update({ last_checkin_date: todayStr }).eq("id", userId);
+            return;
+        }
+
+        // --- Daily check-in data → daily_checkins ---
+        const checkinUpdate: any = { user_id: userId, date: todayStr };
+        if (key === 'sleep') checkinUpdate.sleep_hours = value;
+        if (key === 'stress') checkinUpdate.stress_level = value;
+        if (key === 'water') checkinUpdate.water_glasses = value === "Trop" ? 12 : (value === "Suffisamment" ? 8 : 4);
+        if (key === 'alcohol') checkinUpdate.alcohol_drinks = value;
+        if (key === 'cycle') checkinUpdate.cycle_phase = value;
+        if (key === 'sport') {
+            checkinUpdate.did_sport = value === null ? null : (typeof value === 'boolean' ? value : value !== "Non");
+            if (typeof value === 'string' && value !== "Non") checkinUpdate.sport_intensity = value;
+        }
+        if (key === 'alimentation') checkinUpdate.food_quality = value;
+
+        const { error } = await (supabase as any).from("daily_checkins").upsert(
+            checkinUpdate,
+            { onConflict: 'user_id,date' }
+        );
+        if (error) console.error("[CheckinAdvice] Error upserting daily_checkins:", error);
+
+        // Keep last_checkin_date on profiles for the auth guard / new-day detection
+        await (supabase as any).from("profiles").update({ last_checkin_date: todayStr }).eq("id", userId);
     };
 
     const [manualLocation, setManualLocationState] = useState<string>(() => localStorage.getItem("manualLocation") || "Paris");
@@ -372,17 +390,12 @@ const CheckinAdvice = () => {
                         setFactors(preservedFactors);
                         localStorage.setItem("dailyCheckinData", JSON.stringify(preservedFactors));
 
-                        // Also clear the daily columns in Supabase for the new day
+                        // Update last_checkin_date on profiles for new-day detection
+                        // Daily data now lives in daily_checkins / routine_logs (one row per day)
                         (supabase as any).from("profiles").update({
-                            cycle_phase: null,
-                            stress_level: null,
-                            makeup_removed: null,
-                            sleep_hours: null,
-                            alcohol_drinks: null,
-                            did_sport: null,
                             last_checkin_date: todayStr
-                        }).eq("id", session.user.id).then(({ error }) => {
-                            if (error) console.error("[CheckinAdvice] Error resetting daily fields in DB:", error);
+                        }).eq("id", session.user.id).then(({ error }: { error: any }) => {
+                            if (error) console.error("[CheckinAdvice] Error updating last_checkin_date:", error);
                         });
                     }
                 }
@@ -647,6 +660,8 @@ const CheckinAdvice = () => {
                     </div>
                 </div>
             </section>
+
+            <PassportPromptCard />
 
             {/* Advice Section */}
             <section className="mb-12">
