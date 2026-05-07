@@ -582,7 +582,8 @@ const CheckinAdvice = () => {
         <div className="min-h-screen bg-background flex flex-col p-6 pb-32 max-w-lg mx-auto overflow-x-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#111111]/5 -translate-y-1/2 translate-x-1/2" />
 
-            {/* Consolidated Identity Header */}
+            {/* TODO: restore profile block when redesigned */}
+            {false && (
             <section className="mb-12 relative group/card">
                 <div className="bg-[#f8fafc] border border-[#e2e8f0] p-8 relative overflow-hidden shadow-sm">
                     <div className="absolute top-0 left-0 w-1 h-full bg-[#0052cc]" />
@@ -677,6 +678,7 @@ const CheckinAdvice = () => {
                     </div>
                 </div>
             </section>
+            )}
 
             <PassportPromptCard />
 

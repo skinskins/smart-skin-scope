@@ -1,14 +1,10 @@
 import { motion } from "framer-motion";
-import { FileText, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-/**
- * Contextual card prompting the user to generate their "Passeport de peau".
- *
- * Visibility rules (mock for now):
- *  - Shown when the user has 7+ days of tracking data
- *  - Hidden once a passport has already been generated
- */
+// Visibility rules (mock for now):
+//  - Shown when the user has 7+ days of tracking data
+//  - Hidden once a passport has already been generated
 const PassportPromptCard = () => {
   const navigate = useNavigate();
 
@@ -23,26 +19,32 @@ const PassportPromptCard = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-8 bg-white border border-[#111111] flex flex-col items-center gap-4 text-center"
+        className="p-8 bg-white border border-[#111111] flex flex-col gap-5"
       >
-        <div className="p-4 border border-[#111111]">
-          <FileText size={24} className="text-[#111111]" />
-        </div>
+        <p className="text-[10px] font-mono font-bold text-[#111111] uppercase tracking-widest">
+          MILESTONE ATTEINT
+        </p>
+        <h3 className="text-xl font-display font-black text-[#111111] uppercase tracking-tight">
+          PASSEPORT DISPONIBLE
+        </h3>
+        <p className="text-xs font-mono text-[#555555] uppercase tracking-[0.05em]">
+          30 JOURS DE SUIVI COMPLÉTÉS
+        </p>
         <div className="space-y-2">
-          <p className="text-sm font-bold uppercase tracking-[0.1em] text-[#111111]">
-            Passeport de peau disponible
-          </p>
-          <p className="text-xs text-[#555555] leading-relaxed uppercase font-mono tracking-[0.05em]">
-            Vos 30 jours de suivi sont prêts à être partagés avec votre professionnel de santé.
-          </p>
-          <button
-            onClick={() => navigate("/passport/preview")}
-            className="mt-4 px-6 py-3 bg-[#111111] text-white text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors flex items-center gap-2 mx-auto"
-          >
-            Générer mon passeport
-            <ChevronRight size={14} />
-          </button>
+          <span className="text-[10px] font-mono font-bold text-[#111111] uppercase tracking-widest">
+            30/30 JOURS
+          </span>
+          <div className="w-full h-[3px] bg-[#E5E5E5]">
+            <div className="h-full w-full bg-[#111111]" />
+          </div>
         </div>
+        <button
+          onClick={() => navigate("/passport/preview")}
+          className="px-6 py-3 bg-[#111111] text-white text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-black transition-colors flex items-center gap-2"
+        >
+          GÉNÉRER MON PASSEPORT
+          <ChevronRight size={14} />
+        </button>
       </motion.div>
     </section>
   );
