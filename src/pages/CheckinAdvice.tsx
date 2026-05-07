@@ -583,6 +583,24 @@ const CheckinAdvice = () => {
         <div className="min-h-screen bg-background flex flex-col p-6 pb-32 max-w-lg mx-auto overflow-x-hidden relative">
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#111111]/5 -translate-y-1/2 translate-x-1/2" />
 
+            {/* Logout */}
+            <div className="flex justify-end mb-4 relative z-10">
+                <button
+                    onClick={async () => {
+                        await supabase.auth.signOut();
+                        localStorage.removeItem("guestProfile");
+                        localStorage.removeItem("lastCheckinDate");
+                        localStorage.removeItem("dailyCheckinData");
+                        localStorage.removeItem("manualLocation");
+                        navigate("/onboarding");
+                        toast.success("Déconnexion réussie");
+                    }}
+                    className="p-3 bg-white border border-[#e2e8f0] text-[#0f172a] hover:bg-[#0052cc] hover:text-white transition-all shadow-sm"
+                >
+                    <LogOut size={18} />
+                </button>
+            </div>
+
             {/* TODO: restore profile block when redesigned */}
             {false && (
             <section className="mb-12 relative group/card">
