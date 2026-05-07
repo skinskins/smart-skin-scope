@@ -10,7 +10,6 @@ import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import RoutineCard from "@/features/routine/components/RoutineCard";
 
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
@@ -937,8 +936,6 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Ma Routine — connected to user_products + routine_logs */}
-      <RoutineCard />
 
       {/* Métriques peau */}
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Indicateurs de ma peau</h2>
