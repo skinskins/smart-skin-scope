@@ -5,13 +5,16 @@ import { ArrowLeft, Search, Plus, Check, ImageOff, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// ─── Design tokens ────────────────────────────────────────────────
-const BG = "#F0EBE3";
-const PRIMARY = "#2C1810";
-const MUTED = "#8B7355";
-const INPUT_BG = "#FAF6F2";
-const INPUT_BORDER = "#C4A98A";
-const SERIF = { fontFamily: "Georgia, serif" };
+// ─── Figma design tokens (Nacre_Amira / node 135-5871) ───────────
+const BG_INTRO = "#f2f2f7";   // intro + confirmation screens
+const BG      = "#ffffff";    // all content steps
+const PRIMARY = "#2c180f";    // CTA, selected state
+const TEXT    = "#18181b";    // primary text
+const MUTED   = "#737373";    // secondary / hint text
+const PILL_BG = "#f0ebe3";    // unselected pill background
+const PILL_TEXT = "#0a0a0a";  // unselected pill text
+const MANROPE = "'Manrope', 'DM Sans', sans-serif";
+const OPEN_SANS = "'Open Sans', system-ui, sans-serif";
 
 // ─── Types ────────────────────────────────────────────────────────
 interface SelectedProduct {
@@ -48,40 +51,35 @@ const EMPTY: Collected = {
   firstName: "", email: "", password: "",
 };
 
-// ─── Shared layout ────────────────────────────────────────────────
-function Screen({ children, step }: { children: React.ReactNode; step: number }) {
-  const showCounter = step >= 1 && step <= 4;
-  return (
-    <div className="min-h-screen flex flex-col overflow-y-auto" style={{ background: BG }}>
-      {showCounter && (
-        <div className="flex items-center justify-between px-6 pt-10 pb-4 flex-shrink-0">
-          <span className="text-xs font-mono" style={{ color: MUTED }}>ÉTAPE {step}/4</span>
-          <div className="flex gap-1.5">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-1.5 rounded-full transition-all duration-300"
-                style={{
-                  width: i === step ? 20 : 6,
-                  backgroundColor: i <= step ? PRIMARY : "#D4C4B0",
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      {!showCounter && <div className="pt-10" />}
-      {children}
-    </div>
-  );
-}
+// ─── Shared primitives ────────────────────────────────────────────
 
-function BackButton({ onBack }: { onBack: () => void }) {
+function NavBar({ step, onBack, onClose }: {
+  step: number; onBack: () => void; onClose: () => void;
+}) {
+  const TOTAL = 5;
   return (
-    <button onClick={onBack} className="flex items-center gap-2 mb-8 px-6" style={{ color: MUTED }}>
-      <ArrowLeft size={16} />
-      <span className="text-xs font-mono">Retour</span>
-    </button>
+    <div className="flex items-center justify-between px-5 pt-12 pb-4 flex-shrink-0">
+      <button onClick={onBack} className="p-2 -ml-2">
+        <ArrowLeft size={20} color={TEXT} strokeWidth={2} />
+      </button>
+      <div className="flex items-center gap-1.5">
+        {Array.from({ length: TOTAL }, (_, i) => (
+          <div
+            key={i}
+            style={{
+              height: 6,
+              borderRadius: 3,
+              width: i === step - 1 ? 20 : 6,
+              background: i < step ? PRIMARY : "#ddd5cb",
+              transition: "all 0.3s ease",
+            }}
+          />
+        ))}
+      </div>
+      <button onClick={onClose} className="p-2 -mr-2">
+        <X size={20} color={MUTED} strokeWidth={2} />
+      </button>
+    </div>
   );
 }
 
@@ -92,32 +90,47 @@ function CTAButton({ label, onClick, disabled, loading }: {
     <button
       onClick={onClick}
       disabled={disabled || loading}
-      className="w-full py-4 font-semibold text-sm transition-opacity disabled:opacity-40"
-      style={{ background: PRIMARY, color: "#FAF6F2", borderRadius: 50 }}
+      className="w-full py-4 transition-opacity disabled:opacity-40"
+      style={{
+        background: PRIMARY,
+        color: "#ffffff",
+        borderRadius: 100,
+        fontFamily: MANROPE,
+        fontWeight: 700,
+        fontSize: 16,
+      }}
     >
-      {loading ? "Chargement..." : label}
+      {loading ? "Chargement…" : label}
     </button>
   );
 }
 
-function SkipLink({ label, onClick }: { label: string; onClick: () => void }) {
+function GhostButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="text-xs font-mono text-center underline" style={{ color: MUTED }}>
+    <button
+      onClick={onClick}
+      className="w-full py-3 text-sm text-center"
+      style={{ color: TEXT, fontFamily: MANROPE, fontWeight: 400 }}
+    >
       {label}
     </button>
   );
 }
 
-function PillButton({ label, selected, onToggle }: { label: string; selected: boolean; onToggle: () => void }) {
+function Pill({ label, selected, onToggle }: {
+  label: string; selected: boolean; onToggle: () => void;
+}) {
   return (
     <button
       onClick={onToggle}
-      className="px-4 py-2 text-sm font-medium transition-all"
+      className="px-4 py-2 transition-all"
       style={{
-        borderRadius: 50,
-        border: `1.5px solid ${selected ? PRIMARY : "#C4A98A"}`,
-        background: selected ? PRIMARY : INPUT_BG,
-        color: selected ? "#FAF6F2" : MUTED,
+        borderRadius: 100,
+        background: selected ? PRIMARY : PILL_BG,
+        color: selected ? "#fafafa" : PILL_TEXT,
+        fontFamily: OPEN_SANS,
+        fontSize: 14,
+        fontWeight: 500,
       }}
     >
       {label}
@@ -125,16 +138,20 @@ function PillButton({ label, selected, onToggle }: { label: string; selected: bo
   );
 }
 
-function GridButton({ label, selected, onSelect }: { label: string; selected: boolean; onSelect: () => void }) {
+function GridCard({ label, selected, onSelect }: {
+  label: string; selected: boolean; onSelect: () => void;
+}) {
   return (
     <button
       onClick={onSelect}
-      className="py-3 text-sm font-medium transition-all"
+      className="py-3.5 text-sm text-center transition-all"
       style={{
-        borderRadius: 10,
-        border: `1.5px solid ${selected ? PRIMARY : "#C4A98A"}`,
-        background: selected ? PRIMARY : INPUT_BG,
-        color: selected ? "#FAF6F2" : PRIMARY,
+        borderRadius: 12,
+        background: selected ? PRIMARY : PILL_BG,
+        color: selected ? "#fafafa" : TEXT,
+        fontFamily: OPEN_SANS,
+        fontSize: 14,
+        fontWeight: 400,
       }}
     >
       {label}
@@ -142,286 +159,249 @@ function GridButton({ label, selected, onSelect }: { label: string; selected: bo
   );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function Label({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-mono font-bold tracking-[0.15em] mb-3" style={{ color: MUTED }}>
+    <p className="text-sm mb-3" style={{ color: MUTED, fontFamily: MANROPE, fontWeight: 400 }}>
       {children}
     </p>
   );
 }
 
-function OBFSearchResult({ result, added, onAdd }: {
-  result: { key: string; product_name: string; brand: string | null; photo_url: string | null };
-  added: boolean;
-  onAdd: () => void;
-}) {
+function StepTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 py-3 border-b" style={{ borderColor: "#E8DDD5" }}>
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EDE8E3" }}>
-        {result.photo_url ? (
-          <img src={result.photo_url} alt="" className="w-full h-full object-contain rounded-lg"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-        ) : <ImageOff size={14} color={MUTED} />}
+    <h2 style={{
+      fontFamily: MANROPE,
+      fontWeight: 500,
+      fontSize: 24,
+      color: TEXT,
+      lineHeight: 1.3,
+      marginBottom: 8,
+      marginTop: 16,
+    }}>
+      {children}
+    </h2>
+  );
+}
+
+function StepSubtitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ color: MUTED, fontSize: 16, lineHeight: 1.5, marginBottom: 28 }}>
+      {children}
+    </p>
+  );
+}
+
+// ─── Step 0 — Intro ───────────────────────────────────────────────
+function StepIntro({ onNext, onLogin }: { onNext: () => void; onLogin: () => void }) {
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: BG_INTRO }}>
+      {/* Hero image area */}
+      <div className="flex-1 relative flex items-center justify-center min-h-[55vh]">
+        {/* Pearl placeholder — replace with actual asset */}
+        <div
+          className="w-52 h-52 rounded-full"
+          style={{ background: "radial-gradient(circle at 35% 35%, #e8e0d8, #c4b5a0)" }}
+        />
+        <div className="absolute top-14 left-0 right-0 flex justify-center">
+          <span style={{ fontFamily: MANROPE, fontWeight: 700, fontSize: 18, color: PRIMARY, letterSpacing: "0.2em" }}>
+            NACRE
+          </span>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate" style={{ color: PRIMARY }}>{result.product_name}</p>
-        {result.brand && <p className="text-xs truncate" style={{ color: MUTED }}>{result.brand}</p>}
+
+      {/* Footer text + CTAs */}
+      <div className="px-6 pt-6 pb-10" style={{ background: BG_INTRO }}>
+        <h1 style={{ fontFamily: MANROPE, fontWeight: 700, fontSize: 32, color: TEXT, lineHeight: 1.2, marginBottom: 12 }}>
+          Votre peau,<br />comprise
+        </h1>
+        <p style={{ color: MUTED, fontSize: 16, lineHeight: 1.6, marginBottom: 32 }}>
+          Une perle met 5 ans à se former.<br />
+          Votre peau aussi a besoin de temps<br />
+          pour vraiment changer.
+        </p>
+        <div className="flex flex-col gap-3">
+          <CTAButton label="Commencer" onClick={onNext} />
+          <GhostButton label="Déjà un compte ? Se connecter" onClick={onLogin} />
+        </div>
       </div>
-      <button
-        onClick={onAdd}
-        disabled={added}
-        className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-semibold transition-all"
-        style={{
-          borderRadius: 50,
-          background: added ? "#E8DDD5" : PRIMARY,
-          color: added ? MUTED : "#FAF6F2",
-        }}
-      >
-        {added ? <Check size={12} /> : <Plus size={12} />}
-        {added ? "Ajouté" : "Ajouter"}
-      </button>
     </div>
   );
 }
 
-// ─── Screen 0 — Intro ─────────────────────────────────────────────
-function ScreenIntro({ onNext, onLogin }: { onNext: () => void; onLogin: () => void }) {
+// ─── Step 1 — Peau ────────────────────────────────────────────────
+function StepPeau({ data, onChange, onNext, onBack, onClose }: {
+  data: Collected;
+  onChange: (p: Partial<Collected>) => void;
+  onNext: () => void; onBack: () => void; onClose: () => void;
+}) {
+  const toggle = (key: "skinProblems" | "skinGoals", val: string) => {
+    const arr = data[key] as string[];
+    onChange({ [key]: arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val] });
+  };
+
   return (
-    <Screen step={0}>
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center min-h-[80vh]">
-        {/* TODO: add pearl illustration */}
-        <div className="w-32 h-32 rounded-full mb-10" style={{ background: "#E8DDD5" }} />
+    <div className="min-h-screen flex flex-col" style={{ background: BG }}>
+      <NavBar step={1} onBack={onBack} onClose={onClose} />
 
-        <p className="text-[10px] font-mono tracking-[0.3em] mb-4" style={{ color: MUTED }}>NACRE</p>
+      <div className="flex-1 overflow-y-auto px-5 pb-36">
+        <StepTitle>La nacre se forme<br />autour d'une irritation</StepTitle>
+        <StepSubtitle>Comprendre ce qui agresse votre peau, c'est le premier pas.</StepSubtitle>
 
-        <h1 className="text-4xl font-bold mb-6 leading-snug" style={{ ...SERIF, color: PRIMARY }}>
-          Votre peau,{"\n"}comprise
-        </h1>
+        <Label>Type de peau</Label>
+        <div className="grid grid-cols-2 gap-2.5 mb-8">
+          {["Mixte", "Grasse", "Sèche", "Sensible", "Acnéique", "Normale"].map(t => (
+            <GridCard key={t} label={t} selected={data.skinType === t} onSelect={() => onChange({ skinType: t })} />
+          ))}
+        </div>
 
-        <p className="text-sm leading-relaxed mb-16" style={{ color: MUTED }}>
-          Une perle met 5 ans à se former.{"\n"}
-          Votre peau aussi a besoin de temps{"\n"}
-          pour vraiment changer.
-        </p>
+        <Label>Préoccupations</Label>
+        <div className="flex flex-wrap gap-2 mb-8">
+          {["Acné", "Taches", "Rides", "Rougeurs", "Déshydratation", "Cernes", "Eczéma", "Points noirs"].map(p => (
+            <Pill key={p} label={p} selected={data.skinProblems.includes(p)} onToggle={() => toggle("skinProblems", p)} />
+          ))}
+        </div>
 
-        <div className="w-full max-w-xs flex flex-col gap-4">
-          <CTAButton label="Commencer →" onClick={onNext} />
-          <button onClick={onLogin} className="text-xs font-mono underline" style={{ color: MUTED }}>
-            Déjà un compte ? Se connecter
-          </button>
+        <Label>Objectifs</Label>
+        <div className="flex flex-wrap gap-2">
+          {["Hydratation", "Éclat", "Anti-âge", "Anti-imperfections", "Apaiser", "Pores"].map(g => (
+            <Pill key={g} label={g} selected={data.skinGoals.includes(g)} onToggle={() => toggle("skinGoals", g)} />
+          ))}
         </div>
       </div>
-    </Screen>
+
+      <div className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-3" style={{ background: BG }}>
+        <CTAButton label="Suivant" onClick={onNext} />
+      </div>
+    </div>
   );
 }
 
-// ─── Screen 1 — Peau (3 sub-steps) ───────────────────────────────
-function ScreenPeau({ data, onChange, onNext, onBack }: {
+// ─── Step 2 — Day 0 Check-in ──────────────────────────────────────
+function StepCheckin({ data, onChange, onNext, onBack, onClose }: {
   data: Collected;
-  onChange: (patch: Partial<Collected>) => void;
-  onNext: () => void;
-  onBack: () => void;
+  onChange: (p: Partial<Collected>) => void;
+  onNext: () => void; onBack: () => void; onClose: () => void;
 }) {
-  const [sub, setSub] = useState<"a" | "b" | "c">("a");
-
-  const toggle = (key: "skinProblems" | "skinGoals", val: string) => {
-    const arr = data[key] as string[];
-    onChange({ [key]: arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val] });
-  };
-
-  const handleBack = () => {
-    if (sub === "a") onBack();
-    else if (sub === "b") setSub("a");
-    else setSub("b");
-  };
-
-  // 1a — Type de peau
-  if (sub === "a") {
-    return (
-      <Screen step={1}>
-        <div className="px-6 pb-16">
-          <BackButton onBack={handleBack} />
-          <h2 className="text-3xl font-bold leading-snug mb-2" style={{ ...SERIF, color: PRIMARY }}>
-            La nacre se forme{"\n"}autour d'une irritation
-          </h2>
-          <p className="text-sm mb-10" style={{ color: MUTED }}>
-            Comprendre ce qui agresse votre peau, c'est le premier pas.
-          </p>
-          <SectionLabel>TYPE DE PEAU</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
-            {["Mixte", "Grasse", "Sèche", "Sensible", "Acnéique", "Normale"].map((t) => (
-              <GridButton
-                key={t}
-                label={t}
-                selected={data.skinType === t}
-                onSelect={() => { onChange({ skinType: t }); setSub("b"); }}
-              />
-            ))}
-          </div>
-        </div>
-      </Screen>
-    );
-  }
-
-  // 1b — Préoccupations + Objectifs
-  if (sub === "b") {
-    return (
-      <Screen step={1}>
-        <div className="px-6 pb-32">
-          <BackButton onBack={handleBack} />
-          <h2 className="text-3xl font-bold leading-snug mb-8" style={{ ...SERIF, color: PRIMARY }}>
-            Vos priorités
-          </h2>
-          <SectionLabel>PRÉOCCUPATIONS</SectionLabel>
-          <div className="flex flex-wrap gap-2 mb-8">
-            {["Acné", "Taches", "Rides", "Rougeurs", "Déshydratation", "Cernes", "Eczéma", "Points noirs"].map((p) => (
-              <PillButton key={p} label={p} selected={data.skinProblems.includes(p)} onToggle={() => toggle("skinProblems", p)} />
-            ))}
-          </div>
-          <SectionLabel>OBJECTIFS</SectionLabel>
-          <div className="flex flex-wrap gap-2 mb-8">
-            {["Hydratation", "Éclat", "Anti-âge", "Anti-imperfections", "Apaiser", "Pores"].map((g) => (
-              <PillButton key={g} label={g} selected={data.skinGoals.includes(g)} onToggle={() => toggle("skinGoals", g)} />
-            ))}
-          </div>
-        </div>
-        <div className="fixed bottom-0 left-0 right-0 px-6 pb-8 pt-4" style={{ background: BG }}>
-          <CTAButton label="Suivant →" onClick={() => setSub("c")} />
-        </div>
-      </Screen>
-    );
-  }
-
-  // 1c — État de départ
-  const baselineRow = (label: string, options: string[], field: keyof Collected) => (
-    <div className="mb-5">
-      <p className="text-xs font-mono mb-2" style={{ color: MUTED }}>{label}</p>
-      <div className="grid grid-cols-3 gap-2">
-        {options.map((opt) => (
-          <GridButton key={opt} label={opt} selected={data[field] === opt} onSelect={() => onChange({ [field]: opt })} />
+  const row = (label: string, options: string[], field: keyof Collected) => (
+    <div className="mb-7">
+      <Label>{label}</Label>
+      <div className="grid grid-cols-3 gap-2.5">
+        {options.map(opt => (
+          <GridCard key={opt} label={opt} selected={data[field] === opt} onSelect={() => onChange({ [field]: opt })} />
         ))}
       </div>
     </div>
   );
 
   return (
-    <Screen step={1}>
-      <div className="px-6 pb-32">
-        <BackButton onBack={handleBack} />
-        <h2 className="text-3xl font-bold leading-snug mb-2" style={{ ...SERIF, color: PRIMARY }}>
-          Votre point de départ
-        </h2>
-        <p className="text-sm italic mb-10" style={{ color: MUTED }}>
-          Votre baseline — on mesurera l'évolution depuis aujourd'hui
-        </p>
-        {baselineRow("Acné aujourd'hui", ["Légère", "Modérée", "Forte"], "acneBaseline")}
-        {baselineRow("Rougeurs aujourd'hui", ["Légères", "Modérées", "Fortes"], "rednessBaseline")}
-        {baselineRow("Sécheresse aujourd'hui", ["Légère", "Modérée", "Forte"], "drynessBaseline")}
+    <div className="min-h-screen flex flex-col" style={{ background: BG }}>
+      <NavBar step={2} onBack={onBack} onClose={onClose} />
+
+      <div className="flex-1 overflow-y-auto px-5 pb-36">
+        <StepTitle>Votre point de départ</StepTitle>
+        <StepSubtitle>Comment est votre peau aujourd'hui ?</StepSubtitle>
+        {row("Acné", ["Légère", "Modérée", "Forte"], "acneBaseline")}
+        {row("Rougeurs", ["Légères", "Modérées", "Fortes"], "rednessBaseline")}
+        {row("Sécheresse", ["Légère", "Modérée", "Forte"], "drynessBaseline")}
       </div>
-      <div className="fixed bottom-0 left-0 right-0 px-6 pb-8 pt-4" style={{ background: BG }}>
-        <CTAButton label="Suivant →" onClick={onNext} />
+
+      <div className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-3" style={{ background: BG }}>
+        <CTAButton label="Suivant" onClick={onNext} />
       </div>
-    </Screen>
+    </div>
   );
 }
 
-// ─── Screen 2 — Cycle ─────────────────────────────────────────────
-function ScreenCycle({ data, onChange, onNext, onBack }: {
+// ─── Step 3 — Cycle ───────────────────────────────────────────────
+function StepCycle({ data, onChange, onNext, onBack, onClose }: {
   data: Collected;
-  onChange: (patch: Partial<Collected>) => void;
-  onNext: () => void;
-  onBack: () => void;
+  onChange: (p: Partial<Collected>) => void;
+  onNext: () => void; onBack: () => void; onClose: () => void;
 }) {
   return (
-    <Screen step={2}>
-      <div className="px-6 pb-32">
-        <BackButton onBack={onBack} />
+    <div className="min-h-screen flex flex-col" style={{ background: BG }}>
+      <NavBar step={3} onBack={onBack} onClose={onClose} />
 
-        <h2 className="text-3xl font-bold leading-snug mb-2" style={{ ...SERIF, color: PRIMARY }}>
-          Votre peau suit{"\n"}ses propres rythmes
-        </h2>
-        <p className="text-sm mb-3" style={{ color: MUTED }}>
-          Le cycle menstruel influence directement votre peau.{"\n"}
-          C'est l'une des clés pour mieux la comprendre.
+      <div className="flex-1 overflow-y-auto px-5 pb-36">
+        <StepTitle>Votre peau suit<br />ses propres rythmes</StepTitle>
+        <p style={{ color: MUTED, fontSize: 16, lineHeight: 1.5, marginBottom: 6 }}>
+          Le cycle menstruel influence directement votre peau.
         </p>
-        <p className="text-xs italic mb-10" style={{ color: MUTED }}>
+        <p style={{ color: MUTED, fontSize: 13, fontStyle: "italic", marginBottom: 28 }}>
           Ces données restent strictement privées et ne sont jamais partagées.
         </p>
 
-        {/* Last period */}
-        <SectionLabel>DERNIÈRES RÈGLES</SectionLabel>
+        <Label>Dernières règles</Label>
         <input
           type="date"
           value={data.lastPeriodDate}
-          onChange={(e) => onChange({ lastPeriodDate: e.target.value })}
+          onChange={e => onChange({ lastPeriodDate: e.target.value })}
           max={new Date().toISOString().split("T")[0]}
-          className="w-full px-4 py-3 text-sm mb-8 focus:outline-none"
+          className="w-full px-4 py-3 mb-8 focus:outline-none"
           style={{
-            background: INPUT_BG, border: `1.5px solid ${INPUT_BORDER}`,
-            borderRadius: 10, color: PRIMARY,
+            background: PILL_BG, border: "none", borderRadius: 12,
+            color: TEXT, fontSize: 15, fontFamily: MANROPE,
           }}
         />
 
-        {/* Cycle duration */}
-        <SectionLabel>DURÉE DU CYCLE — {data.cycleDuration} JOURS</SectionLabel>
+        <Label>Durée du cycle — {data.cycleDuration} jours</Label>
         <input
           type="range"
-          min={21}
-          max={35}
+          min={21} max={35}
           value={data.cycleDuration}
-          onChange={(e) => onChange({ cycleDuration: parseInt(e.target.value) })}
+          onChange={e => onChange({ cycleDuration: parseInt(e.target.value) })}
           className="w-full mb-2"
           style={{ accentColor: PRIMARY }}
         />
-        <div className="flex justify-between text-xs font-mono" style={{ color: MUTED }}>
-          <span>21j</span>
-          <span>35j</span>
+        <div className="flex justify-between text-xs" style={{ color: MUTED, fontFamily: MANROPE }}>
+          <span>21 jours</span>
+          <span>35 jours</span>
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 px-6 pb-8 pt-4 flex flex-col gap-3" style={{ background: BG }}>
-        <CTAButton label="Suivant →" onClick={onNext} />
-        <SkipLink label="Passer" onClick={onNext} />
+      <div className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-3 flex flex-col gap-2" style={{ background: BG }}>
+        <CTAButton label="Suivant" onClick={onNext} />
+        <GhostButton label="Passer" onClick={onNext} />
       </div>
-    </Screen>
+    </div>
   );
 }
 
-// ─── Screen 3 — Routine ───────────────────────────────────────────
-function ScreenRoutine({ data, onChange, onNext, onBack }: {
+// ─── Step 4 — Routine ─────────────────────────────────────────────
+const PRODUCT_CATEGORIES = ["Tous", "Démaquillant", "Nettoyant", "Hydratant", "SPF", "Sérum", "Masques", "Autre"];
+
+function StepRoutine({ data, onChange, onNext, onBack, onClose }: {
   data: Collected;
-  onChange: (patch: Partial<Collected>) => void;
-  onNext: () => void;
-  onBack: () => void;
+  onChange: (p: Partial<Collected>) => void;
+  onNext: () => void; onBack: () => void; onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Tous");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const addedNames = new Set(data.selectedProducts.map((p) => p.product_name.toLowerCase()));
+  const addedNames = new Set(data.selectedProducts.map(p => p.product_name.toLowerCase()));
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) { setResults([]); return; }
-
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const { data: catalogRows } = await (supabase as any)
+        let q = (supabase as any)
           .from("user_products")
           .select("id, product_name, brand, product_type, photo_url, ingredients, open_beauty_facts_id")
           .is("user_id", null)
           .or(`product_name.ilike.%${query}%,brand.ilike.%${query}%`)
           .limit(8);
-
-        const catalog = (catalogRows ?? []).map((r: any) => ({
+        if (activeCategory !== "Tous") q = q.ilike("product_type", `%${activeCategory}%`);
+        const { data: rows } = await q;
+        const catalog = (rows ?? []).map((r: any) => ({
           key: `c-${r.id}`, source: "catalog", catalogId: r.id,
           product_name: r.product_name, brand: r.brand,
           product_type: r.product_type, photo_url: r.photo_url,
           ingredients: r.ingredients, open_beauty_facts_id: r.open_beauty_facts_id,
         }));
-
         let obf: any[] = [];
         if (catalog.length < 3) {
           const res = await fetch(
@@ -439,111 +419,148 @@ function ScreenRoutine({ data, onChange, onNext, onBack }: {
               ingredients: p.ingredients_text || null, open_beauty_facts_id: p.code || null,
             }));
         }
-
         setResults([...catalog, ...obf]);
-      } catch {
-        // silent fail
-      } finally {
-        setSearching(false);
-      }
+      } catch { /* silent */ }
+      finally { setSearching(false); }
     }, 400);
-
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query]);
-
-  const handleAdd = (r: any) => {
-    if (addedNames.has(r.product_name.toLowerCase())) return;
-    onChange({ selectedProducts: [...data.selectedProducts, r] });
-  };
-
-  const handleRemove = (name: string) => {
-    onChange({ selectedProducts: data.selectedProducts.filter((p) => p.product_name !== name) });
-  };
+  }, [query, activeCategory]);
 
   return (
-    <Screen step={3}>
-      <div className="px-6 pb-40">
-        <BackButton onBack={onBack} />
+    <div className="min-h-screen flex flex-col" style={{ background: BG }}>
+      <NavBar step={4} onBack={onBack} onClose={onClose} />
 
-        <h2 className="text-3xl font-bold leading-snug mb-2" style={{ ...SERIF, color: PRIMARY }}>
-          Chaque couche{"\n"}de nacre compte
-        </h2>
-        <p className="text-sm mb-1" style={{ color: MUTED }}>
-          Vos produits sont les premiers gestes de ce suivi.
-        </p>
-        <p className="text-xs italic mb-8" style={{ color: MUTED }}>(Optionnel)</p>
-
-        {/* Search */}
-        <div className="relative mb-4">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un produit..."
-            className="w-full pl-10 pr-4 py-3 text-sm focus:outline-none"
-            style={{
-              background: INPUT_BG, border: `1.5px solid ${INPUT_BORDER}`,
-              borderRadius: 10, color: PRIMARY,
-            }}
-          />
+      <div className="flex-1 overflow-y-auto pb-36">
+        <div className="px-5">
+          <StepTitle>Chaque couche<br />de nacre compte</StepTitle>
+          <p style={{ color: MUTED, fontSize: 16, marginBottom: 4 }}>
+            Vos produits sont les premiers gestes de ce suivi.
+          </p>
+          <p style={{ color: MUTED, fontSize: 13, fontStyle: "italic", marginBottom: 20 }}>(Optionnel)</p>
         </div>
 
-        {/* Results */}
-        {(searching || results.length > 0) && (
-          <div className="mb-6 rounded-xl overflow-hidden" style={{ border: `1px solid #D4C4B0` }}>
-            {searching && (
-              <div className="flex items-center justify-center py-6">
-                <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: PRIMARY }} />
-              </div>
-            )}
-            {!searching && results.map((r) => (
-              <OBFSearchResult
-                key={r.key}
-                result={r}
-                added={addedNames.has(r.product_name.toLowerCase())}
-                onAdd={() => handleAdd(r)}
-              />
+        {/* Category chips — horizontal scroll */}
+        <div className="overflow-x-auto px-5 mb-5" style={{ scrollbarWidth: "none" }}>
+          <div className="flex gap-2" style={{ width: "max-content" }}>
+            {PRODUCT_CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => { setActiveCategory(cat); setQuery(""); }}
+                className="px-4 py-2 text-sm whitespace-nowrap transition-all"
+                style={{
+                  borderRadius: 100,
+                  background: activeCategory === cat ? PRIMARY : PILL_BG,
+                  color: activeCategory === cat ? "#fafafa" : PILL_TEXT,
+                  fontFamily: OPEN_SANS,
+                  fontSize: 14,
+                  fontWeight: 500,
+                }}
+              >
+                {cat}
+              </button>
             ))}
           </div>
-        )}
+        </div>
 
-        {/* Added products */}
-        {data.selectedProducts.length > 0 && (
-          <div>
-            <SectionLabel>PRODUITS AJOUTÉS</SectionLabel>
-            <div className="flex flex-col gap-2">
-              {data.selectedProducts.map((p) => (
-                <div key={p.product_name} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: INPUT_BG, border: `1px solid ${INPUT_BORDER}` }}>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: PRIMARY }}>{p.product_name}</p>
-                    {p.brand && <p className="text-xs truncate" style={{ color: MUTED }}>{p.brand}</p>}
+        <div className="px-5">
+          {/* Search bar */}
+          <div className="relative mb-4">
+            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: MUTED }} />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Rechercher un produit…"
+              className="w-full pl-10 pr-4 py-3 focus:outline-none"
+              style={{
+                background: PILL_BG, border: "none", borderRadius: 12,
+                color: TEXT, fontSize: 14, fontFamily: MANROPE,
+              }}
+            />
+          </div>
+
+          {/* Search results */}
+          {(searching || results.length > 0) && (
+            <div className="mb-5 overflow-hidden" style={{ border: `1px solid #e8e0d8`, borderRadius: 12 }}>
+              {searching ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: PRIMARY }} />
+                </div>
+              ) : results.map(r => (
+                <div key={r.key} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0" style={{ borderColor: "#e8e0d8" }}>
+                  <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: PILL_BG }}>
+                    {r.photo_url ? (
+                      <img src={r.photo_url} alt="" className="w-full h-full object-contain rounded-xl"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    ) : <ImageOff size={14} color={MUTED} />}
                   </div>
-                  <button onClick={() => handleRemove(p.product_name)} className="flex-shrink-0 p-1" style={{ color: MUTED }}>
-                    <X size={14} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: TEXT, fontFamily: MANROPE }}>{r.product_name}</p>
+                    {r.brand && <p className="text-xs truncate" style={{ color: MUTED }}>{r.brand}</p>}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!addedNames.has(r.product_name.toLowerCase()))
+                        onChange({ selectedProducts: [...data.selectedProducts, r] });
+                    }}
+                    disabled={addedNames.has(r.product_name.toLowerCase())}
+                    className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 transition-all disabled:opacity-60"
+                    style={{
+                      borderRadius: 100,
+                      background: addedNames.has(r.product_name.toLowerCase()) ? PILL_BG : PRIMARY,
+                      color: addedNames.has(r.product_name.toLowerCase()) ? MUTED : "#fafafa",
+                      fontSize: 13, fontFamily: MANROPE, fontWeight: 500,
+                    }}
+                  >
+                    {addedNames.has(r.product_name.toLowerCase()) ? <Check size={12} /> : <Plus size={12} />}
+                    <span className="ml-0.5">{addedNames.has(r.product_name.toLowerCase()) ? "Ajouté" : "Ajouter"}</span>
                   </button>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Added products list */}
+          {data.selectedProducts.length > 0 && (
+            <div>
+              <Label>Produits ajoutés</Label>
+              <div className="flex flex-col gap-2">
+                {data.selectedProducts.map(p => (
+                  <div
+                    key={p.product_name}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={{ background: PILL_BG, borderRadius: 12 }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: TEXT, fontFamily: MANROPE }}>{p.product_name}</p>
+                      {p.brand && <p className="text-xs truncate" style={{ color: MUTED }}>{p.brand}</p>}
+                    </div>
+                    <button
+                      onClick={() => onChange({ selectedProducts: data.selectedProducts.filter(x => x.product_name !== p.product_name) })}
+                    >
+                      <X size={14} color={MUTED} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 px-6 pb-8 pt-4 flex flex-col gap-3" style={{ background: BG }}>
-        <CTAButton label="Suivant →" onClick={onNext} />
-        <SkipLink label="Passer — j'ajouterai plus tard" onClick={onNext} />
+      <div className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-3 flex flex-col gap-2" style={{ background: BG }}>
+        <CTAButton label="Suivant" onClick={onNext} />
+        <GhostButton label="Passer — j'ajouterai plus tard" onClick={onNext} />
       </div>
-    </Screen>
+    </div>
   );
 }
 
-// ─── Screen 4 — Compte ────────────────────────────────────────────
-function ScreenCompte({ data, onChange, onNext, onBack }: {
+// ─── Step 5 — Compte ──────────────────────────────────────────────
+function StepCompte({ data, onChange, onNext, onBack, onClose }: {
   data: Collected;
-  onChange: (patch: Partial<Collected>) => void;
-  onNext: () => void;
-  onBack: () => void;
+  onChange: (p: Partial<Collected>) => void;
+  onNext: () => void; onBack: () => void; onClose: () => void;
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -556,28 +573,20 @@ function ScreenCompte({ data, onChange, onNext, onBack }: {
   const handleCreate = async () => {
     if (!data.email || !data.password || !data.firstName) return;
     if (data.password.length < 8) { toast.error("Mot de passe trop court (8 caractères min.)"); return; }
-
     setLoading(true);
     try {
-      // 1. Create auth account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: { data: { first_name: data.firstName } },
       });
-
       if (authError) {
         toast.error(authError.message.includes("already") ? "Cet email est déjà utilisé." : authError.message);
-        setLoading(false);
         return;
       }
-
       const userId = authData.user?.id;
-      if (!userId) { toast.error("Erreur inattendue."); setLoading(false); return; }
-
+      if (!userId) { toast.error("Erreur inattendue."); return; }
       const today = new Date().toISOString().split("T")[0];
-
-      // 2. Batch write: profiles + skin_symptoms + user_products
       await Promise.all([
         (supabase as any).from("profiles").upsert({
           id: userId,
@@ -588,18 +597,15 @@ function ScreenCompte({ data, onChange, onNext, onBack }: {
           last_period_date: data.lastPeriodDate || null,
           cycle_duration: data.cycleDuration || null,
         }),
-
         (data.acneBaseline || data.rednessBaseline || data.drynessBaseline)
           ? (supabase as any).from("skin_symptoms").upsert({
-              user_id: userId,
-              date: today,
+              user_id: userId, date: today,
               acne_trend: baselineMap[data.acneBaseline] ?? null,
               redness_trend: baselineMap[data.rednessBaseline] ?? null,
               dryness_trend: baselineMap[data.drynessBaseline] ?? null,
             }, { onConflict: "user_id,date" })
           : Promise.resolve(),
-
-        ...data.selectedProducts.map((p) =>
+        ...data.selectedProducts.map(p =>
           (supabase as any).from("user_products").insert({
             user_id: userId,
             open_beauty_facts_id: p.open_beauty_facts_id,
@@ -611,7 +617,6 @@ function ScreenCompte({ data, onChange, onNext, onBack }: {
           })
         ),
       ]);
-
       onNext();
     } catch {
       toast.error("Une erreur est survenue. Réessayez.");
@@ -623,45 +628,39 @@ function ScreenCompte({ data, onChange, onNext, onBack }: {
   const valid = data.email.includes("@") && data.password.length >= 8 && data.firstName.trim().length > 0;
 
   return (
-    <Screen step={4}>
-      <div className="px-6 pb-40">
-        <BackButton onBack={onBack} />
+    <div className="min-h-screen flex flex-col" style={{ background: BG }}>
+      <NavBar step={5} onBack={onBack} onClose={onClose} />
 
-        <h2 className="text-3xl font-bold leading-snug mb-2" style={{ ...SERIF, color: PRIMARY }}>
-          Plus qu'une étape
-        </h2>
-        <p className="text-sm mb-8" style={{ color: MUTED }}>
-          Créez votre espace sécurisé pour sauvegarder votre profil.
-        </p>
+      <div className="flex-1 overflow-y-auto px-5 pb-36">
+        <StepTitle>Plus qu'une étape</StepTitle>
+        <StepSubtitle>Créez votre espace pour sauvegarder votre profil.</StepSubtitle>
 
-        {/* Privacy card */}
-        <div className="mb-8 p-4 rounded-xl" style={{
-          background: INPUT_BG,
-          borderLeft: `3px solid ${INPUT_BORDER}`,
-          border: `1px solid ${INPUT_BORDER}`,
-        }}>
-          <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
+        {/* Privacy note */}
+        <div className="mb-8 px-4 py-3" style={{ background: PILL_BG, borderRadius: 12 }}>
+          <p style={{ color: MUTED, fontSize: 12, lineHeight: 1.5 }}>
             Vos données sont privées et ne seront jamais vendues ni partagées sans votre consentement.
           </p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          {[
+        <div className="flex flex-col gap-5">
+          {([
             { label: "Prénom", key: "firstName" as const, type: "text", placeholder: "Votre prénom" },
             { label: "Email", key: "email" as const, type: "email", placeholder: "email@exemple.com" },
             { label: "Mot de passe", key: "password" as const, type: "password", placeholder: "8 caractères minimum" },
-          ].map(({ label, key, type, placeholder }) => (
+          ] as const).map(({ label, key, type, placeholder }) => (
             <div key={key}>
-              <p className="text-[10px] font-mono tracking-[0.15em] mb-2" style={{ color: MUTED }}>{label.toUpperCase()}</p>
+              <p style={{ color: MUTED, fontSize: 11, fontFamily: MANROPE, fontWeight: 600, letterSpacing: "0.08em", marginBottom: 6 }}>
+                {label.toUpperCase()}
+              </p>
               <input
                 type={type}
                 placeholder={placeholder}
-                value={data[key] as string}
-                onChange={(e) => onChange({ [key]: e.target.value })}
-                className="w-full px-4 py-3 text-sm focus:outline-none"
+                value={data[key]}
+                onChange={e => onChange({ [key]: e.target.value })}
+                className="w-full px-4 py-3 focus:outline-none"
                 style={{
-                  background: INPUT_BG, border: `1.5px solid ${INPUT_BORDER}`,
-                  borderRadius: 10, color: PRIMARY,
+                  background: PILL_BG, border: "none", borderRadius: 12,
+                  color: TEXT, fontSize: 15, fontFamily: MANROPE,
                 }}
               />
             </div>
@@ -669,74 +668,71 @@ function ScreenCompte({ data, onChange, onNext, onBack }: {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 px-6 pb-8 pt-4" style={{ background: BG }}>
-        <CTAButton label="Créer mon espace →" onClick={handleCreate} disabled={!valid} loading={loading} />
+      <div className="fixed bottom-0 left-0 right-0 px-5 pb-8 pt-3" style={{ background: BG }}>
+        <CTAButton label="Créer mon espace" onClick={handleCreate} disabled={!valid} loading={loading} />
       </div>
-    </Screen>
+    </div>
   );
 }
 
-// ─── Screen 5 — Confirmation ──────────────────────────────────────
-function ScreenConfirmation({ firstName, onFinish }: { firstName: string; onFinish: () => void }) {
+// ─── Step 6 — Confirmation ────────────────────────────────────────
+function StepConfirmation({ firstName, onFinish }: { firstName: string; onFinish: () => void }) {
   return (
-    <Screen step={5}>
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center min-h-[85vh]">
-        {/* TODO: add pearl illustration */}
-        <div className="w-24 h-24 rounded-full mb-10" style={{ background: "#D4C4B0" }} />
-
-        <h2 className="text-3xl font-bold leading-snug mb-4" style={{ ...SERIF, color: PRIMARY }}>
-          Aujourd'hui, {firstName ? `${firstName}, ` : ""}vous avez{"\n"}posé une première couche
-        </h2>
-        <p className="text-sm leading-relaxed mb-16" style={{ color: MUTED }}>
-          Demain, vous continuerez.{"\n"}Et cette fois, vous verrez la différence.
-        </p>
-
-        <div className="w-full max-w-xs">
-          <CTAButton label="Voir mon espace →" onClick={onFinish} />
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center px-8 text-center" style={{ background: BG_INTRO }}>
+      {/* Pearl placeholder */}
+      <div
+        className="w-24 h-24 rounded-full mb-10"
+        style={{ background: "radial-gradient(circle at 35% 35%, #e8e0d8, #c4b5a0)" }}
+      />
+      <h2 style={{ fontFamily: MANROPE, fontWeight: 700, fontSize: 28, color: TEXT, lineHeight: 1.3, marginBottom: 16 }}>
+        Aujourd'hui{firstName ? `, ${firstName},` : ""}<br />vous avez posé<br />une première couche
+      </h2>
+      <p style={{ color: MUTED, fontSize: 16, lineHeight: 1.6, marginBottom: 48 }}>
+        Demain, vous continuerez.<br />Et cette fois, vous verrez la différence.
+      </p>
+      <div className="w-full max-w-xs">
+        <CTAButton label="Voir mon espace →" onClick={onFinish} />
       </div>
-    </Screen>
+    </div>
   );
 }
 
-// ─── Main flow ────────────────────────────────────────────────────
+// ─── Main orchestrator ────────────────────────────────────────────
 export default function OnboardingFlow() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [collected, setCollected] = useState<Collected>(EMPTY);
 
-  const patch = (p: Partial<Collected>) => setCollected((c) => ({ ...c, ...p }));
+  const patch = (p: Partial<Collected>) => setCollected(c => ({ ...c, ...p }));
+  const next  = () => setStep(s => s + 1);
+  const back  = () => { if (step === 0) navigate("/login"); else setStep(s => s - 1); };
+  const close = () => navigate("/login");
 
-  const next = () => setStep((s) => s + 1);
-  const back = () => {
-    if (step === 0) navigate("/login");
-    else setStep((s) => s - 1);
-  };
-
-  const slideVariants = {
-    enter: { x: 40, opacity: 0 },
-    center: { x: 0, opacity: 1 },
-    exit: { x: -40, opacity: 0 },
+  const slide = {
+    enter:  { x: 40,  opacity: 0 },
+    center: { x: 0,   opacity: 1 },
+    exit:   { x: -40, opacity: 0 },
   };
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={step}
-        variants={slideVariants}
+        variants={slide}
         initial="enter"
         animate="center"
         exit="exit"
-        transition={{ type: "tween", duration: 0.25 }}
-        className="min-h-screen"
+        transition={{ type: "tween", duration: 0.22 }}
+        style={{ minHeight: "100vh" }}
       >
-        {step === 0 && <ScreenIntro onNext={next} onLogin={() => navigate("/login")} />}
-        {step === 1 && <ScreenPeau data={collected} onChange={patch} onNext={next} onBack={back} />}
-        {step === 2 && <ScreenCycle data={collected} onChange={patch} onNext={next} onBack={back} />}
-        {step === 3 && <ScreenRoutine data={collected} onChange={patch} onNext={next} onBack={back} />}
-        {step === 4 && <ScreenCompte data={collected} onChange={patch} onNext={next} onBack={back} />}
-        {step === 5 && (
-          <ScreenConfirmation
+        {step === 0 && <StepIntro onNext={next} onLogin={() => navigate("/login")} />}
+        {step === 1 && <StepPeau    data={collected} onChange={patch} onNext={next} onBack={back} onClose={close} />}
+        {step === 2 && <StepCheckin data={collected} onChange={patch} onNext={next} onBack={back} onClose={close} />}
+        {step === 3 && <StepCycle   data={collected} onChange={patch} onNext={next} onBack={back} onClose={close} />}
+        {step === 4 && <StepRoutine data={collected} onChange={patch} onNext={next} onBack={back} onClose={close} />}
+        {step === 5 && <StepCompte  data={collected} onChange={patch} onNext={next} onBack={back} onClose={close} />}
+        {step === 6 && (
+          <StepConfirmation
             firstName={collected.firstName}
             onFinish={() => {
               localStorage.removeItem("guestProfile");

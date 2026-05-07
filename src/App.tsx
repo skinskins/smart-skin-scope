@@ -38,10 +38,10 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => { setSession(session); })
+      .catch(err => console.error('[AuthGuard] getSession failed:', err))
+      .finally(() => setLoading(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -70,32 +70,51 @@ const PublicOnlyGuard = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
 
   useEffect(() => {
+    const fetchComplete = async (userId: string) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('skin_goals')
+        .eq('id', userId)
+        .single();
+      const profile = data as any;
+      return !!(profile && profile.skin_goals && profile.skin_goals.length > 0);
+    };
+
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-
-      if (session) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('skin_goals')
-          .eq('id', session.user.id)
-          .single();
-
-        const profile = data as any;
-        const complete = !!(profile && profile.skin_goals && profile.skin_goals.length > 0);
-        setIsProfileComplete(complete);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        // Fire profile check in background — never block the loading gate on a DB query.
+        if (session) {
+          fetchComplete(session.user.id)
+            .then(complete => setIsProfileComplete(complete))
+            .catch(() => setIsProfileComplete(false));
+        }
+      } catch (err) {
+        console.error('[PublicOnlyGuard] auth check failed:', err);
+      } finally {
+        // Loading clears after getSession() (reads localStorage — always fast).
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        fetchComplete(session.user.id)
+          .then(complete => setIsProfileComplete(complete))
+          .catch(() => setIsProfileComplete(false));
+      } else {
+        setIsProfileComplete(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  console.log('[Guard] loading:', loading, '| session:', !!session, '| profileComplete:', isProfileComplete, '| path:', location.pathname);
 
   if (loading) {
     return <div className="h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
@@ -107,14 +126,15 @@ const PublicOnlyGuard = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/checkin-advice" replace />;
   }
 
-  // If connected and profile is complete, redirect to checkin-advice
+  // Logged in with complete profile → send to app
   if (session && isProfileComplete) {
     return <Navigate to="/checkin-advice" replace />;
   }
 
-  // If connected but profile incomplete, allow only /signup
-  if (session && !isProfileComplete && !location.pathname.startsWith('/signup')) {
-    return <Navigate to="/signup" replace />;
+  // Logged in but profile incomplete → send to onboarding to complete it
+  // (exclude /onboarding itself to avoid a redirect loop mid-signup)
+  if (session && !isProfileComplete && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
