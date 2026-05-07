@@ -238,7 +238,7 @@ export default function PassportScreen4() {
         </div>
 
         <button
-          onClick={() => navigate("/passport/share")}
+          onClick={() => navigate("/passport/details")}
           className="bg-white border border-[#e9e9e9] rounded-[8px] p-[8px] shadow-sm"
         >
           <ChevronRight className="w-[20px] h-[20px] text-[#1f2024]" />
