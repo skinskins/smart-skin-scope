@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import PassportShareButton from "@/features/passport/components/PassportShareButton";
 import { useNavigate } from "react-router-dom";
 
 type JaugeProps = {
@@ -38,6 +39,7 @@ export default function PassportPreview() {
         <p className="font-semibold text-[#1f2024] text-[20px]">
           Passeport de peau
         </p>
+        <PassportShareButton />
       </div>
 
       <div className="flex flex-col gap-[23px] items-start px-[16px] pt-[24px] w-full max-w-lg mx-auto">

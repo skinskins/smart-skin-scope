@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Droplets, Salad, Moon, Heart, Wine, Dumbbell, Sun, Wind, Thermometer, Cloud } from "lucide-react";
+import PassportShareButton from "@/features/passport/components/PassportShareButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -156,6 +157,7 @@ export default function PassportScreen5() {
           <ChevronLeft className="w-6 h-6 text-[#1f2024]" />
         </button>
         <p className="font-semibold text-[#1f2024] text-[20px]">Passeport de peau</p>
+        <PassportShareButton />
       </div>
 
       <div className="flex flex-col gap-[20px] items-start px-[16px] pt-[24px] w-full max-w-lg mx-auto">

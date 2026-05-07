@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
+import PassportShareButton from "@/features/passport/components/PassportShareButton";
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -182,6 +183,7 @@ export default function PassportScreen3() {
           <ChevronLeft className="w-6 h-6 text-[#1f2024]" />
         </button>
         <p className="font-semibold text-[#1f2024] text-[20px]">Passeport de peau</p>
+        <PassportShareButton />
       </div>
 
       <div className="flex flex-col gap-[20px] items-start px-[16px] pt-[24px] w-full max-w-lg mx-auto">
