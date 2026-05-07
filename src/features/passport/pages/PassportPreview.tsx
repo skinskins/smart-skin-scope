@@ -196,10 +196,10 @@ export default function PassportPreview() {
 
       {/* Pagination Controls - Keeping it above the BottomNav */}
       <div className="bg-transparent flex items-center justify-between px-[24px] py-[16px] max-w-lg mx-auto mt-[16px]">
-        <button className="bg-white border border-[#e9e9e9] rounded-[8px] p-[8px] shadow-sm">
+        <button disabled className="bg-white border border-[#e9e9e9] rounded-[8px] p-[8px] shadow-sm opacity-30 cursor-not-allowed">
           <ChevronLeft className="w-[20px] h-[20px] text-[#71727a]" />
         </button>
-        
+
         <div className="flex gap-[8px] items-center">
           <div className="bg-[#7d7d7d] h-[8px] w-[20px] rounded-full"></div>
           <div className="bg-[#d4d6dd] h-[8px] w-[8px] rounded-full"></div>
@@ -207,7 +207,7 @@ export default function PassportPreview() {
           <div className="bg-[#d4d6dd] h-[8px] w-[8px] rounded-full"></div>
         </div>
 
-        <button className="bg-white border border-[#e9e9e9] rounded-[8px] p-[8px] shadow-sm">
+        <button onClick={() => navigate('/passport/symptoms')} className="bg-white border border-[#e9e9e9] rounded-[8px] p-[8px] shadow-sm">
           <ChevronRight className="w-[20px] h-[20px] text-[#1f2024]" />
         </button>
       </div>

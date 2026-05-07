@@ -18,6 +18,9 @@ import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 import ResetPassword from "./pages/ResetPassword";
 import PassportPreview from "./features/passport/pages/PassportPreview";
 import SkinCheckIn from "./features/checkin/pages/SkinCheckIn";
+import PassportScreen4 from "./features/passport/pages/PassportScreen4";
+import PassportScreen2 from "./features/passport/pages/PassportScreen2";
+import PassportScreen3 from "./features/passport/pages/PassportScreen3";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import CheckinAdvice from "./pages/CheckinAdvice";
@@ -133,6 +136,9 @@ const App = () => (
           <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
           <Route path="/passport/preview" element={<AuthGuard><PassportPreview /></AuthGuard>} />
           <Route path="/skin-checkin" element={<AuthGuard><SkinCheckIn /></AuthGuard>} />
+          <Route path="/passport/visual" element={<AuthGuard><PassportScreen4 /></AuthGuard>} />
+          <Route path="/passport/symptoms" element={<AuthGuard><PassportScreen2 /></AuthGuard>} />
+          <Route path="/passport/factors" element={<AuthGuard><PassportScreen3 /></AuthGuard>} />
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />
           <Route path="/signup" element={<PublicOnlyGuard><Signup /></PublicOnlyGuard>} />
