@@ -17,6 +17,7 @@ import BottomNav from "./components/BottomNav";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 import ResetPassword from "./pages/ResetPassword";
 import PassportPreview from "./features/passport/pages/PassportPreview";
+import SkinCheckIn from "./features/checkin/pages/SkinCheckIn";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import CheckinAdvice from "./pages/CheckinAdvice";
@@ -131,6 +132,7 @@ const App = () => (
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
           <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
           <Route path="/passport/preview" element={<AuthGuard><PassportPreview /></AuthGuard>} />
+          <Route path="/skin-checkin" element={<AuthGuard><SkinCheckIn /></AuthGuard>} />
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />
           <Route path="/signup" element={<PublicOnlyGuard><Signup /></PublicOnlyGuard>} />

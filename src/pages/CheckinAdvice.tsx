@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import PassportPromptCard from "@/features/passport/components/PassportPromptCard";
+import SkinSymptomsSection from "@/features/checkin/components/SkinSymptomsSection";
 import { toast } from "sonner";
 import StravaConnect from "./StravaConnect";
 import { classifyStravaIntensity } from "@/data/stravaIntensity";
@@ -327,6 +328,22 @@ const CheckinAdvice = () => {
         const fetchCheckinStatus = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
+                // Gate: redirect to skin checkin if not answered today and not skipped
+                const todayGate = new Date().toISOString().split('T')[0];
+                const skipped = sessionStorage.getItem('skinCheckinSkippedDate') === todayGate;
+                if (!skipped) {
+                    const { data: symptomRow } = await (supabase as any)
+                        .from('skin_symptoms')
+                        .select('id')
+                        .eq('user_id', session.user.id)
+                        .eq('date', todayGate)
+                        .maybeSingle();
+                    if (!symptomRow) {
+                        navigate('/skin-checkin', { replace: true });
+                        return;
+                    }
+                }
+
                 const { data: profile } = await (supabase as any)
                     .from('profiles')
                     .select('*')
@@ -662,6 +679,17 @@ const CheckinAdvice = () => {
             </section>
 
             <PassportPromptCard />
+
+            {/* Skin checkin re-entry — visible only if skipped today */}
+            {sessionStorage.getItem('skinCheckinSkippedDate') === new Date().toISOString().split('T')[0] && (
+                <button
+                    onClick={() => navigate('/skin-checkin')}
+                    className="w-full mb-8 flex items-center justify-between px-5 py-4 border border-dashed border-[#CCCCCC] text-[#888888] hover:border-[#111111] hover:text-[#111111] transition-colors"
+                >
+                    <span className="text-xs font-mono font-bold uppercase tracking-widest">État de la peau — à compléter</span>
+                    <ChevronRight size={14} />
+                </button>
+            )}
 
             {/* Advice Section */}
             <section className="mb-12">
@@ -1198,6 +1226,8 @@ const CheckinAdvice = () => {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <SkinSymptomsSection />
 
             <div className="mt-8 flex justify-center">
                 {/* StravaConnect removed from here as it is now in the Sport popup */}
