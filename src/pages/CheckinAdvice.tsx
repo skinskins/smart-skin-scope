@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import PassportPromptCard from "@/features/passport/components/PassportPromptCard";
 import SkinSymptomsSection from "@/features/checkin/components/SkinSymptomsSection";
+import RoutineCard from "@/features/routine/components/RoutineCard";
 import { toast } from "sonner";
 import StravaConnect from "./StravaConnect";
 import { classifyStravaIntensity } from "@/data/stravaIntensity";
@@ -681,6 +682,8 @@ const CheckinAdvice = () => {
             )}
 
             <PassportPromptCard />
+
+            <RoutineCard />
 
             {/* Skin checkin re-entry — visible only if skipped today */}
             {sessionStorage.getItem('skinCheckinSkippedDate') === new Date().toISOString().split('T')[0] && (

@@ -10,6 +10,7 @@ import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import RoutineCard from "@/features/routine/components/RoutineCard";
 
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
@@ -936,80 +937,8 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Produits utilisés */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="bg-card  p-4  mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">Ma Routine</p>
-            <button onClick={() => {
-              setTempAmProducts(baseAmProducts);
-              setTempPmProducts(basePmProducts);
-              setRoutineSetupOpen(true);
-            }} className="p-1 rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-primary">
-              <Pencil size={14} />
-            </button>
-          </div>
-          <div className="flex bg-muted rounded-full p-0.5">
-            <button onClick={() => { setProductTime("am"); setProductsSaved(false); }}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "am" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
-              ☀️ Matin
-            </button>
-            <button onClick={() => { setProductTime("pm"); setProductsSaved(false); }}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${productTime === "pm" ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
-              🌙 Soir
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {currentProducts.map((p) =>
-            <button key={p} onClick={() => toggleProduct(p)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${selected.includes(p) ? 'bg-primary text-primary-foreground' : 'bg-accent text-accent-foreground'}`
-              }>
-              {selected.includes(p) && <Check size={10} className="inline mr-1" />}{p}
-            </button>
-          )}
-        </div>
-        <button onClick={saveProducts}
-          className={`w-full py-2 rounded-xl text-xs font-semibold transition-all ${productsSaved ? 'bg-accent text-primary' : 'bg-primary text-primary-foreground'}`
-          }>
-          {productsSaved ? "✓ Routine réalisée" : "Routine réalisée"}
-        </button>
-
-        {/* Feedback popup */}
-        <AnimatePresence>
-          {productFeedback && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className={`mt-3 rounded-xl p-3 border ${productFeedback.positive
-                ? "bg-primary/5 border-primary/15"
-                : "bg-destructive/5 border-destructive/15"
-                }`}
-            >
-              <div className="flex items-center gap-2 mb-1.5">
-                {productFeedback.positive
-                  ? <ThumbsUp size={14} className="text-primary" />
-                  : <ShieldAlert size={14} className="text-destructive" />
-                }
-                <p className={`text-xs font-semibold ${productFeedback.positive ? "text-primary" : "text-destructive"}`}>
-                  {productFeedback.message}
-                </p>
-              </div>
-              {productFeedback.tips.map((tip, i) => (
-                <div key={i} className="ml-5 mb-1.5">
-                  <p className="text-[11px] text-foreground/80 leading-relaxed">• {tip.text}</p>
-                  {tip.source && (
-                    <p className="text-[9px] text-muted-foreground/50 italic ml-2 mt-0.5">— {tip.source}</p>
-                  )}
-                </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+      {/* Ma Routine — connected to user_products + routine_logs */}
+      <RoutineCard />
 
       {/* Métriques peau */}
       <h2 className="text-lg font-display font-semibold text-foreground mb-3">Indicateurs de ma peau</h2>
