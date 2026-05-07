@@ -22,6 +22,13 @@ interface RoutineRow {
   date: string;
 }
 
+interface ProductRow {
+  id: string;
+  product_name: string;
+  brand: string | null;
+  product_type: string | null;
+}
+
 const avg = (vals: (number | null)[]): number => {
   const defined = vals.filter((v) => v !== null) as number[];
   if (!defined.length) return 0;
@@ -76,6 +83,7 @@ export default function PassportScreen5() {
   const navigate = useNavigate();
   const [checkins, setCheckins] = useState<CheckinRow[]>([]);
   const [routines, setRoutines] = useState<RoutineRow[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -87,7 +95,7 @@ export default function PassportScreen5() {
       from.setDate(from.getDate() - 29);
       const fromStr = from.toISOString().split("T")[0];
 
-      const [{ data: c }, { data: r }] = await Promise.all([
+      const [{ data: c }, { data: r }, { data: p }] = await Promise.all([
         (supabase as any)
           .from("daily_checkins")
           .select("date, stress_level, sleep_hours, water_glasses, food_quality, did_sport, alcohol_drinks")
@@ -100,10 +108,16 @@ export default function PassportScreen5() {
           .eq("user_id", session.user.id)
           .gte("date", fromStr)
           .order("date", { ascending: true }),
+        (supabase as any)
+          .from("user_products")
+          .select("id, product_name, brand, product_type")
+          .eq("user_id", session.user.id)
+          .eq("is_active", true),
       ]);
 
       setCheckins(c ?? []);
       setRoutines(r ?? []);
+      setProducts(p ?? []);
       setLoading(false);
     };
     load();
@@ -241,13 +255,16 @@ export default function PassportScreen5() {
 
           {/* ── TAB 2: Routine ── */}
           <TabsContent value="routine" className="flex flex-col gap-[12px] mt-[12px]">
-            {/* TODO: add products when products table is created */}
             {[
-              { label: "Démaquillage", score: makeupScore },
-              { label: "Nettoyage du visage", score: morningScore },
-              { label: "Hydratation matin", score: morningScore },
-              { label: "Protection solaire", score: spfScore },
-            ].map(({ label, score }) => (
+              { label: "Démaquillage",      score: makeupScore,  type: "démaquillant" },
+              { label: "Nettoyage du visage", score: morningScore, type: "nettoyant" },
+              { label: "Hydratation matin",  score: morningScore, type: "hydratant" },
+              { label: "Protection solaire", score: spfScore,     type: "spf" },
+            ].map(({ label, score, type }) => {
+              const matching = products.filter(
+                (p) => p.product_type?.toLowerCase() === type
+              );
+              return (
               <div key={label} className="bg-white rounded-[16px] shadow-sm p-[16px] flex flex-col gap-[10px]">
                 <div className="flex items-center justify-between">
                   <p className="text-[#3b3b3d] text-[15px]">{label}</p>
@@ -264,8 +281,21 @@ export default function PassportScreen5() {
                   />
                 </div>
                 <p className="text-[#71727a] text-[13px]">{routineInsight(score, total)}</p>
+                {matching.length > 0 && (
+                  <div className="flex flex-col gap-[6px] pt-[6px] border-t border-[#f2f2f7]">
+                    {matching.map((p) => (
+                      <div key={p.id} className="flex items-center gap-[6px]">
+                        <div className="w-[4px] h-[4px] rounded-full bg-[#d4d6dd] flex-shrink-0" />
+                        <p className="text-[#3b3b3d] text-[13px] truncate">{p.product_name}</p>
+                        {p.brand && (
+                          <p className="text-[#71727a] text-[12px] truncate flex-shrink-0">— {p.brand}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+            );})}
           </TabsContent>
         </Tabs>
       </div>
