@@ -44,14 +44,12 @@ interface PassportData {
 const pct = (count: number, total: number) =>
   total === 0 ? 0 : Math.round((count / total) * 100);
 
-const computeStatus = (rows: { acne_trend: string | null; redness_trend: string | null; dryness_trend: string | null }[]): Status => {
+const computeStatus = (rows: { trend: string | null }[]): Status => {
   const counts = { moins: 0, pareil: 0, plus: 0 };
   for (const r of rows) {
-    for (const val of [r.acne_trend, r.redness_trend, r.dryness_trend]) {
-      if (val === "moins") counts.moins++;
-      else if (val === "plus") counts.plus++;
-      else if (val === "pareil") counts.pareil++;
-    }
+    if (r.trend === "moins") counts.moins++;
+    else if (r.trend === "plus") counts.plus++;
+    else if (r.trend === "pareil") counts.pareil++;
   }
   const max = Math.max(counts.moins, counts.pareil, counts.plus);
   if (max === 0) return "Stable";
@@ -113,8 +111,8 @@ export default function PassportPreview() {
           .eq("user_id", session.user.id)
           .gte("date", from30Str),
         (supabase as any)
-          .from("skin_symptoms")
-          .select("acne_trend, redness_trend, dryness_trend")
+          .from("symptom_tracking")
+          .select("symptom, trend")
           .eq("user_id", session.user.id)
           .gte("date", from7Str),
         (supabase as any)

@@ -6,16 +6,28 @@ import { Camera, ImageIcon } from "lucide-react";
 
 type Trend = "moins" | "pareil" | "plus";
 
-interface Answers {
-  acne: Trend | null;
-  redness: Trend | null;
-  dryness: Trend | null;
+interface SymptomStep {
+  dbKey: string;   // value saved in symptom_tracking.symptom
+  question: string;
 }
 
-const SYMPTOM_STEPS = [
-  { key: "acne" as const, question: "Par rapport à hier,\nton acné est..." },
-  { key: "redness" as const, question: "Par rapport à hier,\ntes rougeurs sont..." },
-  { key: "dryness" as const, question: "Par rapport à hier,\nta peau est..." },
+// Maps skin_problems UI labels → symptom_tracking values + check-in question
+const PROBLEM_TO_STEP: Record<string, SymptomStep> = {
+  "Acné":           { dbKey: "acné",        question: "Par rapport à hier,\nton acné est..." },
+  "Rougeurs":       { dbKey: "rougeurs",    question: "Par rapport à hier,\ntes rougeurs sont..." },
+  "Déshydratation": { dbKey: "sécheresse",  question: "Par rapport à hier,\nta sécheresse est..." },
+  "Sécheresse":     { dbKey: "sécheresse",  question: "Par rapport à hier,\nta sécheresse est..." },
+  "Taches":         { dbKey: "taches",      question: "Par rapport à hier,\ntes taches sont..." },
+  "Points noirs":   { dbKey: "points_noirs",question: "Par rapport à hier,\ntes points noirs sont..." },
+  "Rides":          { dbKey: "rides",       question: "Par rapport à hier,\ntes rides sont..." },
+  "Cernes":         { dbKey: "cernes",      question: "Par rapport à hier,\ntes cernes sont..." },
+  "Eczéma":         { dbKey: "eczéma",      question: "Par rapport à hier,\nton eczéma est..." },
+};
+
+const DEFAULT_STEPS: SymptomStep[] = [
+  { dbKey: "acné",       question: "Par rapport à hier,\nton acné est..." },
+  { dbKey: "rougeurs",   question: "Par rapport à hier,\ntes rougeurs sont..." },
+  { dbKey: "sécheresse", question: "Par rapport à hier,\nta sécheresse est..." },
 ];
 
 const TREND_OPTIONS: { value: Trend; label: string; icon: string }[] = [
@@ -25,37 +37,60 @@ const TREND_OPTIONS: { value: Trend; label: string; icon: string }[] = [
 ];
 
 const variants = {
-  enter: (dir: number) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
+  enter:  (dir: number) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
+  exit:   (dir: number) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
 };
 
 const today = new Date().toISOString().split("T")[0];
 
 export default function SkinCheckIn() {
   const navigate = useNavigate();
+  const [steps, setSteps] = useState<SymptomStep[]>([]);
   const [step, setStep] = useState(0);
   const [direction] = useState(1);
-  const [answers, setAnswers] = useState<Answers>({ acne: null, redness: null, dryness: null });
+  const [answers, setAnswers] = useState<Record<string, Trend>>({});
   const [uploading, setUploading] = useState(false);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const [ready, setReady] = useState(false);
+  const cameraRef  = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const check = async () => {
+    const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { navigate("/checkin-advice", { replace: true }); return; }
 
-      const { data } = await (supabase as any)
-        .from("skin_symptoms")
+      // Gate: already checked in today?
+      const { data: existing } = await (supabase as any)
+        .from("symptom_tracking")
         .select("id")
         .eq("user_id", session.user.id)
         .eq("date", today)
-        .maybeSingle();
+        .limit(1);
+      if (existing && existing.length > 0) {
+        navigate("/checkin-advice", { replace: true });
+        return;
+      }
 
-      if (data) navigate("/checkin-advice", { replace: true });
+      // Build steps from user's skin_problems
+      const { data: profile } = await (supabase as any)
+        .from("profiles")
+        .select("skin_problems")
+        .eq("id", session.user.id)
+        .single();
+
+      const problems: string[] = profile?.skin_problems ?? [];
+      const seen = new Set<string>();
+      const built: SymptomStep[] = [];
+      for (const p of problems) {
+        const s = PROBLEM_TO_STEP[p];
+        if (s && !seen.has(s.dbKey)) { seen.add(s.dbKey); built.push(s); }
+      }
+
+      setSteps(built.length > 0 ? built : DEFAULT_STEPS);
+      setReady(true);
     };
-    check();
+    init();
   }, [navigate]);
 
   const skip = () => {
@@ -64,25 +99,24 @@ export default function SkinCheckIn() {
   };
 
   const handleTrendSelect = (value: Trend) => {
-    const key = SYMPTOM_STEPS[step].key;
-    const next = { ...answers, [key]: value };
+    const current = steps[step];
+    const next = { ...answers, [current.dbKey]: value };
     setAnswers(next);
     setStep(s => s + 1);
   };
 
-  const complete = async (finalAnswers: Answers) => {
+  const complete = async (finalAnswers: Record<string, Trend>) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { navigate("/checkin-advice", { replace: true }); return; }
 
-    await (supabase as any).from("skin_symptoms").upsert(
-      {
-        user_id: session.user.id,
-        date: today,
-        acne_trend: finalAnswers.acne,
-        redness_trend: finalAnswers.redness,
-        dryness_trend: finalAnswers.dryness,
-      },
-      { onConflict: "user_id,date" }
+    // One row per symptom in symptom_tracking
+    await Promise.all(
+      steps.map(s =>
+        (supabase as any).from("symptom_tracking").upsert(
+          { user_id: session.user.id, date: today, symptom: s.dbKey, trend: finalAnswers[s.dbKey] ?? null, zone: null },
+          { onConflict: "user_id,date,symptom" }
+        )
+      )
     );
 
     navigate("/checkin-advice", { replace: true });
@@ -113,8 +147,16 @@ export default function SkinCheckIn() {
     }
   };
 
-  const totalSteps = 4;
-  const isPhotoStep = step === 3;
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-[#111111] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const totalSteps = steps.length + 1; // +1 for photo step
+  const isPhotoStep = step >= steps.length;
 
   return (
     <div className="min-h-screen bg-white flex flex-col overflow-hidden">
@@ -130,7 +172,7 @@ export default function SkinCheckIn() {
             />
           ))}
           <span className="ml-3 text-[10px] font-mono font-bold text-[#888888] uppercase tracking-widest">
-            {step + 1}/{totalSteps}
+            {Math.min(step + 1, totalSteps)}/{totalSteps}
           </span>
         </div>
         {!isPhotoStep && (
@@ -158,7 +200,7 @@ export default function SkinCheckIn() {
               className="absolute inset-0 flex flex-col justify-center px-8 pb-16"
             >
               <h1 className="text-4xl font-display font-black text-[#111111] uppercase tracking-tight leading-tight mb-14 whitespace-pre-line">
-                {SYMPTOM_STEPS[step].question}
+                {steps[step].question}
               </h1>
 
               <div className="space-y-3">

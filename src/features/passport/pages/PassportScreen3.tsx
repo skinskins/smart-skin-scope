@@ -90,15 +90,16 @@ export default function PassportScreen3() {
           .gte("date", fromStr)
           .order("date", { ascending: true }),
         (supabase as any)
-          .from("skin_symptoms")
-          .select("date, acne_trend")
+          .from("symptom_tracking")
+          .select("date, trend")
           .eq("user_id", session.user.id)
+          .eq("symptom", "acné")
           .gte("date", fromStr)
           .order("date", { ascending: true }),
       ]);
 
       const symptomMap: Record<string, string> = {};
-      (symptoms ?? []).forEach((r: any) => { symptomMap[r.date] = r.acne_trend; });
+      (symptoms ?? []).forEach((r: any) => { symptomMap[r.date] = r.trend; });
 
       const entries: DayData[] = (checkins ?? []).map((r: any) => {
         const rawAcne = symptomMap[r.date] ?? null;

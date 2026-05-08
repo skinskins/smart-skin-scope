@@ -597,14 +597,17 @@ function StepCompte({ data, onChange, onNext, onBack, onClose }: {
           last_period_date: data.lastPeriodDate || null,
           cycle_duration: data.cycleDuration || null,
         }),
-        (data.acneBaseline || data.rednessBaseline || data.drynessBaseline)
-          ? (supabase as any).from("skin_symptoms").upsert({
-              user_id: userId, date: today,
-              acne_trend: baselineMap[data.acneBaseline] ?? null,
-              redness_trend: baselineMap[data.rednessBaseline] ?? null,
-              dryness_trend: baselineMap[data.drynessBaseline] ?? null,
-            }, { onConflict: "user_id,date" })
-          : Promise.resolve(),
+        // Day-0 baseline: one row per symptom in symptom_tracking
+        ...[
+          data.acneBaseline     && { symptom: "acné",       trend: baselineMap[data.acneBaseline] },
+          data.rednessBaseline  && { symptom: "rougeurs",   trend: baselineMap[data.rednessBaseline] },
+          data.drynessBaseline  && { symptom: "sécheresse", trend: baselineMap[data.drynessBaseline] },
+        ].filter(Boolean).map((row: any) =>
+          (supabase as any).from("symptom_tracking").upsert(
+            { user_id: userId, date: today, symptom: row.symptom, trend: row.trend, zone: null },
+            { onConflict: "user_id,date,symptom" }
+          )
+        ),
         ...data.selectedProducts.map(p =>
           (supabase as any).from("user_products").insert({
             user_id: userId,

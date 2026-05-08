@@ -333,13 +333,13 @@ const CheckinAdvice = () => {
                 const todayGate = new Date().toISOString().split('T')[0];
                 const skipped = sessionStorage.getItem('skinCheckinSkippedDate') === todayGate;
                 if (!skipped) {
-                    const { data: symptomRow } = await (supabase as any)
-                        .from('skin_symptoms')
+                    const { data: symptomRows } = await (supabase as any)
+                        .from('symptom_tracking')
                         .select('id')
                         .eq('user_id', session.user.id)
                         .eq('date', todayGate)
-                        .maybeSingle();
-                    if (!symptomRow) {
+                        .limit(1);
+                    if (!symptomRows || symptomRows.length === 0) {
                         navigate('/skin-checkin', { replace: true });
                         return;
                     }

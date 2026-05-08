@@ -77,19 +77,30 @@ export default function PassportScreen2() {
       const fromStr = from.toISOString().split("T")[0];
 
       const { data: rows } = await (supabase as any)
-        .from("skin_symptoms")
-        .select("date, acne_trend, redness_trend, dryness_trend")
+        .from("symptom_tracking")
+        .select("date, symptom, trend")
         .eq("user_id", session.user.id)
         .gte("date", fromStr)
         .order("date", { ascending: true });
 
-      const entries: DayData[] = (rows ?? []).map((r: any) => ({
-        date: r.date,
-        label: formatDateLabel(r.date),
-        acne: toValue(r.acne_trend),
-        redness: toValue(r.redness_trend),
-        dryness: toValue(r.dryness_trend),
-      }));
+      // Pivot: one row per day, keyed by symptom
+      const byDate: Record<string, { acne: TrendValue | null; redness: TrendValue | null; dryness: TrendValue | null }> = {};
+      for (const r of (rows ?? [])) {
+        if (!byDate[r.date]) byDate[r.date] = { acne: null, redness: null, dryness: null };
+        if (r.symptom === "acné")       byDate[r.date].acne    = toValue(r.trend);
+        if (r.symptom === "rougeurs")   byDate[r.date].redness = toValue(r.trend);
+        if (r.symptom === "sécheresse") byDate[r.date].dryness = toValue(r.trend);
+      }
+
+      const entries: DayData[] = Object.entries(byDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, vals]) => ({
+          date,
+          label: formatDateLabel(date),
+          acne:    vals.acne,
+          redness: vals.redness,
+          dryness: vals.dryness,
+        }));
 
       setData(entries);
       setLoading(false);
