@@ -62,8 +62,10 @@ const DailyCheckin = () => {
             rides: "pareil" as Trend,
             cernes: "pareil" as Trend,
             eczéma: "pareil" as Trend
-        }
+        },
+        symptomZones: {} as Record<string, string | null>
     });
+
 
     const [userConcerns, setUserConcerns] = useState<string[]>([]);
 
@@ -202,8 +204,9 @@ const DailyCheckin = () => {
                     date: today,
                     symptom,
                     trend,
-                    zone: null
+                    zone: trend === "plus" ? (data.symptomZones[symptom] || null) : null
                 }));
+
 
                 await (supabase as any).from("symptom_tracking").upsert(symptomEntries, {
                     onConflict: "user_id,date,symptom"
@@ -378,8 +381,34 @@ const DailyCheckin = () => {
                                             })}
                                         </div>
                                     </div>
+
+                                    {isSelected && trend === "plus" && (
+                                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="pt-4 space-y-3">
+                                            <p className="text-[9px] font-bold text-primary/60 uppercase tracking-widest px-1">Localisation (Face Mapping)</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["menton", "front", "joues", "contour_bouche", "tempes"].map(zone => (
+                                                    <button
+                                                        key={zone}
+                                                        onClick={() => setData({
+                                                            ...data,
+                                                            symptomZones: { ...data.symptomZones, [symptom.id]: zone }
+                                                        })}
+                                                        className={`px-3 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest border transition-all ${
+                                                            data.symptomZones[symptom.id] === zone
+                                                                ? 'bg-primary/10 text-primary border-primary/20'
+                                                                : 'bg-muted/5 border-transparent text-muted-foreground/50'
+                                                        }`}
+                                                    >
+                                                        {zone.replace('_', ' ')}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                    </div>
                                 ))}
                             </div>
+
                         </div>
                     </motion.section>
 

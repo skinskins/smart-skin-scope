@@ -1,798 +1,13 @@
 {
-  "skinTypes": [
-    "dry",
-    "oily",
-    "combo",
-    "normal"
-  ],
-  "skinLabels": {
-    "dry": "Peau sèche / sensible",
-    "oily": "Peau grasse / acnéique",
-    "combo": "Peau mixte",
-    "normal": "Peau normale"
-  },
   "groups": {
-    "g1": {
-      "label": "Auto-détecté",
-      "description": "Données récupérées automatiquement via API météo et qualité de l'air. Ces 4 facteurs conditionnent le conseil dès l'ouverture de l'app, sans aucune action de l'utilisatrice.",
-      "scenarios": [
-        {
-          "id": "heat_humidity",
-          "factor": "Chaleur + humidité",
-          "icon": "🌡️",
-          "source": "api",
-          "trigger": {
-            "tempC": {
-              "gte": 25
-            },
-            "humidity": {
-              "gte": 65
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Alléger sans sacrifier l'hydratation",
-              "body": "Par temps chaud et humide, la peau sèche n'a pas besoin de son soin occlusif habituel — l'air ambiant apporte de l'humidité. Remplacer la crème riche par un sérum acide hyaluronique seul, plus léger et tout aussi efficace.",
-              "tip": "Garde la crème riche pour les soirs d'hiver. En été, le sérum seul suffit souvent et la peau respire mieux."
-            },
-            "oily": {
-              "title": "Routine express — moins c'est plus",
-              "body": "Chaleur + humidité = sébum en surproduction. Ce matin : nettoyant doux, sérum niacinamide pour réguler, et rien d'autre. Chaque couche supplémentaire alourdit et favorise les pores bouchés.",
-              "tip": "Un nettoyant légèrement purifiant à l'acide salicylique doux le matin change tout sur les peaux grasses en été — sans décaper."
-            },
-            "combo": {
-              "title": "Deux zones, deux textures",
-              "body": "La zone T déborde, les joues restent plus stables. Appliquer un gel hydratant sur joues et tempes, juste une brume tonifiante sur le front et le nez. Deux textures, un seul geste rapide.",
-              "tip": "Le stick hydratant ciblé sur les joues est idéal l'été pour la peau mixte — zéro dépôt sur la T-zone."
-            },
-            "normal": {
-              "title": "L'été pour alléger ta routine",
-              "body": "La peau normale s'adapte bien à la chaleur. C'est la saison idéale pour réduire les étapes : nettoyant + SPF léger, rien de plus. Moins de produits, peau qui respire.",
-              "tip": "L'été est le bon moment pour tester une crème solaire comme seul hydratant — si ta peau normale le tolère, tu simplifies durablement."
-            }
-          }
-        },
-        {
-          "id": "cold_wind",
-          "factor": "Froid vif",
-          "icon": "🥶",
-          "source": "api",
-          "trigger": {
-            "tempC": {
-              "lte": 5
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Barrière renforcée avant de sortir",
-              "body": "Le froid vide les lipides cutanés et crée une sensation de peau 'papier de verre'. Avant de sortir : crème barrière riche aux céramides, appliquée sur peau légèrement humide pour maximiser l'absorption.",
-              "tip": "Le squalane en dernière étape scelle l'hydratation et protège mécaniquement du froid. Quelques gouttes sur la crème, c'est tout."
-            },
-            "oily": {
-              "title": "Ne pas sous-hydrater sous prétexte que ça brille",
-              "body": "Le froid déshydrate aussi les peaux grasses — elles compensent avec encore plus de sébum. Un gel-crème non-comédogène le matin régule sans assécher et casse ce cercle vicieux.",
-              "tip": "Si ta peau tiraille en hiver malgré le sébum visible, elle est déshydratée (pas la même chose que grasse). Le gel-crème est la réponse."
-            },
-            "combo": {
-              "title": "Joues protégées, T-zone équilibrée",
-              "body": "En hiver, les joues d'une peau mixte souffrent autant qu'une peau sèche. Appliquer une crème riche sur joues, menton et tempes, et un hydratant léger uniquement sur le front et nez.",
-              "tip": "Certaines crèmes barrière hivernales sont trop riches pour la T-zone. L'application différenciée évite les comédons tout en protégeant le reste."
-            },
-            "normal": {
-              "title": "Un cran d'hydratation en plus, pas plus",
-              "body": "La peau normale en hiver demande juste un ajustement : passer de la crème légère habituelle à une texture confort. Un seul changement suffit — pas besoin de refaire toute la routine.",
-              "tip": "Les gel-crèmes sont parfaits pour les peaux normales en hiver : ils hydratent plus sans alourdir."
-            }
-          }
-        },
-        {
-          "id": "pollution_high",
-          "factor": "Pollution élevée",
-          "icon": "🌫️",
-          "source": "api",
-          "trigger": {
-            "aqi": {
-              "gte": 80
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Le sérum vitamine C, ton bouclier invisible",
-              "body": "Les particules fines PM2.5 se déposent sur la peau sèche et accélèrent la dégradation du collagène. Un sérum vitamine C stable appliqué avant le SPF forme un film antioxydant qui neutralise ces agressions.",
-              "tip": "Ordre impératif : nettoyant → vitamine C → SPF. La vitamine C doit être sous le filtre solaire pour être efficace."
-            },
-            "oily": {
-              "title": "Niacinamide le matin, nettoyage renforcé le soir",
-              "body": "La pollution s'accroche aux pores dilatés et génère une inflammation silencieuse qui aggrave l'acné sur la durée. Un sérum niacinamide le matin protège ET régule le sébum — deux bénéfices en un ingrédient.",
-              "tip": "Un rappel in-app le soir les jours de forte pollution pour un double nettoyage — c'est là que tout se joue pour la peau grasse."
-            },
-            "combo": {
-              "title": "Antioxydant global, nettoyage ciblé ce soir",
-              "body": "La pollution s'accumule davantage dans les pores de la T-zone. Ce matin : antioxydant en sérum sur tout le visage. L'app rappellera d'insister sur la T-zone au nettoyage du soir.",
-              "tip": "Un SPF minéral forme une barrière physique contre les particules en plus de protéger des UV — double protection les jours de pollution."
-            },
-            "normal": {
-              "title": "L'antioxydant matin, un réflexe à prendre",
-              "body": "Même sur une peau sans problème, la pollution terne progressivement le teint sur des semaines. Ajouter un sérum à la vitamine C ou aux polyphénols à la routine matin — simple, rapide, efficace.",
-              "tip": "Par jour de pollution élevée, éviter les actifs exfoliants le soir. La peau est déjà agressée — elle a besoin de récupération, pas de stimulation."
-            }
-          }
-        }
-      ]
-    },
-    "g2": {
-      "label": "Question posée",
-      "description": "Facteurs déclarés par l'utilisatrice via une question posée le matin. Chaque question est posée uniquement si elle est pertinente — jamais toutes en même temps, jamais si la réponse est déjà connue.",
-      "scenarios": [
-        {
-          "id": "sleep_short",
-          "factor": "Sommeil court",
-          "icon": "🌙",
-          "source": "question",
-          "questionKey": "sleepHours",
-          "questionText": "Tu as bien dormi ? (moins de 6h / 6–8h / 8h+)",
-          "trigger": {
-            "sleepHours": {
-              "lte": 6
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Rattraper la nuit sur ta peau",
-              "body": "La réparation cellulaire se fait la nuit — sous les 6h, la barrière des peaux sèches ne se régénère pas entièrement. Ce matin : sérum hyaluronique appliqué sur peau légèrement humide avant ta crème pour doubler l'efficacité.",
-              "tip": "Ne pas sécher complètement le visage après le nettoyage — appliquer la crème sur peau encore légèrement humide améliore l'hydratation d'environ 40%."
-            },
-            "oily": {
-              "title": "Douceur ce matin, le cortisol a déjà fait des dégâts",
-              "body": "Peu de sommeil = cortisol élevé = sébum en hausse. La tentation de sur-nettoyer est grande — c'est l'inverse qui aide. Sérum centella ou aloé vera pour calmer l'inflammation en prévention.",
-              "tip": "Un nettoyant trop agressif le matin après une courte nuit stimule encore plus le sébum en réponse. Doux, vraiment."
-            },
-            "combo": {
-              "title": "La T-zone en alerte, les joues à protéger",
-              "body": "Sur une peau mixte, c'est la zone T qui réagit en premier au manque de sommeil — elle brillera plus. Sérum léger sur tout le visage, papier matifiant dans le sac pour la journée.",
-              "tip": "Un contour des yeux à la caféine le matin réduit visuellement la fatigue et compense un peu ce que la nuit n'a pas fait."
-            },
-            "normal": {
-              "title": "Donner à la peau ce que la nuit n'a pas pu faire",
-              "body": "Même une peau normale trahit une nuit trop courte : teint terne, traits tirés. Un sérum vitamine C le matin active l'éclat que la réparation nocturne n'a pas eu le temps de déclencher.",
-              "tip": "La vitamine C est l'actif anti-fatigue le plus immédiatement visible sur une peau normale. Le teint remonte en moins de 30 minutes."
-            }
-          }
-        },
-        {
-          "id": "alcohol_yesterday",
-          "factor": "Alcool la veille",
-          "icon": "🍷",
-          "source": "question",
-          "questionKey": "alcoholLastNight",
-          "questionText": "Tu as bu de l'alcool hier soir ? (non / 1–2 verres / plus)",
-          "trigger": {
-            "alcoholLastNight": {
-              "gte": 1
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "SOS hydratation, en deux étapes",
-              "body": "L'alcool est un puissant diurétique qui vide l'eau des cellules cutanées — encore plus marqué sur les peaux sèches. Ce matin : verre d'eau avant tout geste skincare, puis sérum hyaluronique + crème riche. Dans cet ordre.",
-              "tip": "Un masque hydrogel contour des yeux 10 minutes ce matin après alcool est redoutablement efficace pour dégonfler et relancer l'éclat."
-            },
-            "oily": {
-              "title": "Apaiser avant de purifier",
-              "body": "L'alcool dilate les vaisseaux et crée une inflammation — la peau grasse peut réagir avec des rougeurs ou de nouveaux boutons 24–48h après. Ce matin : nettoyant doux (pas de purifiant agressif), sérum niacinamide apaisant.",
-              "tip": "Contre-intuitif mais réel : un nettoyant trop agressif le lendemain d'alcool aggrave la réaction. La douceur prévient le rebond sébacé."
-            },
-            "combo": {
-              "title": "Joues à hydrater, T-zone à apaiser",
-              "body": "La déshydratation de l'alcool touche les joues, tandis que l'inflammation peut activer la T-zone. Mission double : sérum hydratant sur joues et tempes, eau thermale apaisante sur le front et nez.",
-              "tip": "La brume d'eau thermale (Avène, La Roche-Posay) n'est pas qu'un geste cosmétique — elle calme l'inflammation cutanée post-alcool en quelques secondes."
-            },
-            "normal": {
-              "title": "Le protocole éclat post-soirée",
-              "body": "Pour une peau normale, l'alcool se traduit surtout par un teint terne et légèrement gonflé. Routine express : eau froide sur le visage, vitamine C, SPF léger. En 10 minutes, le teint remonte.",
-              "tip": "Boire 500ml d'eau à jeun avant même le café aide la peau autant que tous les produits — l'hydratation interne précède l'externe."
-            }
-          }
-        },
-        {
-          "id": "makeup_on",
-          "factor": "Maquillage non retiré",
-          "icon": "💄",
-          "source": "question",
-          "questionKey": "removedMakeupLastNight",
-          "questionText": "Est-ce que tu as retiré ton maquillage hier soir ?",
-          "trigger": {
-            "removedMakeupLastNight": false
-          },
-          "advice": {
-            "dry": {
-              "title": "Réparer sans agresser",
-              "body": "Le maquillage laissé toute la nuit s'oxyde et génère des radicaux libres — particulièrement néfaste pour les peaux sèches dont la barrière est déjà fragile. Ce matin : baume démaquillant doux (pas d'eau micellaire avec alcool), puis hydratation renforcée.",
-              "tip": "Si ça t'arrive souvent, garde des disques en coton + huile démaquillante sur ta table de nuit. La friction zéro est essentielle pour les peaux sèches sensibles."
-            },
-            "oily": {
-              "title": "Double nettoyage ce matin, sans frotter",
-              "body": "Fond de teint oxydé + sébum toute la nuit = terrain fertile pour les comédons. Prendre le temps d'un double nettoyage : huile ou baume pour dissoudre, puis gel purifiant doux. Ne pas frotter — masser en cercles.",
-              "tip": "La méthode 60 secondes — masser le nettoyant pendant une minute entière avant de rincer — améliore significativement le nettoyage sans agresser."
-            },
-            "combo": {
-              "title": "Deux étapes, tout le visage",
-              "body": "Double nettoyage complet ce matin. Insister sur la T-zone en douceur. Terminer par un toner hydratant pour ne pas assécher les joues après la purification.",
-              "tip": "Le coton plat est bien plus doux que le coton boule pour la peau mixte. Moins de friction = moins de réactivité sur les joues."
-            },
-            "normal": {
-              "title": "Récupération en 2 étapes, sans sur-compenser",
-              "body": "La bonne nouvelle : la peau normale récupère vite. Un bon démaquillage + un sérum vitamine C ce matin suffisent à relancer l'éclat. Résister à l'envie de superposer les soins pour 'compenser'.",
-              "tip": "À éviter ce matin : sur-exfolier pour 'nettoyer plus'. Ça fragilise inutilement une peau déjà sollicitée."
-            }
-          }
-        },
-        {
-          "id": "sport_morning",
-          "factor": "Sport ce matin",
-          "icon": "🏃",
-          "source": "question",
-          "questionKey": "didSportToday",
-          "questionText": "Tu as fait du sport ce matin ou tu vas en faire ?",
-          "trigger": {
-            "didSportToday": true
-          },
-          "advice": {
-            "dry": {
-              "title": "Réhydrater tout de suite, avant que ça sèche",
-              "body": "La transpiration emporte des électrolytes et accélère l'évaporation cutanée. Dès la douche : eau tiède (pas chaude), puis crème hydratante sur peau encore humide pour sceller immédiatement.",
-              "tip": "Ne pas sécher complètement le visage à la serviette — appliquer la crème sur peau légèrement humide multiplie l'efficacité de l'hydratation."
-            },
-            "oily": {
-              "title": "Nettoyage dans les 30 min, sans exception",
-              "body": "La transpiration mélangée au sébum bouche les pores si elle reste. Nettoyant doux dans les 30 min post-sport. Pas besoin d'un nettoyant purifiant fort — doux suffit si fait rapidement.",
-              "tip": "Une lingette micellaire douce en post-sport si pas de douche disponible — mieux que rien, en attendant le vrai nettoyage."
-            },
-            "combo": {
-              "title": "Douche tiède, puis ciblage habituel",
-              "body": "Post-sport sur peau mixte : douche eau tiède, nettoyant doux. Ensuite, gel hydratant sur joues, laisser la T-zone respirer sans rien ajouter sauf SPF si sortie.",
-              "tip": "Éviter l'eau très chaude post-sport sur une peau mixte — elle dilate les pores de la zone T et favorise les points noirs."
-            },
-            "normal": {
-              "title": "Routine habituelle, juste plus vite",
-              "body": "La peau normale après le sport récupère sans protocole complexe. Nettoyant doux + hydratant léger + SPF si sortie. Le sport améliore la microcirculation — l'éclat est déjà là.",
-              "tip": "Le running régulier améliore durablement la texture de la peau normale sur 4 à 6 semaines. L'app peut en faire le suivi."
-            }
-          }
-        },
-        {
-          "id": "stress_high",
-          "factor": "Stress élevé",
-          "icon": "😤",
-          "source": "question",
-          "questionKey": "stressLevel",
-          "questionText": "Ton niveau de stress aujourd'hui ? (1–10)",
-          "trigger": {
-            "stressLevel": {
-              "gte": 7
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Apaiser avant d'hydrater",
-              "body": "Le cortisol augmente la perméabilité de la barrière cutanée des peaux sèches — elles deviennent plus réactives et perdent plus d'eau. Centella asiatica ou aloé vera avant la crème barrière ce matin.",
-              "tip": "Éviter tout actif irritant les jours de stress intense (rétinol, acides) — la peau est déjà en état d'alerte, inutile de la stimuler."
-            },
-            "oily": {
-              "title": "Le cortisol et le sébum sont amis — pas toi",
-              "body": "Stress → cortisol → sébum en hausse et inflammation silencieuse. Sérum niacinamide ce matin : anti-inflammatoire ET séborégulateur. Le double effet dont la peau grasse a besoin les jours difficiles.",
-              "tip": "La respiration profonde réduit le cortisol salivaire de 23% en 5 minutes selon plusieurs études. L'app peut intégrer un rappel de routine bien-être."
-            },
-            "combo": {
-              "title": "Simplifier pour ne pas ajouter de stress",
-              "body": "Peau mixte stressée = T-zone plus réactive, joues potentiellement plus sensibles. Routine courte et connue uniquement. Sérum léger apaisant sur tout le visage, SPF. Rien de nouveau.",
-              "tip": "C'est un mauvais jour pour tester un produit ou un actif inconnu — la peau stressée réagit de façon imprévisible."
-            },
-            "normal": {
-              "title": "Un actif apaisant, rien de plus",
-              "body": "La peau normale sous stress peut légèrement se ternir ou réagir à des produits habituellement bien tolérés. Ajouter un sérum à la centella ou aux céramides à la routine, rien de nouveau.",
-              "tip": "Le stress chronique accélère le vieillissement cutané via les télomères — l'app peut tracker la corrélation stress/état de peau sur plusieurs semaines."
-            }
-          }
-        },
-        {
-          "id": "period_start",
-          "factor": "Début de cycle (règles J1–J5)",
-          "icon": "🌸",
-          "source": "question",
-          "questionKey": "cycleDay",
-          "questionText": "Tes règles ont commencé ? (synchro calendrier ou question)",
-          "trigger": {
-            "cycleDay": {
-              "gte": 1,
-              "lte": 5
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Apaisement pur — aucun actif fort",
-              "body": "Les prostaglandines des règles génèrent une inflammation systémique. Les peaux sèches sensibles peuvent devenir très réactives ces jours-là. Routine minimaliste : nettoyant crème, hydratant aux céramides. Aucun acide, aucun rétinol.",
-              "tip": "L'aloe vera pur appliqué ces jours-là est un anti-inflammatoire naturel efficace et sans risque d'irritation."
-            },
-            "oily": {
-              "title": "Pause aux actifs J1–J3",
-              "body": "Même sur peau grasse, les règles déclenchent une inflammation qui rend la peau plus réactive. Faire une pause aux acides exfoliants J1–J3. Sérum centella ou aloé vera à la place — apaiser plutôt que purifier.",
-              "tip": "La peau grasse en J1–J3 peut paradoxalement moins briller — les prostaglandines modifient temporairement l'équilibre. Observer et adapter."
-            },
-            "combo": {
-              "title": "Ne rien changer ce matin",
-              "body": "En début de règles, les joues de la peau mixte peuvent soudainement devenir réactives. Réduire la routine au minimum : nettoyant doux, crème légère apaisante, SPF. Surtout ne rien introduire de nouveau.",
-              "tip": "C'est la pire semaine pour tester un nouveau produit ou faire un exfoliant. Les résultats seront faussés par l'inflammation cyclique."
-            },
-            "normal": {
-              "title": "Quelques jours de confort en plus",
-              "body": "La peau normale pendant les règles peut légèrement se ternir ou devenir un peu plus sensible. Ajouter un sérum apaisant à la routine habituelle, rien de plus.",
-              "tip": "Observer si les règles coïncident avec les mêmes changements chaque mois. L'app te permettra de les anticiper cycle après cycle."
-            }
-          }
-        }
-      ]
-    },
-    "g3": {
-      "label": "Combinés",
-      "description": "Déclenchés automatiquement quand plusieurs facteurs G1 + G2 sont actifs simultanément. Aucune question supplémentaire — l'app croise les signaux et propose un conseil consolidé plutôt que deux conseils séparés.",
-      "scenarios": [
-        {
-          "id": "monday_triple",
-          "factor": "Le lundi matin type",
-          "icon": "😓",
-          "source": "combo",
-          "chips": [
-            "Sommeil < 6h",
-            "Stress ≥ 7",
-            "IQA > 80"
-          ],
-          "trigger": {
-            "sleepHours": {
-              "lte": 6
-            },
-            "stressLevel": {
-              "gte": 7
-            },
-            "aqi": {
-              "gte": 80
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Le trio le plus rude pour les peaux sèches",
-              "body": "Cortisol élevé + barrière fragilisée par le manque de sommeil + PM2.5 = inflammation triple. Ce matin uniquement les essentiels : sérum centella asiatica pour calmer l'inflammation, crème barrière riche, SPF minéral. Zéro actif irritant.",
-              "tip": "La tentation de compenser avec plus de produits est grande les lundis matin. C'est l'inverse qui protège — routine minimaliste, peau moins stressée."
-            },
-            "oily": {
-              "title": "Cortisol + pollution : la combinaison acné",
-              "body": "Cette combinaison est l'une des plus pro-inflammatoires pour les peaux grasses. Nettoyant doux, sérum niacinamide (anti-inflammatoire + séborégulateur), SPF léger. Ne rien ajouter d'autre ce matin.",
-              "tip": "Le niacinamide est l'ingrédient parfait pour ce scénario : il adresse le sébum ET l'inflammation en même temps — deux problèmes, un seul produit."
-            },
-            "combo": {
-              "title": "Simplifier pour que la peau tienne la journée",
-              "body": "Sur une peau mixte, ce trio déclenche de la brillance sur la T-zone et une sensibilité sur les joues. Routine express en 3 étapes max : nettoyant doux, sérum hydratant léger, SPF. L'app rappellera le soir pour un nettoyage anti-pollution.",
-              "tip": "Un spray eau thermale dans le sac pour la journée permet de remettre un peu d'apaisement sur les joues sans retoucher le maquillage."
-            },
-            "normal": {
-              "title": "La routine de protection, pas de stimulation",
-              "body": "Ce matin n'est pas le jour pour les actifs exfoliants ou les nouvelles formules. Maintenir la routine habituelle en ajoutant un sérum antioxydant pour contrer la pollution. Simple et protecteur.",
-              "tip": "Après un week-end de récupération, la peau normale encaisse mieux ce trio. Mais récurrent, il finit par ternir le teint — l'app aide à le tracer."
-            }
-          }
-        },
-        {
-          "id": "party_aftermath",
-          "factor": "Soirée festive la veille",
-          "icon": "🥂",
-          "source": "combo",
-          "chips": [
-            "Alcool ≥ 2 verres",
-            "Maquillage non retiré",
-            "Sommeil < 6h"
-          ],
-          "trigger": {
-            "alcoholLastNight": {
-              "gte": 2
-            },
-            "removedMakeupLastNight": false,
-            "sleepHours": {
-              "lte": 6
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Le protocole SOS en 4 étapes",
-              "body": "Triple impact : déshydratation de l'alcool + oxydation du maquillage laissé + réparation nocturne incomplète. Ce matin : baume démaquillant doux pour dissoudre sans frotter, eau tiède, sérum hyaluronique, crème riche. Rien d'autre.",
-              "tip": "Si tu as des patches hydrogels contour des yeux, c'est le matin pour les sortir — 10 minutes et le regard se décripse visuellement."
-            },
-            "oily": {
-              "title": "Le triple KO : démaquiller, apaiser, protéger",
-              "body": "Maquillage oxydé + alcool + sébum toute la nuit = pores fortement bouchés. Double nettoyage en douceur (baume puis gel doux), sérum niacinamide pour l'inflammation, SPF léger. Surtout éviter l'acide salicylique concentré ce matin — trop agressif dans ce contexte.",
-              "tip": "La méthode 60 secondes de massage du nettoyant avant rinçage est particulièrement efficace ce matin — elle désobstrue sans décaper."
-            },
-            "combo": {
-              "title": "Récupération différenciée selon les zones",
-              "body": "Les joues : réhydratation d'urgence (sérum + crème). La T-zone : nettoyage soigneux en douceur puis sérum apaisant. Deux zones, deux besoins ce matin. Ne pas appliquer la même chose partout.",
-              "tip": "Boire 500ml d'eau avant tout geste skincare — l'hydratation interne démarre la récupération cutanée de l'intérieur, avant même les produits."
-            },
-            "normal": {
-              "title": "Le matin d'après : récupération en 3 gestes",
-              "body": "Baume démaquillant doux pour dissoudre proprement, sérum vitamine C pour relancer l'éclat que la nuit courte n'a pas pu fabriquer, SPF. Trois gestes, résultat visible dans l'heure.",
-              "tip": "L'eau froide sur le visage avant la routine réduit l'inflammation et les rougeurs post-alcool en quelques secondes — geste simple, effet immédiat."
-            }
-          }
-        },
-        {
-          "id": "period_stress_sleep",
-          "factor": "Règles + stress + mauvaise nuit",
-          "icon": "🌸⚡",
-          "source": "combo",
-          "chips": [
-            "J1–J5 règles",
-            "Stress ≥ 7",
-            "Sommeil < 6h"
-          ],
-          "trigger": {
-            "cycleDay": {
-              "gte": 1,
-              "lte": 5
-            },
-            "stressLevel": {
-              "gte": 7
-            },
-            "sleepHours": {
-              "lte": 6
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "La combinaison la plus inflammatoire du mois",
-              "body": "Prostaglandines (règles) + cortisol (stress) + réparation incomplète (sommeil) = barrière cutanée à son minimum. Ce matin, routine ultra-minimaliste et apaisante uniquement : nettoyant crème, aloé vera ou centella, crème barrière douce. Aucun actif fort.",
-              "tip": "Ce n'est pas le matin pour tenter un masque exfoliant pour 'rattraper'. La peau a besoin de calme et de protection, pas de stimulation."
-            },
-            "oily": {
-              "title": "Apaiser en priorité — tout le reste peut attendre",
-              "body": "Ce trio génère l'inflammation cutanée maximale. Même sur peau grasse, les acides exfoliants sont contre-productifs ce matin. Nettoyant très doux, sérum centella asiatica ou aloé vera, SPF léger. Rien d'autre.",
-              "tip": "Les oméga-3 (compléments) pris pendant les règles ont un effet anti-inflammatoire sur la peau prouvé. À intégrer en routine si ce scénario se répète."
-            },
-            "combo": {
-              "title": "La pire semaine du mois — la plus simple aussi",
-              "body": "La peau mixte dans ce scénario est imprévisible : T-zone réactive, joues potentiellement très sensibles. La règle d'or : ne rien changer, ne rien tester. Routine basique et connue uniquement.",
-              "tip": "Tracker cette combinaison dans l'app sur plusieurs mois permet d'anticiper ce moment et de prévoir la semaine d'avant les bons soins de préparation."
-            },
-            "normal": {
-              "title": "Confort maximal, attentes minimales",
-              "body": "La peau normale dans ce scénario peut devenir temporairement plus sensible ou plus terne. Maintenir la routine habituelle en supprimant les actifs forts. Aloé vera ou sérum apaisant en plus, c'est tout.",
-              "tip": "C'est le matin pour se rappeler que la peau reflète l'état global du corps. Bien boire, bien manger, et la peau suit — autant que les produits."
-            }
-          }
-        },
-        {
-          "id": "urban_running_summer",
-          "factor": "Running urbain en été",
-          "icon": "🏃🌡️",
-          "source": "combo",
-          "chips": [
-            "Sport déclaré",
-            "Chaleur > 25°C",
-            "IQA > 80"
-          ],
-          "trigger": {
-            "didSportToday": true,
-            "tempC": {
-              "gte": 25
-            },
-            "aqi": {
-              "gte": 80
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "Courir dehors en été : hydrater deux fois",
-              "body": "Pendant le sport en chaleur, la transpiration déshydrate. Et la pollution se dépose sur les pores ouverts par l'effort. Après : douche eau tiède, sérum hyaluronique sur peau humide, crème légère. Si possible, courir avant 8h pour éviter le pic de pollution.",
-              "tip": "Appliquer une crème hydratante légère avant le sport (pas de crème riche) pour créer une légère barrière contre les particules — geste simple, utile."
-            },
-            "oily": {
-              "title": "Le nettoyage post-running est non-négociable",
-              "body": "Pores ouverts par l'effort + sueur acide + PM2.5 de la pollution = combo acné assuré sur les peaux grasses si non nettoyé dans les 30 min. Nettoyant à l'acide salicylique doux dès la douche.",
-              "tip": "Courir avant 8h ou après 19h réduit de moitié l'exposition à la pollution en ville. L'app peut intégrer cette info comme conseil de timing automatique."
-            },
-            "combo": {
-              "title": "Nettoyage complet, puis ciblage par zone",
-              "body": "La T-zone a cumulé sueur et pollution — priorité au nettoyage. Après : gel hydratant sur les joues, rien sur la zone T sauf le SPF. L'app rappelle le conseil en fonction de l'heure de running déclarée.",
-              "tip": "Pour une peau mixte, le running urbain tôt le matin (air plus frais, pollution plus basse) est vraiment le meilleur timing. L'app peut le suggérer proactivement."
-            },
-            "normal": {
-              "title": "Nettoyer vite, puis routine habituelle",
-              "body": "La peau normale récupère bien du running. L'important : nettoyer dans les 30 minutes pour éliminer pollution + sueur avant que ça ne s'incruste. Ensuite, routine normale avec SPF.",
-              "tip": "Le running améliore durablement la microcirculation cutanée — l'éclat visible sur les peaux normales après 3 semaines de pratique en est la preuve."
-            }
-          }
-        },
-        {
-          "id": "winter_dry_air",
-          "factor": "Hiver + air intérieur très sec",
-          "icon": "🥶💨",
-          "source": "combo",
-          "chips": [
-            "Temp < 5°C",
-            "Hygrométrie < 35%",
-            "Air conditionné / chauffage"
-          ],
-          "trigger": {
-            "tempC": {
-              "lte": 5
-            },
-            "humidity": {
-              "lte": 35
-            }
-          },
-          "advice": {
-            "dry": {
-              "title": "La triple déshydratation de l'hiver",
-              "body": "Froid dehors qui vide les lipides + air chauffé intérieur trop sec + possible eau calcaire = la semaine la plus dure pour les peaux sèches. Routine renforcée : sérum hyaluronique, crème barrière riche, squalane en dernier pour sceller.",
-              "tip": "Un humidificateur d'air dans la pièce où tu travailles fait autant pour la peau qu'une crème hydratante — si l'air est sec, aucun produit ne compensera entièrement."
-            },
-            "oily": {
-              "title": "En hiver, même les peaux grasses se déshydratent",
-              "body": "Le chauffage intérieur déshydrate y compris les peaux grasses — elles compensent avec plus de sébum. Un gel-crème non-comédogène matin et soir régule sans assécher et casse ce cercle.",
-              "tip": "Si ta peau brille plus en hiver, c'est probablement de la déshydratation, pas de l'excès de sébum en lui-même. Un sérum hyaluronique peut suffire à réguler."
-            },
-            "combo": {
-              "title": "Joues desséchées, T-zone qui compense",
-              "body": "En hiver avec air sec, les joues de la peau mixte souffrent intensément pendant que la T-zone surcompense en sébum. Crème riche sur joues et tempes, gel-crème léger sur front et nez. Application différenciée obligatoire.",
-              "tip": "Ce scénario est parfait pour un hydratant 'bizone' : certaines marques proposent des formules avec zones de texture différentes. Sinon, deux produits distincts."
-            },
-            "normal": {
-              "title": "Passer en mode hiver, juste un cran",
-              "body": "La peau normale face à la double déshydratation hiver+air sec a besoin d'un seul ajustement : une crème légèrement plus riche que d'habitude. Pas besoin de refaire toute la routine hivernale.",
-              "tip": "Les gel-crèmes aux céramides sont parfaits pour ce contexte : ils renforcent la barrière sans alourdir — idéal pour les peaux normales en hiver chauffé."
-            }
-          }
-        }
-      ]
-    },
-    "g4": {
-      "label": "SPF & UV",
-      "description": "Recommandations SPF déclenchées automatiquement par l'indice UV de l'API météo. Pour chaque niveau UV, l'app précise le SPF exact, la quantité à appliquer (norme clinique 2 mg/cm² — European Dermatology Forum), la fréquence de renouvellement et la texture adaptée par type de peau.",
-      "isSPF": true,
-      "scenarios": [
-        {
-          "id": "uv_1_2",
-          "factor": "UV 1–2",
-          "icon": "☀️",
-          "source": "spf",
-          "uvColor": "#4CAF50",
-          "uvLevel": "Faible",
-          "trigger": {
-            "uvIndex": {
-              "gte": 1,
-              "lte": 2
-            }
-          },
-          "spfData": {
-            "spf": "SPF 30",
-            "qty": "1 ligne (index tendu)",
-            "qtyMl": "≈ 1 ml",
-            "segments": 1,
-            "renewEvery": "2h30 à 3h",
-            "renewNote": "Si exposition directe prolongée",
-            "globalTip": "Même par ciel nuageux, 80 % des UV traversent les nuages. Le SPF 30 quotidien reste indispensable toute l'année."
-          },
-          "advice": {
-            "dry": {
-              "title": "Crème teintée SPF 30+ ou BB cream",
-              "body": "Une crème hydratante avec SPF 30 intégré couvre hydratation et protection en un seul geste — idéal pour simplifier la routine des peaux sèches.",
-              "tip": "Pas besoin de séparer crème + SPF à cet indice. La crème hydratante SPF 30+ suffit amplement."
-            },
-            "oily": {
-              "title": "Gel-crème SPF 30 non-comédogène",
-              "body": "Un fluide SPF 30 à fini mat ou un gel léger non-gras. Aucune surcharge de couches à cet indice — simplicité et efficacité.",
-              "tip": "SPF 30 suffit à UV faibles si bien dosé (1 ml visage). La sous-dose est plus risquée que le choix de l'indice."
-            },
-            "combo": {
-              "title": "Fluide SPF 30 sur tout le visage",
-              "body": "Un SPF fluide universel appliqué sur tout le visage. Zone T : papier matifiant post-application si besoin.",
-              "tip": "À UV 0–2, un SPF intégré dans le fond de teint ou la BB cream est une option viable pour la peau mixte."
-            },
-            "normal": {
-              "title": "BB cream ou fond de teint SPF 30",
-              "body": "La peau normale peut intégrer le SPF dans le teint à cet indice. BB cream SPF 30 ou fond de teint avec filtre — un geste, un résultat.",
-              "tip": "C'est l'indice idéal pour tester une crème solaire teinté légère comme seul produit de teint."
-            }
-          }
-        },
-        {
-          "id": "uv_3_5",
-          "factor": "UV 3–5",
-          "icon": "☀️",
-          "source": "spf",
-          "uvColor": "#FFC107",
-          "uvLevel": "Modéré",
-          "trigger": {
-            "uvIndex": {
-              "gte": 3,
-              "lte": 5
-            }
-          },
-          "spfData": {
-            "spf": "SPF 30–50",
-            "qty": "2 lignes (2 doigts)",
-            "qtyMl": "≈ 1,5 ml",
-            "segments": 2,
-            "renewEvery": "2h",
-            "renewNote": "Systématique en extérieur · 1h si sport ou eau",
-            "globalTip": "En extérieur, réappliquer toutes les 2h sans exception. Nager ou transpirer réduit ce délai à 40–80 min."
-          },
-          "advice": {
-            "dry": {
-              "title": "SPF 50 crème à texture confort",
-              "body": "À UV modérés, monter à SPF 50 si peau claire ou sensible. Crème teintée SPF 50 ou crème solaire à texture riche — 2 couches fines valent mieux qu'une épaisse.",
-              "tip": "Réappliquer sur les zones directement exposées (nez, front, décolleté) après chaque sortie, même courte."
-            },
-            "oily": {
-              "title": "Brume SPF 50 ou gel solaire texture eau",
-              "body": "Protection maximale en texture légère. La brume SPF 50 se réapplique par-dessus le maquillage sans abîmer le rendu — outil clé pour respecter les 2h de renouvellement.",
-              "tip": "Un SPF minéral (oxyde de zinc) à cette tranche UV : matifie légèrement et ne bouche pas les pores — double bénéfice pour les peaux grasses."
-            },
-            "combo": {
-              "title": "SPF fluide minéral — matifiant naturel",
-              "body": "SPF fluide minéral sur tout le visage. L'oxyde de zinc crée une légère barrière matifiante sur la T-zone tout en hydratant les joues.",
-              "tip": "La brume SPF dans le sac pour les réapplications en journée : simple, rapide, sans déposer de couche supplémentaire."
-            },
-            "normal": {
-              "title": "SPF 30–50 au choix — unifiant si possible",
-              "body": "La peau normale tolère toutes les textures. À UV modérés, c'est l'occasion de choisir un SPF qui unifie ou prépare le teint — BB cream SPF 50 ou primer solaire.",
-              "tip": "Même à UV modérés, réappliquer après 2h si tu es dehors. Le SPF se dégrade sous le rayonnement."
-            }
-          }
-        },
-        {
-          "id": "uv_6_7",
-          "factor": "UV 6–7",
-          "icon": "☀️",
-          "source": "spf",
-          "uvColor": "#FF9800",
-          "uvLevel": "Élevé",
-          "trigger": {
-            "uvIndex": {
-              "gte": 6,
-              "lte": 7
-            }
-          },
-          "spfData": {
-            "spf": "SPF 50",
-            "qty": "2 lignes généreuses",
-            "qtyMl": "≈ 2 ml — ne pas lésiner",
-            "segments": 3,
-            "renewEvery": "1h30",
-            "renewNote": "1h si sport, eau ou transpiration",
-            "globalTip": "La plupart des utilisatrices n'appliquent que 50 % de la dose nécessaire — ce qui divise la protection réelle par 4 (norme 2 mg/cm² EDF)."
-          },
-          "advice": {
-            "dry": {
-              "title": "SPF 50 crème + brume pour la journée",
-              "body": "SPF 50 crème barrière le matin. Pour les réapplications : brume SPF 50 pour éviter la friction sur les peaux sèches sensibles. Renouveler toutes les 1h30 dehors.",
-              "tip": "Préparer une brume SPF dans le sac — les réapplications par friction (coton, doigts) irritent les peaux sèches sensibles."
-            },
-            "oily": {
-              "title": "Gel solaire SPF 50 — double couche fine",
-              "body": "Deux couches fines de gel SPF 50 valent mieux qu'une épaisse. Application en couche fine, séchage 30 sec, deuxième passage. Moins de brillance, meilleure couverture.",
-              "tip": "À cet indice, ne pas se fier au SPF intégré dans le maquillage seul — la dose est insuffisante. SPF dédié obligatoire."
-            },
-            "combo": {
-              "title": "SPF 50 fluide + stick SPF pour la journée",
-              "body": "SPF 50 fluide le matin sur tout le visage. Un stick SPF dans le sac pour les réapplications ciblées (nez, front, joues) sans toucher la T-zone déjà couverte.",
-              "tip": "Le stick SPF est l'outil de réapplication idéal pour la peau mixte : précis, sans couche supplémentaire sur la T-zone."
-            },
-            "normal": {
-              "title": "SPF 50 léger — brume SPF en réapplication",
-              "body": "SPF 50 texture légère le matin. Renouveler en brume toutes les 1h30 dehors — une étape rapide qui divise par 4 le risque photo-vieillissement.",
-              "tip": "Éviter les actifs exfoliants le soir après une journée à UV élevés — la peau a encaissé, elle a besoin de récupération avant toute stimulation."
-            }
-          }
-        },
-        {
-          "id": "uv_8_10",
-          "factor": "UV 8–10",
-          "icon": "☀️",
-          "source": "spf",
-          "uvColor": "#FF5722",
-          "uvLevel": "Très élevé",
-          "trigger": {
-            "uvIndex": {
-              "gte": 8,
-              "lte": 10
-            }
-          },
-          "spfData": {
-            "spf": "SPF 50+",
-            "qty": "2 lignes + cou et oreilles",
-            "qtyMl": "≈ 2–2,5 ml · inclure le contour",
-            "segments": 4,
-            "renewEvery": "1h à 1h30",
-            "renewNote": "Immédiatement après bain ou transpiration",
-            "globalTip": "Entre 11h et 16h, chercher l'ombre même avec SPF — aucun filtre solaire ne bloque 100 % des UV à cet indice."
-          },
-          "advice": {
-            "dry": {
-              "title": "SPF 50+ crème barrière + protection physique",
-              "body": "SPF 50+ crème le matin, associé à un chapeau et des vêtements couvrants. La protection physique prend le relais quand le SPF seul ne suffit plus à ces indices.",
-              "tip": "Renouveler le SPF avant tout, pas après — l'anticipation évite les expositions non protégées entre deux applications."
-            },
-            "oily": {
-              "title": "SPF 50+ en deux couches fines successives",
-              "body": "Deux applications de gel SPF 50+ en couches fines (30 sec entre chaque) assurent une couverture bien supérieure à une seule couche épaisse. Réappliquer en brume toutes les 1h.",
-              "tip": "À UV très élevés, un nettoyant à l'acide salicylique doux le soir élimine le SPF accumulé + sébum sans décaper — essentiel pour les peaux grasses."
-            },
-            "combo": {
-              "title": "SPF 50+ fluide + insister sur les zones T exposées",
-              "body": "Appliquer SPF 50+ fluide sur tout le visage. Insister sur le front et le nez (zones T les plus exposées). Brume SPF pour renouveler toutes les heures sans perturber le maquillage.",
-              "tip": "Le nez et le front, étant en saillie, reçoivent proportionnellement plus d'UV — réapplication prioritaire sur ces zones."
-            },
-            "normal": {
-              "title": "SPF 50+ systématique + éviter les actifs forts le soir",
-              "body": "SPF 50+ le matin, réappliquer toutes les 1h en extérieur. Éviter le soir : rétinol, acides concentrés — la peau a été exposée, elle doit récupérer avant toute stimulation.",
-              "tip": "Après une journée à UV très élevés, un sérum apaisant à la centella ou aloé vera le soir accélère la récupération cutanée."
-            }
-          }
-        },
-        {
-          "id": "uv_11_plus",
-          "factor": "UV 11+",
-          "icon": "☀️",
-          "source": "spf",
-          "uvColor": "#9C27B0",
-          "uvLevel": "Extrême",
-          "trigger": {
-            "uvIndex": {
-              "gte": 11
-            }
-          },
-          "spfData": {
-            "spf": "SPF 50+ (double couche)",
-            "qty": "Double application recommandée",
-            "qtyMl": "≈ 3 ml · 2 couches fines successives",
-            "segments": 5,
-            "renewEvery": "45–60 min",
-            "renewNote": "Immédiatement après toute transpiration",
-            "globalTip": "Aucune crème solaire n'est suffisante seule à UV extrême. Chapeau, vêtements UPF 50+ et évitement de l'exposition 11h–16h sont obligatoires."
-          },
-          "advice": {
-            "dry": {
-              "title": "SPF 50+ + chapeau + vêtements couvrants",
-              "body": "Indice extrême : l'application de SPF seule est insuffisante. Associer impérativement une protection physique complète. Éviter toute exposition directe 11h–16h.",
-              "tip": "Les vêtements labellisés UPF 50+ bloquent 98% des UV — bien plus efficaces que n'importe quel SPF pour les zones couvertes."
-            },
-            "oily": {
-              "title": "Double couche SPF 50+ + protection physique",
-              "body": "Appliquer SPF 50+ en deux couches fines successives. Brume SPF dans le sac pour renouveler toutes les 45 min en extérieur direct. Ne pas sur-toucher la peau entre les applications.",
-              "tip": "À ces UV extrêmes, le nettoyage double le soir est non-négociable — SPF résiduel + sébum + pollution forment un film qui obstrue si non éliminé."
-            },
-            "combo": {
-              "title": "Double application SPF 50+ + brume toutes les 45 min",
-              "body": "Double couche de SPF 50+ fluide le matin. Brume SPF toutes les 45 min en extérieur. Chapeau pour les zones non couvertes par la brume.",
-              "tip": "L'application en brume seule n'est pas suffisante à UV extrême — le matin, appliquer une couche de crème SPF comme base."
-            },
-            "normal": {
-              "title": "SPF 50+ + protection physique obligatoire",
-              "body": "Double application SPF 50+ le matin. Chapeau et vêtements UPF. Après une journée d'exposition extrême : sérum apaisant, aucun actif fort, laisser la peau récupérer 24h.",
-              "tip": "Observer l'état de la peau les 48h suivant une exposition extrême — rougeurs persistantes ou sensation de brûlure : consultation dermatologique recommandée."
-            }
-          }
-        }
-      ]
-    },
     "g5": {
-      "label": "État de la peau",
-      "description": "Conseils déclenchés automatiquement quand trend = 'plus' pour un symptôme déclaré. Source : symptom_tracking.",
+      "label": "Symptômes & Tendances",
+      "description": "Conseils déclenchés automatiquement quand trend = 'plus' pour un symptôme déclaré dans les préoccupations du profil. Ne se déclenche PAS si trend = 'moins' ou 'pareil'. Source : symptom_tracking.",
       "scenarios": [
         {
-          "id": "acne_up",
+          "id": "acné_plus",
           "factor": "Acné en hausse",
           "icon": "🔴",
-          "source": "auto",
           "trigger": {
             "symptom": "acné",
             "trend": "plus"
@@ -821,10 +36,9 @@
           }
         },
         {
-          "id": "redness_up",
+          "id": "rougeurs_plus",
           "factor": "Rougeurs en hausse",
           "icon": "🌹",
-          "source": "auto",
           "trigger": {
             "symptom": "rougeurs",
             "trend": "plus"
@@ -853,10 +67,9 @@
           }
         },
         {
-          "id": "dryness_up",
+          "id": "sécheresse_plus",
           "factor": "Sécheresse en hausse",
           "icon": "💧",
-          "source": "auto",
           "trigger": {
             "symptom": "sécheresse",
             "trend": "plus"
@@ -885,10 +98,9 @@
           }
         },
         {
-          "id": "spots_up",
+          "id": "taches_plus",
           "factor": "Taches en hausse",
           "icon": "🟤",
-          "source": "auto",
           "trigger": {
             "symptom": "taches",
             "trend": "plus"
@@ -917,10 +129,9 @@
           }
         },
         {
-          "id": "blackheads_up",
+          "id": "points_noirs_plus",
           "factor": "Points noirs en hausse",
           "icon": "⚫",
-          "source": "auto",
           "trigger": {
             "symptom": "points_noirs",
             "trend": "plus"
@@ -949,10 +160,9 @@
           }
         },
         {
-          "id": "wrinkles_up",
+          "id": "rides_plus",
           "factor": "Rides en hausse",
           "icon": "〰️",
-          "source": "auto",
           "trigger": {
             "symptom": "rides",
             "trend": "plus"
@@ -981,10 +191,9 @@
           }
         },
         {
-          "id": "dark_circles_up",
+          "id": "cernes_plus",
           "factor": "Cernes en hausse",
           "icon": "🌑",
-          "source": "auto",
           "trigger": {
             "symptom": "cernes",
             "trend": "plus"
@@ -1013,10 +222,9 @@
           }
         },
         {
-          "id": "eczema_up",
+          "id": "eczéma_plus",
           "factor": "Eczéma en hausse",
           "icon": "🔶",
-          "source": "auto",
           "trigger": {
             "symptom": "eczéma",
             "trend": "plus"
@@ -1047,14 +255,13 @@
       ]
     },
     "g6": {
-      "label": "Cycle & Peau",
-      "description": "Conseils adaptés à chaque phase du cycle menstruel. Source : daily_checkins.cycle_phase.",
+      "label": "Cycle Hormonal",
+      "description": "Conseils adaptés à chaque phase du cycle menstruel, calculée automatiquement depuis last_period_date + cycle_duration. Source : daily_checkins.cycle_phase.",
       "scenarios": [
         {
-          "id": "cycle_follicular",
+          "id": "cycle_folliculaire",
           "factor": "Phase folliculaire",
           "icon": "🌱",
-          "source": "auto",
           "trigger": {
             "cyclePhase": "folliculaire"
           },
@@ -1082,10 +289,9 @@
           }
         },
         {
-          "id": "cycle_ovulatory",
+          "id": "cycle_ovulatoire",
           "factor": "Phase ovulatoire",
           "icon": "✨",
-          "source": "auto",
           "trigger": {
             "cyclePhase": "ovulatoire"
           },
@@ -1113,10 +319,9 @@
           }
         },
         {
-          "id": "cycle_luteal",
+          "id": "cycle_lutéale",
           "factor": "Phase lutéale",
           "icon": "⚡",
-          "source": "auto",
           "trigger": {
             "cyclePhase": "lutéale"
           },
@@ -1144,10 +349,9 @@
           }
         },
         {
-          "id": "cycle_menstrual",
+          "id": "cycle_menstruelle",
           "factor": "Phase menstruelle",
           "icon": "🌸",
-          "source": "auto",
           "trigger": {
             "cyclePhase": "menstruelle"
           },
@@ -1178,13 +382,12 @@
     },
     "g7": {
       "label": "Face Mapping",
-      "description": "Conseils basés sur la localisation du symptôme sur le visage. Chaque zone révèle une cause probable différente. Source : symptom_tracking.zone.",
+      "description": "Conseils basés sur la localisation du symptôme sur le visage. Déclenchés quand trend = 'plus' ET zone déclarée. Chaque zone révèle une cause probable différente. Source : symptom_tracking.zone.",
       "scenarios": [
         {
-          "id": "acné_menton",
-          "factor": "Acné - Menton",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_acné_menton",
+          "factor": "Acné 🔴 - Menton / Mâchoire",
+          "icon": "🔴",
           "trigger": {
             "symptom": "acné",
             "trend": "plus",
@@ -1214,10 +417,9 @@
           }
         },
         {
-          "id": "acné_front",
-          "factor": "Acné - Front",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_acné_front",
+          "factor": "Acné 🔴 - Front",
+          "icon": "🔴",
           "trigger": {
             "symptom": "acné",
             "trend": "plus",
@@ -1247,10 +449,9 @@
           }
         },
         {
-          "id": "acné_joues",
-          "factor": "Acné - Joues",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_acné_joues",
+          "factor": "Acné 🔴 - Joues",
+          "icon": "🔴",
           "trigger": {
             "symptom": "acné",
             "trend": "plus",
@@ -1280,10 +481,9 @@
           }
         },
         {
-          "id": "acné_contour_bouche",
-          "factor": "Acné - Contour bouche",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_acné_contour_bouche",
+          "factor": "Acné 🔴 - Contour bouche",
+          "icon": "🔴",
           "trigger": {
             "symptom": "acné",
             "trend": "plus",
@@ -1313,10 +513,9 @@
           }
         },
         {
-          "id": "acné_tempes",
-          "factor": "Acné - Tempes",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_acné_tempes",
+          "factor": "Acné 🔴 - Tempes",
+          "icon": "🔴",
           "trigger": {
             "symptom": "acné",
             "trend": "plus",
@@ -1346,10 +545,9 @@
           }
         },
         {
-          "id": "taches_menton",
-          "factor": "Taches - Menton",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_taches_menton",
+          "factor": "Taches 🟤 - Menton / Mâchoire",
+          "icon": "🟤",
           "trigger": {
             "symptom": "taches",
             "trend": "plus",
@@ -1379,10 +577,9 @@
           }
         },
         {
-          "id": "taches_front",
-          "factor": "Taches - Front",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_taches_front",
+          "factor": "Taches 🟤 - Front",
+          "icon": "🟤",
           "trigger": {
             "symptom": "taches",
             "trend": "plus",
@@ -1412,10 +609,9 @@
           }
         },
         {
-          "id": "taches_joues",
-          "factor": "Taches - Joues",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_taches_joues",
+          "factor": "Taches 🟤 - Joues",
+          "icon": "🟤",
           "trigger": {
             "symptom": "taches",
             "trend": "plus",
@@ -1445,10 +641,9 @@
           }
         },
         {
-          "id": "taches_contour_bouche",
-          "factor": "Taches - Contour bouche",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_taches_contour_bouche",
+          "factor": "Taches 🟤 - Contour bouche",
+          "icon": "🟤",
           "trigger": {
             "symptom": "taches",
             "trend": "plus",
@@ -1478,10 +673,9 @@
           }
         },
         {
-          "id": "taches_tempes",
-          "factor": "Taches - Tempes",
-          "icon": "🗺️",
-          "source": "auto",
+          "id": "mapping_taches_tempes",
+          "factor": "Taches 🟤 - Tempes",
+          "icon": "🟤",
           "trigger": {
             "symptom": "taches",
             "trend": "plus",
@@ -1511,10 +705,9 @@
           }
         },
         {
-          "id": "points_noirs_menton",
-          "factor": "Points noirs - Menton",
+          "id": "mapping_points_noirs_menton",
+          "factor": "Points noirs ⚫ - Menton / Mâchoire",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "points_noirs",
             "trend": "plus",
@@ -1544,10 +737,9 @@
           }
         },
         {
-          "id": "points_noirs_front",
-          "factor": "Points noirs - Front",
+          "id": "mapping_points_noirs_front",
+          "factor": "Points noirs ⚫ - Front",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "points_noirs",
             "trend": "plus",
@@ -1577,10 +769,9 @@
           }
         },
         {
-          "id": "points_noirs_joues",
-          "factor": "Points noirs - Joues",
+          "id": "mapping_points_noirs_joues",
+          "factor": "Points noirs ⚫ - Joues",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "points_noirs",
             "trend": "plus",
@@ -1610,10 +801,9 @@
           }
         },
         {
-          "id": "points_noirs_contour_bouche",
-          "factor": "Points noirs - Contour bouche",
+          "id": "mapping_points_noirs_contour_bouche",
+          "factor": "Points noirs ⚫ - Contour bouche",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "points_noirs",
             "trend": "plus",
@@ -1643,10 +833,9 @@
           }
         },
         {
-          "id": "points_noirs_tempes",
-          "factor": "Points noirs - Tempes",
+          "id": "mapping_points_noirs_tempes",
+          "factor": "Points noirs ⚫ - Tempes",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "points_noirs",
             "trend": "plus",
@@ -1676,10 +865,9 @@
           }
         },
         {
-          "id": "rougeurs_menton",
-          "factor": "Rougeurs - Menton",
+          "id": "mapping_rougeurs_menton",
+          "factor": "Rougeurs 🌹 - Menton / Mâchoire",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rougeurs",
             "trend": "plus",
@@ -1709,10 +897,9 @@
           }
         },
         {
-          "id": "rougeurs_front",
-          "factor": "Rougeurs - Front",
+          "id": "mapping_rougeurs_front",
+          "factor": "Rougeurs 🌹 - Front",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rougeurs",
             "trend": "plus",
@@ -1742,10 +929,9 @@
           }
         },
         {
-          "id": "rougeurs_joues",
-          "factor": "Rougeurs - Joues",
+          "id": "mapping_rougeurs_joues",
+          "factor": "Rougeurs 🌹 - Joues",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rougeurs",
             "trend": "plus",
@@ -1775,10 +961,9 @@
           }
         },
         {
-          "id": "rougeurs_contour_bouche",
-          "factor": "Rougeurs - Contour bouche",
+          "id": "mapping_rougeurs_contour_bouche",
+          "factor": "Rougeurs 🌹 - Contour bouche",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rougeurs",
             "trend": "plus",
@@ -1808,10 +993,9 @@
           }
         },
         {
-          "id": "rougeurs_tempes",
-          "factor": "Rougeurs - Tempes",
+          "id": "mapping_rougeurs_tempes",
+          "factor": "Rougeurs 🌹 - Tempes",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rougeurs",
             "trend": "plus",
@@ -1841,10 +1025,9 @@
           }
         },
         {
-          "id": "sécheresse_menton",
-          "factor": "Sécheresse - Menton",
+          "id": "mapping_sécheresse_menton",
+          "factor": "Sécheresse 💧 - Menton / Mâchoire",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "sécheresse",
             "trend": "plus",
@@ -1874,10 +1057,9 @@
           }
         },
         {
-          "id": "sécheresse_front",
-          "factor": "Sécheresse - Front",
+          "id": "mapping_sécheresse_front",
+          "factor": "Sécheresse 💧 - Front",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "sécheresse",
             "trend": "plus",
@@ -1907,10 +1089,9 @@
           }
         },
         {
-          "id": "sécheresse_joues",
-          "factor": "Sécheresse - Joues",
+          "id": "mapping_sécheresse_joues",
+          "factor": "Sécheresse 💧 - Joues",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "sécheresse",
             "trend": "plus",
@@ -1940,10 +1121,9 @@
           }
         },
         {
-          "id": "sécheresse_contour_bouche",
-          "factor": "Sécheresse - Contour bouche",
+          "id": "mapping_sécheresse_contour_bouche",
+          "factor": "Sécheresse 💧 - Contour bouche",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "sécheresse",
             "trend": "plus",
@@ -1973,10 +1153,9 @@
           }
         },
         {
-          "id": "sécheresse_tempes",
-          "factor": "Sécheresse - Tempes",
+          "id": "mapping_sécheresse_tempes",
+          "factor": "Sécheresse 💧 - Tempes",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "sécheresse",
             "trend": "plus",
@@ -2006,10 +1185,9 @@
           }
         },
         {
-          "id": "rides_menton",
-          "factor": "Rides - Menton",
+          "id": "mapping_rides_menton",
+          "factor": "Rides 〰️ - Menton / Mâchoire",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rides",
             "trend": "plus",
@@ -2039,10 +1217,9 @@
           }
         },
         {
-          "id": "rides_front",
-          "factor": "Rides - Front",
+          "id": "mapping_rides_front",
+          "factor": "Rides 〰️ - Front",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rides",
             "trend": "plus",
@@ -2072,10 +1249,9 @@
           }
         },
         {
-          "id": "rides_joues",
-          "factor": "Rides - Joues",
+          "id": "mapping_rides_joues",
+          "factor": "Rides 〰️ - Joues",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rides",
             "trend": "plus",
@@ -2105,10 +1281,9 @@
           }
         },
         {
-          "id": "rides_contour_bouche",
-          "factor": "Rides - Contour bouche",
+          "id": "mapping_rides_contour_bouche",
+          "factor": "Rides 〰️ - Contour bouche",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rides",
             "trend": "plus",
@@ -2138,10 +1313,9 @@
           }
         },
         {
-          "id": "rides_tempes",
-          "factor": "Rides - Tempes",
+          "id": "mapping_rides_tempes",
+          "factor": "Rides 〰️ - Tempes",
           "icon": "🗺️",
-          "source": "auto",
           "trigger": {
             "symptom": "rides",
             "trend": "plus",
@@ -2173,16 +1347,15 @@
       ]
     },
     "g8": {
-      "label": "Routine",
-      "description": "Conseils déclenchés automatiquement selon la régularité de la routine. Source : routine_logs.",
+      "label": "Suivi Routine",
+      "description": "Conseils déclenchés automatiquement selon la régularité de la routine. Ton bienveillant — solution-first, jamais culpabilisant. Source : routine_logs.",
       "scenarios": [
         {
-          "id": "evening_routine_missed",
+          "id": "evening_routine_done_=_false",
           "factor": "Routine soir non faite",
           "icon": "🌙",
-          "source": "auto",
           "trigger": {
-            "evening_routine_done": false
+            "eveningRoutineDone": false
           },
           "advice": {
             "dry": {
@@ -2208,12 +1381,11 @@
           }
         },
         {
-          "id": "makeup_not_removed",
+          "id": "makeup_removed_=_false",
           "factor": "Démaquillage non fait",
           "icon": "💄",
-          "source": "auto",
           "trigger": {
-            "makeup_removed": false
+            "makeupRemoved": false
           },
           "advice": {
             "dry": {
@@ -2239,12 +1411,41 @@
           }
         },
         {
-          "id": "spf_missed_high_uv",
+          "id": "morning_routine_done_=_false",
+          "factor": "Routine matin non faite",
+          "icon": "☀️",
+          "trigger": {
+            "morningRoutineDone": false
+          },
+          "advice": {
+            "dry": {
+              "title": "La barrière sans protection hier",
+              "body": "La peau sèche sans routine matin est exposée toute la journée sans barrière. Ce matin : routine complète avec insistance sur les céramides.",
+              "tip": "Observer dans l'app si sauter la routine matin crée un pattern de réactivité — certaines peaux sèches le montrent dès J+1."
+            },
+            "oily": {
+              "title": "Sébum sans régulation hier",
+              "body": "Sans niacinamide ni SPF hier, le sébum et la pollution ont fait leur travail. Ce matin : nettoyage soigneux, sérum niacinamide, SPF.",
+              "tip": "Un sérum niacinamide prend 3-4 semaines de constance. Chaque matin manqué décale légèrement ce résultat."
+            },
+            "combo": {
+              "title": "T-zone sans contrôle hier",
+              "body": "La T-zone non régulée hier peut briller plus ce matin. Sérum niacinamide sur la T-zone, hydratant sur les joues.",
+              "tip": "Simplifier la routine matin à 3 étapes si le temps manque : nettoyant, sérum, SPF."
+            },
+            "normal": {
+              "title": "Une journée sans routine — sans gravité",
+              "body": "La peau normale récupère vite. Routine habituelle ce matin, sans sur-compenser.",
+              "tip": "La routine matin en 2 minutes existe : eau thermale + crème SPF. Le minimum vaut toujours mieux que rien."
+            }
+          }
+        },
+        {
+          "id": "spf_applied_=_false_+_uv_≥_3",
           "factor": "SPF oublié + UV élevés",
           "icon": "🌞",
-          "source": "auto",
           "trigger": {
-            "spf_applied": false,
+            "spfApplied": false,
             "uvIndex": {
               "gte": 3
             }
@@ -2271,115 +1472,72 @@
               "tip": "Poser le SPF à côté du dentifrice — ancrage dans la routine existante pour ne plus l'oublier."
             }
           }
+        },
+        {
+          "id": "score__50_sur_7j",
+          "factor": "Régularité faible 7 jours",
+          "icon": "📉",
+          "trigger": {
+            "regularityScore": {
+              "lte": 50
+            }
+          },
+          "advice": {
+            "dry": {
+              "title": "Simplifier pour tenir",
+              "body": "Sur peau sèche, une routine de 3 étapes tous les jours vaut 10x mieux qu'une routine parfaite 3 jours sur 7. Réduire à : nettoyant crème + céramides + SPF.",
+              "tip": "Poser les produits dans l'ordre d'utilisation sur le lavabo. L'environnement organise le comportement mieux que la motivation."
+            },
+            "oily": {
+              "title": "Moins d'étapes, plus de constance",
+              "body": "Sur peau grasse, les 2 gestes non-négociables : nettoyant le soir + SPF le matin. Tout le reste est un bonus.",
+              "tip": "Associer la routine à un geste déjà automatique : après le brossage des dents."
+            },
+            "combo": {
+              "title": "3 étapes, tous les jours",
+              "body": "3 étapes fixes : nettoyant doux + hydratant léger + SPF. La constance d'abord, le ciblage ensuite.",
+              "tip": "L'app peut envoyer un rappel doux le soir à l'heure où la routine est le plus souvent oubliée."
+            },
+            "normal": {
+              "title": "La régularité bat la perfection",
+              "body": "Une routine de 2 minutes ancrée vaut mieux qu'une routine de 10 minutes aléatoire. Identifier les 2 gestes non-négociables et les ancrer d'abord.",
+              "tip": "Construire le système d'abord — la motivation suit la constance, pas l'inverse."
+            }
+          }
+        },
+        {
+          "id": "score_≥_85_sur_30j",
+          "factor": "🎉 Milestone 30 jours",
+          "icon": "🏆",
+          "trigger": {
+            "regularityScore": {
+              "gte": 85
+            }
+          },
+          "advice": {
+            "dry": {
+              "title": "30 jours de constance — ta peau le montre",
+              "body": "C'est exactement le temps qu'il faut pour que les actifs montrent leur plein effet. Le cycle cellulaire est de 28 jours — ta peau s'est renouvelée. C'est le bon moment pour introduire un nouvel actif ou augmenter une concentration.",
+              "tip": "Photographier la peau dans l'app aujourd'hui — point de comparaison parfait après 30 jours de constance."
+            },
+            "oily": {
+              "title": "30 jours — le sébum est régulé",
+              "body": "30 jours de niacinamide et SPF quotidiens : le sébum est au minimum de ce qui est atteignable avec des soins topiques. C'est maintenant qu'on peut introduire un actif complémentaire.",
+              "tip": "C'est le bon moment pour tester un BHA plus concentré ou ajouter un sérum vitamine C le matin."
+            },
+            "combo": {
+              "title": "30 jours — T-zone et joues en équilibre",
+              "body": "La peau mixte constante sur 30 jours est la plus équilibrée possible. C'est la semaine pour évaluer et potentiellement simplifier encore la routine.",
+              "tip": "Observer si la T-zone brille moins qu'au J1 — la constance régule le sébum progressivement."
+            },
+            "normal": {
+              "title": "30 jours — la peau à son meilleur",
+              "body": "La peau normale avec une routine constante est au maximum de ce qu'elle peut être sans intervention médicale. C'est le moment pour introduire un actif anti-âge préventif.",
+              "tip": "C'est maintenant que le rétinol préventif a le plus de sens — peau stable, résultats fiables."
+            }
+          }
         }
       ]
-    }
-  },
-  "contextSchema": {
-    "description": "Toutes les clés que l'app doit fournir au moteur de matching pour évaluer les triggers",
-    "fields": {
-      "skinType": {
-        "type": "string",
-        "values": [
-          "dry",
-          "oily",
-          "combo",
-          "normal"
-        ],
-        "source": "profil"
-      },
-      "uvIndex": {
-        "type": "number",
-        "example": 5,
-        "source": "api_meteo"
-      },
-      "tempC": {
-        "type": "number",
-        "example": 28,
-        "source": "api_meteo"
-      },
-      "humidity": {
-        "type": "number",
-        "example": 70,
-        "source": "api_meteo"
-      },
-      "aqi": {
-        "type": "number",
-        "example": 95,
-        "source": "api_qualite_air"
-      },
-      "sleepHours": {
-        "type": "number",
-        "example": 5,
-        "source": "question_matin"
-      },
-      "stressLevel": {
-        "type": "number",
-        "example": 8,
-        "min": 1,
-        "max": 10,
-        "source": "question_matin"
-      },
-      "alcoholLastNight": {
-        "type": "number",
-        "example": 2,
-        "source": "question_matin"
-      },
-      "removedMakeupLastNight": {
-        "type": "boolean",
-        "example": false,
-        "source": "question_matin"
-      },
-      "didSportToday": {
-        "type": "boolean",
-        "example": true,
-        "source": "question_matin"
-      },
-      "cycleDay": {
-        "type": "number",
-        "example": 2,
-        "nullable": true,
-        "source": "question_matin"
-      },
-      "symptom": {
-        "type": "string",
-        "source": "symptom_tracking"
-      },
-      "trend": {
-        "type": "string",
-        "values": [
-          "plus",
-          "moins",
-          "pareil"
-        ],
-        "source": "symptom_tracking"
-      },
-      "zone": {
-        "type": "string",
-        "source": "symptom_tracking"
-      },
-      "cyclePhase": {
-        "type": "string",
-        "values": [
-          "folliculaire",
-          "ovulatoire",
-          "lutéale",
-          "menstruelle"
-        ],
-        "source": "daily_checkins"
-      },
-      "evening_routine_done": {
-        "type": "boolean",
-        "source": "routine_logs"
-      },
-      "makeup_removed": {
-        "type": "boolean",
-        "source": "routine_logs"
-      },
-      "spf_applied": {
-        "type": "boolean",
-        "source": "routine_logs"
-      }
     }
   }
 }

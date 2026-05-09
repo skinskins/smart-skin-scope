@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nacre — Matrice G5, G6 & G7</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#fff;color:#111;padding:1rem}
+.wrap{padding:.75rem 0}
+.top-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:1.25rem}
+.group-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.gtab{font-size:12px;font-weight:500;padding:5px 13px;border-radius:20px;border:0.5px solid #ddd;background:transparent;color:#666;cursor:pointer;transition:all .15s}
+.gtab.on{background:#f0f0f0;color:#111;border-color:#999}
+.gtab.g6.on{border-color:#C084C4;color:#7B2D8B}
+.gtab.g7.on{border-color:#E8705A;color:#8B2A1A}
+.gtab.g8.on{border-color:#2E7D32;color:#1B5E20}
+.src-g8{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;background:#E8F5E9;color:#1B5E20}
+.sub-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:1rem}
+.stab{font-size:11px;padding:4px 10px;border-radius:15px;border:0.5px solid #ddd;background:transparent;color:#666;cursor:pointer}
+.stab.on{background:#f5f5f5;color:#111;border-color:#999}
+.skin-filter{font-size:12px;padding:5px 10px;border-radius:6px;border:0.5px solid #ddd;background:#fff;color:#111}
+.cnt{font-size:11px;color:#999;margin-left:auto}
+.grp-desc{font-size:12px;color:#666;line-height:1.55;padding:8px 12px;border-left:2px solid #ddd;margin-bottom:1rem;background:#fafafa}
+.grp-desc.g5{border-left-color:#E8705A}
+.grp-desc.g6{border-left-color:#C084C4}
+.grp-desc.g7{border-left-color:#4A90D9}
+.grp-desc.g8{border-left-color:#2E7D32}
+.banner{border-radius:6px;padding:8px 12px;margin-bottom:12px;font-size:12px;line-height:1.5}
+.banner-g5{background:#FEF0ED;border:0.5px solid #F4A090;color:#8B2A1A}
+.banner-g6{background:#F7EDFE;border:0.5px solid #D4A0DC;color:#7B2D8B}
+.banner-g7{background:#EDF4FE;border:0.5px solid #90B8F4;color:#1A4A8B}
+.banner-g8{background:#E8F5E9;border:0.5px solid #81C784;color:#1B5E20}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-size:11px;font-weight:500;color:#666;padding:8px 10px;text-align:left;border-bottom:1px solid #eee;background:#f9f9f9;white-space:nowrap;min-width:190px}
+th.col-f{min-width:170px}
+td{padding:10px;border-bottom:0.5px solid #f0f0f0;vertical-align:top;line-height:1.55}
+tr:hover td{background:#fafafa}
+.src-g5{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;background:#FEF0ED;color:#8B2A1A}
+.src-g6{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;background:#F7EDFE;color:#7B2D8B}
+.src-g7{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;background:#EDF4FE;color:#1A4A8B}
+.trigger-txt{font-size:10px;color:#999;line-height:1.4;margin-top:4px}
+.q-txt{font-style:italic;color:#666;font-size:11px}
+.advice strong{font-weight:600;display:block;margin-bottom:3px}
+.tip{display:block;margin-top:5px;font-size:11px;color:#666;padding-top:5px;border-top:0.5px solid #f0f0f0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top-bar">
+  <div class="group-tabs">
+    <button class="gtab g5 on" id="b-g5" onclick="sg('g5')">G5 — État de la peau 🌡️</button>
+    <button class="gtab g6" id="b-g6" onclick="sg('g6')">G6 — Cycle & Peau 🌸</button>
+    <button class="gtab g7" id="b-g7" onclick="sg('g7')">G7 — Face Mapping 🗺️</button>
+    <button class="gtab g8" id="b-g8" onclick="sg('g8')">G8 — Routine 📋</button>
+  </div>
+  <select class="skin-filter" id="sk" onchange="render()">
+    <option value="all">Tous les types</option>
+    <option value="dry">Sèche / Sensible</option>
+    <option value="oily">Grasse / Acnéique</option>
+    <option value="combo">Mixte</option>
+    <option value="normal">Normale</option>
+  </select>
+  <span class="cnt" id="cnt"></span>
+</div>
+<div id="sub-tab-bar" class="sub-tabs" style="display:none"></div>
+<div class="grp-desc g5" id="gdesc"></div>
+<div id="banner-g5" class="banner banner-g5">🌡️ Déclenchés automatiquement quand <strong>trend = 'plus'</strong> pour un symptôme déclaré dans les préoccupations du profil. Source : <code>symptom_tracking</code>.</div>
+<div id="banner-g6" class="banner banner-g6" style="display:none">🌸 Calculés automatiquement depuis <strong>last_period_date + cycle_duration</strong>. Source : <code>daily_checkins.cycle_phase</code>.</div>
+<div id="banner-g7" class="banner banner-g7" style="display:none">🗺️ Déclenchés quand <strong>trend = 'plus' + zone déclarée</strong>. Cause probable selon la localisation du symptôme sur le visage. Source : <code>symptom_tracking.zone</code>.</div>
+<div id="banner-g8" class="banner banner-g8" style="display:none">📋 Conseils déclenchés automatiquement selon la <strong>régularité de la routine</strong> (routine_logs). Ton toujours bienveillant — solution-first, jamais culpabilisant.</div>
+<div class="tbl-wrap">
+<table id="mt">
+<thead><tr id="thead-row">
+  <th class="col-f">Facteur</th>
+  <th id="h-q">Trigger</th>
+  <th>Peau sèche / sensible</th>
+  <th>Peau grasse / acnéique</th>
+  <th>Peau mixte</th>
+  <th>Peau normale</th>
+</tr></thead>
+<tbody id="tb"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+const SKIN_LABELS={dry:'Peau sèche / sensible',oily:'Peau grasse / acnéique',combo:'Peau mixte',normal:'Peau normale'};
+
+const G5={
+  desc:"Conseils déclenchés automatiquement quand trend = 'plus' pour un symptôme déclaré dans les préoccupations du profil. Ne se déclenche PAS si trend = 'moins' ou 'pareil'. Source : symptom_tracking.",
+  hq:"Trigger automatique (symptom_tracking)",
+  rows:[
+    {f:"Acné en hausse",ic:"🔴",srclbl:"acné + plus",trig:"symptom='acné' AND trend='plus'",q:"Automatique",
+     dry:{t:"Acné sur peau sèche : douceur avant tout",a:"Ton acné sur peau sèche est souvent inflammatoire, pas bactérienne. Évite les actifs asséchants — ils aggravent. Centella asiatica ou niacinamide à la place.",tip:"Évite l'acide salicylique concentré sur peau sèche — il décape la barrière et aggrave l'inflammation."},
+     oily:{t:"Acné en hausse : purifier sans agresser",a:"Résiste à l'envie de sur-nettoyer — ça stimule encore plus le sébum. Niacinamide 10% ce matin : anti-inflammatoire ET séborégulateur en un seul produit.",tip:"Le niacinamide est l'actif le plus polyvalent pour l'acné : sans irritation, sans sécheresse, efficace dès J3."},
+     combo:{t:"Zone T en alerte ce matin",a:"La T-zone concentre les bactéries acnéiques. Gel nettoyant doux ciblé sur front et nez, sérum niacinamide sur tout le visage.",tip:"Un patch anti-imperfection la nuit sur les boutons isolés — résultat visible en 8h sans toucher le reste."},
+     normal:{t:"Une poussée isolée, pas une catastrophe",a:"Avant d'agir, observe 24h. Une poussée isolée réagit souvent d'elle-même. Si tu interviens : niacinamide localement, rien d'autre.",tip:"Résiste à l'envie d'éclater — ça double le temps de cicatrisation et laisse des marques."}},
+    {f:"Rougeurs en hausse",ic:"🌹",srclbl:"rougeurs + plus",trig:"symptom='rougeurs' AND trend='plus'",q:"Automatique",
+     dry:{t:"Rougeurs : calmer la barrière en priorité",a:"Les rougeurs sur peau sèche signalent une barrière fragilisée. Aucun actif irritant aujourd'hui. Céramides + aloé vera pour reconstruire le film protecteur.",tip:"L'eau trop chaude aggrave les rougeurs — eau tiède uniquement pour le rinçage ces jours-là."},
+     oily:{t:"Rougeurs + sébum : inflammation double",a:"Les rougeurs sur peau grasse indiquent une inflammation active. Centella asiatica ce matin, pause aux acides.",tip:"Stopper temporairement les actifs exfoliants (AHA, BHA) jusqu'à disparition des rougeurs."},
+     combo:{t:"Joues réactives ce matin",a:"Les joues d'une peau mixte sont les premières à rougir. Crème apaisante aux céramides sur joues uniquement. T-zone : routine habituelle légère.",tip:"Un sérum à l'azulène sur les joues rouges est plus efficace qu'une crème épaisse."},
+     normal:{t:"Rougeurs ponctuelles : identifier avant d'agir",a:"Une rougeur soudaine sur peau normale mérite d'être tracée. Nouveau produit ? Stress ? Aliment ?",tip:"Si les rougeurs reviennent au même endroit régulièrement — à mentionner au dermatologue."}},
+    {f:"Sécheresse en hausse",ic:"💧",srclbl:"sécheresse + plus",trig:"symptom='sécheresse' AND trend='plus'",q:"Automatique",
+     dry:{t:"Sécheresse maximale : protocole d'urgence",a:"Sérum hyaluronique sur peau humide, crème barrière riche aux céramides, squalane en dernier pour sceller. Dans cet ordre, rien de moins.",tip:"Appliquer le sérum hyaluronique sur peau encore légèrement humide multiplie l'efficacité par 2."},
+     oily:{t:"Sécheresse sur peau grasse : oui, ça existe",a:"La déshydratation sur peau grasse génère une surproduction de sébum compensatoire. Un gel-crème non-comédogène ce matin régule sans assécher.",tip:"Si ta peau grasse tiraille ET brille, elle est déshydratée — pas seulement grasse."},
+     combo:{t:"Joues qui tirent : répondre vite",a:"Les joues tirent mais la T-zone brille. Sérum hyaluronique sur tout le visage, crème riche sur joues uniquement.",tip:"Le stick hydratant ciblé sur les joues est idéal pour la peau mixte."},
+     normal:{t:"Peau qui tiraille : signal à ne pas ignorer",a:"La peau normale qui tiraille manque d'eau, pas de gras. Un sérum hyaluronique seul suffit souvent.",tip:"Un humidificateur d'air dans la pièce de travail aide autant que les produits."}},
+    {f:"Taches en hausse",ic:"🟤",srclbl:"taches + plus",trig:"symptom='taches' AND trend='plus'",q:"Automatique",
+     dry:{t:"Taches sur peau sèche : protéger avant de traiter",a:"Appliquer le SPF 50 en priorité — sans protection, tout traitement est inutile. Vitamine C le matin si bien tolérée.",tip:"Ne jamais appliquer de vitamine C sur peau sèche non hydratée — attendre 30 sec après hydratation."},
+     oily:{t:"Taches post-acné : la patience avant tout",a:"Niacinamide ce matin : il éclaircit ET réduit l'inflammation qui produit la mélanine. SPF 50 obligatoire.",tip:"La chaleur aggrave les taches post-acné — éviter les bains chauds et l'exposition solaire directe."},
+     combo:{t:"Taches en zones mixtes : cibler sans agresser",a:"Sérum à l'alpha-arbutine ou niacinamide sur les zones concernées uniquement. SPF 50 sur tout le visage.",tip:"L'alpha-arbutine est l'actif anti-taches le plus doux pour la peau mixte."},
+     normal:{t:"Taches naissantes : agir tôt",a:"Une tache qui s'assombrit progressivement répond bien à la vitamine C le matin + SPF 50. Agir tôt évite que la tache s'installe durablement.",tip:"Le SPF est le seul actif anti-taches prouvé sans effets secondaires."}},
+    {f:"Points noirs en hausse",ic:"⚫",srclbl:"points_noirs + plus",trig:"symptom='points_noirs' AND trend='plus'",q:"Automatique",
+     dry:{t:"Points noirs sur peau sèche : douceur obligatoire",a:"Nettoyant doux à l'acide salicylique 0.5% maximum. Les exfoliants agressifs créent plus de sécheresse et paradoxalement plus de comédons.",tip:"Éviter les pore strips — ils arrachent les bouchons mais élargissent les pores et fragilisent la peau sèche."},
+     oily:{t:"Points noirs en hausse : purifier intelligemment",a:"Sérum ou tonique BHA 2% le soir, pas le matin. L'acide salicylique pénètre dans le pore et dissout le sébum oxydé.",tip:"Le BHA fonctionne mieux le soir — il augmente la sensibilité solaire."},
+     combo:{t:"T-zone encombrée : nettoyage ciblé",a:"Appliquer le BHA localement sur la T-zone, pas sur les joues. Masque à l'argile 1x par semaine sur la T-zone uniquement.",tip:"Le masque à l'argile dissout le sébum sans assécher les joues."},
+     normal:{t:"Points noirs ponctuels : ne pas sur-réagir",a:"Un ou deux points noirs en plus ne justifient pas de changer toute la routine. Nettoyant doux, pas de manipulation.",tip:"Les points noirs sont souvent des pores dilatés normaux — non éliminables complètement."}},
+    {f:"Rides en hausse",ic:"〰️",srclbl:"rides + plus",trig:"symptom='rides' AND trend='plus'",q:"Automatique",
+     dry:{t:"Rides accentuées : hydratation en urgence",a:"Acide hyaluronique + crème aux peptides ce matin. Les rides de déshydratation disparaissent en 20 minutes avec la bonne hydratation.",tip:"La déshydratation accentue les rides de 30% visuellement — optimiser l'hydratation de base avant les soins anti-âge."},
+     oily:{t:"Rides sur peau grasse : le signe du manque d'eau",a:"Gel-crème avec acide hyaluronique et peptides — les peptides stimulent le collagène sans alourdir.",tip:"Le rétinol reste l'actif anti-rides le plus documenté — commencer à 0.1% et augmenter progressivement."},
+     combo:{t:"Rides naissantes : prévenir avant de traiter",a:"Crème plus riche sur les joues, sérum peptides sur tout le visage. Les premières rides sur les joues signalent un manque de lipides local.",tip:"Dormir sur le dos réduit les rides de compression sur les joues — effet visible sur plusieurs mois."},
+     normal:{t:"Rides visibles ce matin : contexte avant action",a:"Les rides visibles le matin sont souvent des rides de sommeil — elles s'estompent en 30 min. Si elles persistent, sérum rétinol le soir à introduire progressivement.",tip:"Une ride qui apparaît soudainement peut être liée au stress — l'app peut tracer la corrélation."}},
+    {f:"Cernes en hausse",ic:"🌑",srclbl:"cernes + plus",trig:"symptom='cernes' AND trend='plus'",q:"Automatique",
+     dry:{t:"Cernes accentués : récupération locale",a:"Contour des yeux à la caféine + peptides ce matin. Patches hydrogel froids 10 minutes si disponibles.",tip:"Dormir avec la tête légèrement surélevée réduit la stagnation lymphatique sous les yeux."},
+     oily:{t:"Cernes + peau grasse : fatigue et inflammation",a:"Contour des yeux à la caféine pour drainer. Éviter les produits trop riches qui font gonfler.",tip:"Éviter de frotter les yeux — le frottement aggrave les cernes pigmentaires durablement."},
+     combo:{t:"Cernes ce matin : agir en 10 minutes",a:"Contour des yeux à la caféine, patches hydrogel le matin les jours importants.",tip:"Les patches hydrogel froids au réfrigérateur la veille sont redoutablement efficaces le matin."},
+     normal:{t:"Cernes visibles : identifier la cause",a:"Bleutés = vasculaires (sommeil, génétique), brunâtres = pigmentaires (soleil, frottements), creux = volume perdu. Le conseil change selon le type.",tip:"Les cernes vasculaires (bleutés) répondent mal aux crèmes — ils sont génétiques ou liés au sommeil."}},
+    {f:"Eczéma en hausse",ic:"🔶",srclbl:"eczéma + plus",trig:"symptom='eczéma' AND trend='plus'",q:"Automatique",
+     dry:{t:"Poussée d'eczéma : protocole apaisant strict",a:"Arrêter immédiatement tous les actifs (acides, rétinol, vitamine C). Nettoyant surgras uniquement, crème émolliente riche aux céramides en couche épaisse.",tip:"En cas de poussée : rincer à l'eau thermale si l'eau du robinet est calcaire."},
+     oily:{t:"Eczéma sur peau grasse : rare mais réel",a:"L'eczéma sur peau grasse est souvent de contact. Identifier le dernier produit introduit. Nettoyant très doux, crème émolliente légère.",tip:"Si la poussée ne s'améliore pas en 48h, consulter un dermatologue."},
+     combo:{t:"Eczéma localisé : isoler les zones",a:"Appliquer la crème émolliente uniquement sur les zones touchées. Continuer la routine normale sur les zones saines.",tip:"Garder un journal des déclencheurs dans l'app — l'eczéma a presque toujours un pattern identifiable."},
+     normal:{t:"Eczéma inhabituel : identifier le déclencheur",a:"Un eczéma soudain sur peau normale est presque toujours de contact. Passer en revue les produits récents : lessive, crème, parfum.",tip:"Ne jamais gratter — tapoter, appliquer du froid, crème émolliente immédiatement."}}
+  ]
+};
+
+const G6={
+  desc:"Conseils adaptés à chaque phase du cycle menstruel, calculée automatiquement depuis last_period_date + cycle_duration. Source : daily_checkins.cycle_phase.",
+  hq:"Phase calculée automatiquement",
+  rows:[
+    {f:"Phase folliculaire",ic:"🌱",srclbl:"J6–J13",trig:"cycle_phase = 'folliculaire'",phaseBg:"#E8F5E9",phaseColor:"#2E7D32",q:"Automatique",
+     dry:{t:"La semaine dorée — profites-en",a:"Les œstrogènes boostent le collagène et renforcent la barrière. Ta peau sèche est à son maximum de tolérance — introduire un nouvel actif ou augmenter la concentration du rétinol.",tip:"Semaine idéale pour un soin en institut ou une exfoliation plus poussée."},
+     oily:{t:"Peau au calme : optimiser sans en faire plus",a:"La régulation hormonale réduit le sébum. Sérum vitamine C le matin, routine légère le soir.",tip:"Ne pas sur-charger les produits — la routine habituelle est déjà suffisante."},
+     combo:{t:"La meilleure semaine de ton cycle",a:"T-zone moins réactive, joues mieux hydratées. Semaine idéale pour tester une nouvelle texture sur les joues.",tip:"Note dans l'app comment ta peau réagit — la comparaison avec la phase lutéale sera parlante."},
+     normal:{t:"Tester et introduire cette semaine",a:"Les œstrogènes unifient le teint. Un sérum vitamine C le matin amplifie cet effet.",tip:"L'app peut rappeler cette fenêtre chaque mois pour planifier les soins intensifs."}},
+    {f:"Phase ovulatoire",ic:"✨",srclbl:"J14–J16",trig:"cycle_phase = 'ovulatoire'",phaseBg:"#FFF9E6",phaseColor:"#F59E0B",q:"Automatique",
+     dry:{t:"Pic d'éclat — maintenir sans over-doser",a:"Le pic d'œstrogènes donne un éclat naturel. Pas besoin d'ajouter des illuminants — le sérum habituel suffit.",tip:"C'est souvent la semaine où on se trouve 'belle' sans raison — c'est hormonal et réel."},
+     oily:{t:"Légère vigilance T-zone",a:"Le pic de LH peut légèrement augmenter le sébum sur 24-48h. Sérum niacinamide léger en prévention.",tip:"Si tu as des rendez-vous importants, c'est cette semaine — ta peau est biologiquement au mieux."},
+     combo:{t:"Éclat maximal, T-zone à surveiller",a:"L'éclat est au maximum mais la T-zone peut commencer à briller légèrement. Papier matifiant dans le sac.",tip:"Observer si la T-zone change à J14-J15 pour anticiper la transition vers la phase lutéale."},
+     normal:{t:"Ta peau est au sommet — laisser faire",a:"Aucun besoin de plus. C'est la semaine pour le moins de produits possible.",tip:"Moins de produits cette semaine = peau qui respire. L'œstrogène fait le travail."}},
+    {f:"Phase lutéale",ic:"⚡",srclbl:"J17–J28",trig:"cycle_phase = 'lutéale'",phaseBg:"#FEF3E2",phaseColor:"#D97706",q:"Automatique",
+     dry:{t:"Barrière plus fragile — adapter en douceur",a:"La chute des œstrogènes fragilise la barrière. Réduire les actifs forts (rétinol, AHA) dès J17. Augmenter l'hydratation avec céramides.",tip:"Pire semaine pour tester un nouveau produit — résultats faussés."},
+     oily:{t:"La semaine acné : agir en prévention",a:"La progestérone dilate les pores et booste le sébum. Niacinamide quotidien dès J17, réduire sucre et alcool.",tip:"Réduire le sucre raffiné dès J17 diminue significativement l'acné prémenstruelle."},
+     combo:{t:"T-zone en alerte, joues plus sensibles",a:"T-zone progressivement plus réactive. Gel nettoyant doux le soir, niacinamide sur T-zone, crème apaisante sur joues.",tip:"Observer si les mêmes zones réagissent chaque mois — valider le pattern sur 3 cycles."},
+     normal:{t:"Légère vigilance — pas de panique",a:"Peau normale peut légèrement se ternir ou avoir 1-2 boutons. Niacinamide en sérum dès J17 en prévention.",tip:"Si tu utilises du rétinol, réduire la fréquence à J17-J28."}},
+    {f:"Phase menstruelle",ic:"🌸",srclbl:"J1–J5",trig:"cycle_phase = 'menstruelle'",phaseBg:"#FEE2E2",phaseColor:"#DC2626",q:"Automatique",
+     dry:{t:"Routine minimaliste — protection pure",a:"Prostaglandines = inflammation systémique. Nettoyant crème uniquement, céramides, aucun acide ni rétinol ces 5 jours.",tip:"Pire semaine pour un exfoliant ou un peeling — risque de réaction maximal."},
+     oily:{t:"Pause aux actifs, apaiser en priorité",a:"Stopper les AHA/BHA J1-J3. Centella asiatica ou aloé vera — apaiser plutôt que purifier.",tip:"Si l'acné empire toujours à J1-J3, la corrélation hormonale est confirmée."},
+     combo:{t:"Douceur absolue ces 5 jours",a:"Routine basique connue uniquement. Nettoyant doux, crème apaisante, SPF. Rien de nouveau.",tip:"Semaine pour les soins cocooning — masque hydrogel, baume lèvres, sérum apaisant."},
+     normal:{t:"Confort maximal, stimulation minimale",a:"Routine habituelle allégée — supprimer temporairement les actifs forts.",tip:"Si ta peau réagit toujours à la même phase depuis 3 mois, l'app peut le signaler comme pattern confirmé."}}
+  ]
+};
+
+const G7={
+  desc:"Conseils basés sur la localisation du symptôme sur le visage. Déclenchés quand trend = 'plus' ET zone déclarée. Chaque zone révèle une cause probable différente. Source : symptom_tracking.zone.",
+  hq:"Symptôme + zone déclarée",
+  symptoms:["acné","taches","points_noirs","rougeurs","sécheresse","rides"],
+  symptomLabels:{"acné":"Acné 🔴","taches":"Taches 🟤","points_noirs":"Points noirs ⚫","rougeurs":"Rougeurs 🌹","sécheresse":"Sécheresse 💧","rides":"Rides 〰️"},
+  zones:["menton","front","joues","contour_bouche","tempes"],
+  zoneLabels:{"menton":"Menton / Mâchoire","front":"Front","joues":"Joues","contour_bouche":"Contour bouche","tempes":"Tempes"},
+  data:{
+    "acné":{
+      menton:{cause:"Hormones, cycle lutéal, stress chronique",dry:{t:"Hormonal et local",a:"L'acné au menton sur peau sèche est presque toujours hormonale. Niacinamide ciblé, crème barrière douce. Éviter l'acide salicylique concentré sur cette zone.",tip:"Tracker dans l'app si les boutons au menton apparaissent toujours en phase lutéale — pattern confirmable en 3 cycles."},oily:{t:"Acné hormonale au menton",a:"Niacinamide 10% sur le menton ce matin. Réduire sucre et alcool en phase lutéale — ils amplifient l'inflammation hormonale.",tip:"Le niacinamide est l'actif parfait pour l'acné hormonale au menton : anti-inflammatoire sans assécher."},combo:{t:"Menton en alerte, T-zone distincte",a:"L'acné au menton d'une peau mixte est hormonale, pas liée à la T-zone. Traiter séparément : niacinamide ciblé sur menton.",tip:"Ne pas traiter le menton comme la T-zone — les causes sont différentes, les actifs aussi."},normal:{t:"Boutons au menton : signal hormonal",a:"Sur peau normale, l'acné concentrée au menton est le signe le plus fiable d'une influence hormonale. Niacinamide localement.",tip:"Si ça revient chaque mois au même moment, le dermatologue peut proposer une solution ciblée."}},
+      front:{cause:"Cheveux gras, produits coiffants, frange, casquette",dry:{t:"Front : la frange ou les produits ?",a:"Attacher les cheveux la nuit. Vérifier les ingrédients des produits coiffants — silicones lourds et huiles minérales obstruent les pores. Nettoyant doux en dernier geste.",tip:"Laver la frange 1x de plus par semaine que le reste des cheveux — elle concentre les résidus."},oily:{t:"Front gras : nettoyer la source",a:"Le front d'une peau grasse avec acné est presque toujours aggravé par les produits coiffants. BHA 2% le soir sur le front. Changer les taies d'oreiller 2x par semaine.",tip:"Appliquer les produits coiffants en reculant de 2cm de la ligne de front — résultat visible en 2 semaines."},combo:{t:"Front de T-zone : double cause",a:"Le front d'une peau mixte cumule sébum ET produits coiffants. Nettoyant légèrement purifiant, BHA localisé le soir.",tip:"Le front est la zone T la plus facilement améliorée — il répond vite aux changements de produits coiffants."},normal:{t:"Acné au front : chercher la cause externe",a:"Sur peau normale, l'acné au front est presque toujours externe : casquette, frange, produit coiffant. Identifier et éliminer la cause.",tip:"Changer de casquette pendant 2 semaines — si l'acné diminue, la cause est confirmée."}},
+      joues:{cause:"Téléphone, taie d'oreiller, mains, masque FFP2",dry:{t:"Joues : acné de contact sur peau sèche",a:"Désinfecter l'écran du téléphone quotidiennement. Changer la taie d'oreiller 2x par semaine. Crème barrière apaisante sur les joues.",tip:"Une taie en soie réduit les frictions nocturnes — différence visible en 2 semaines."},oily:{t:"Joues grasses : nettoyage des surfaces de contact",a:"Téléphone, mains, taie d'oreiller — trois surfaces à désinfecter. Nettoyant doux après le contact prolonged avec un masque.",tip:"La méthode 60 secondes de massage du nettoyant est particulièrement efficace pour les joues d'une peau grasse."},combo:{t:"Joues mixtes : traiter sans assécher",a:"Les joues d'une peau mixte sont plus fragiles que la T-zone. Traitement doux : niacinamide localisé, pas d'acide salicylique fort sur les joues.",tip:"Garder les actifs forts (BHA, AHA) sur la T-zone uniquement — jamais sur les joues d'une peau mixte."},normal:{t:"Acné aux joues : cause mécanique probable",a:"Sur peau normale, l'acné localisée aux joues est presque toujours mécanique. Désinfecter téléphone, changer taie d'oreiller.",tip:"Tester : une semaine sans toucher les joues — si l'acné diminue, cause confirmée."}},
+      contour_bouche:{cause:"Dentifrice fluoré, hormones, alimentation sucrée",dry:{t:"Contour bouche : dentifrice ou hormones ?",a:"Rincer soigneusement le contour de la bouche après le brossage. Tester un dentifrice sans fluor ni menthol. Crème barrière apaisante après.",tip:"Appliquer la crème avant le brossage — ça crée une barrière contre les résidus de dentifrice."},oily:{t:"Boutons autour de la bouche : deux coupables",a:"Dentifrice ou alimentation sucrée — les deux génèrent des boutons péri-oraux. Rincer soigneusement, réduire le sucre en phase lutéale.",tip:"Un patch anti-imperfection ciblé sur les boutons du contour de la bouche — efficace sans toucher les lèvres."},combo:{t:"Contour bouche : zone à traiter séparément",a:"Le contour de la bouche sur peau mixte réagit différemment de la T-zone. Traitement ciblé : toner doux BHA sur les petits boutons uniquement.",tip:"Ne pas appliquer les produits anti-acné T-zone sur le contour de la bouche — les formules sont trop puissantes pour cette zone fragile."},normal:{t:"Acné péri-orale : identifier le coupable",a:"Sur peau normale, l'acné autour de la bouche a toujours une cause précise. Suspicion principale : dentifrice. Tester une marque douce sans SLS.",tip:"Changer de dentifrice pendant 3 semaines — si amélioration, cause confirmée."}},
+      tempes:{cause:"Produits coiffants, lunettes, écouteurs, casquette",dry:{t:"Tempes : produits coiffants ou friction ?",a:"Nettoyer les branches de lunettes et les écouteurs. Éviter les produits coiffants alcoolisés sur les tempes. Crème apaisante sur cette zone fine.",tip:"Les tempes ont une peau aussi fine que le contour des yeux — traiter avec la même douceur."},oily:{t:"Tempes : acné mécanique à 90%",a:"L'acné aux tempes sur peau grasse est presque toujours mécanique. Identifier l'accessoire responsable : lunettes, casquette, écouteurs.",tip:"Tester sans l'accessoire suspect pendant 10 jours — si amélioration, cause confirmée."},combo:{t:"Tempes : zone à désinfecter",a:"Nettoyer lunettes et écouteurs quotidiennement. BHA localisé sur les tempes le soir si acné persistante.",tip:"Les écouteurs intra-auriculaires sont moins problématiques que les casques — surface de contact plus petite."},normal:{t:"Acné aux tempes uniquement : cause externe",a:"Sur peau normale, l'acné localisée aux tempes est toujours externe. Identifier et éliminer l'accessoire responsable.",tip:"Si acné aux tempes les jours de sport uniquement → casquette ou bandeau. Laver après chaque utilisation."}}
+    },
+    "taches":{
+      menton:{cause:"Taches post-acné hormonale, cicatrices inflammatoires",dry:{t:"Taches au menton : patience et SPF",a:"Les taches post-acné au menton sont les plus longues à partir. Niacinamide ciblé, SPF 50 obligatoire. Ne pas toucher les boutons.",tip:"3 à 6 mois minimum avec SPF quotidien. La patience est l'actif principal."},oily:{t:"Post-acné hormonale au menton",a:"Niacinamide + SPF 50. Ne pas éclater les boutons — chaque manipulation laisse une tache plus longue à effacer.",tip:"Alpha-arbutine en sérum le soir accélère l'éclaircissement des taches post-acné au menton."},combo:{t:"Taches menton : cibler sans diffuser",a:"Sérum alpha-arbutine ou niacinamide sur le menton uniquement. SPF 50 sur tout le visage.",tip:"L'alpha-arbutine est l'actif anti-taches le mieux toléré sur les zones sensibles comme le menton."},normal:{t:"Taches au menton : agir tôt",a:"Niacinamide localement dès l'apparition. SPF 50 pour empêcher la fixation de la mélanine.",tip:"Une tache traitée dès J1 prend 3 fois moins de temps à disparaître qu'une tache installée."}},
+      front:{cause:"Exposition solaire (zone la plus exposée), mélasma hormonal",dry:{t:"Mélasma du front : SPF avant tout",a:"Le front reçoit plus d'UV que les joues. SPF 50 généreux en priorité. Vitamine C le matin pour prévenir l'oxydation.",tip:"Le mélasma du front s'aggrave sans SPF même par ciel nuageux."},oily:{t:"Taches du front : soleil + sébum",a:"SPF 50 léger non-comédogène sur le front. Vitamine C ou niacinamide le matin.",tip:"Une brume SPF 50 permet de réappliquer sur le front en journée sans alourdir."},combo:{t:"Front exposé : SPF généreux",a:"Insister sur le front lors de l'application du SPF 50. Vitamine C le matin sur le front et les tempes.",tip:"Le front est souvent insuffisamment couvert par le SPF — insister particulièrement sur cette zone."},normal:{t:"Taches du front : prévention avant traitement",a:"SPF 50 quotidien sur le front. Vitamine C le matin si déjà présentes.",tip:"3 mois de SPF quotidien sur le front : résultat mesurable sur les taches solaires existantes."}},
+      joues:{cause:"Mélasma, taches solaires, post-inflammatoires",dry:{t:"Taches des joues : douceur et SPF",a:"Alpha-arbutine ou niacinamide le soir sur les joues. SPF 50 le matin. Éviter la chaleur directe.",tip:"Les taches des joues s'aggravent avec la chaleur — sauna et bains très chauds à éviter."},oily:{t:"Taches post-inflammatoires sur joues grasses",a:"Niacinamide le matin et le soir sur les joues. SPF 50 non-comédogène.",tip:"Éviter de toucher les boutons des joues — chaque manipulation laisse une tache."},combo:{t:"Joues tachetées : traitement localisé",a:"Alpha-arbutine ciblée sur les zones de taches. SPF 50 sur tout le visage.",tip:"L'alpha-arbutine est particulièrement adaptée aux joues sensibles d'une peau mixte."},normal:{t:"Taches des joues : agir régulièrement",a:"Vitamine C le matin, SPF 50. Résultat visible en 6-8 semaines avec une application quotidienne.",tip:"La régularité est plus importante que la concentration — vitamine C tous les jours > forte dose 3x par semaine."}},
+      contour_bouche:{cause:"Irritation chronique dentifrice, hormones, épilation",dry:{t:"Taches contour bouche : éliminer l'irritation",a:"Rincer soigneusement après le brossage. Niacinamide sur le contour bouche. SPF sur toute la zone.",tip:"L'épilation répétée génère une inflammation chronique qui produit de la mélanine."},oily:{t:"Taches péri-orales : dentifrice en cause ?",a:"Tester un dentifrice doux sans SLS. Niacinamide après le brossage, SPF le matin.",tip:"Espacer les séances d'épilation du duvet — inflammation → mélanine → tache."},combo:{t:"Contour bouche : zone à traiter séparément",a:"Niacinamide ciblé après le brossage. SPF sur tout le visage.",tip:"Rincer le contour de la bouche à l'eau tiède après le brossage pour éliminer les résidus irritants."},normal:{t:"Taches autour de la bouche : chercher la cause",a:"Identifier en premier : dentifrice ou épilation ? Niacinamide en attendant, SPF 50.",tip:"Changer de dentifrice pendant 3 semaines — si les taches n'empirent plus, cause confirmée."}},
+      tempes:{cause:"Exposition solaire, mélasma, friction lunettes",dry:{t:"Tempes : SPF souvent oublié",a:"Les tempes sont la zone la plus oubliée lors du SPF. Insister lors de l'application. Vitamine C sur les tempes le matin.",tip:"Le mélasma aux tempes est aggravé par la chaleur des séchoirs — éloigner la source de chaleur."},oily:{t:"Taches aux tempes : soleil et friction",a:"SPF 50 sur les tempes. Désinfecter les branches de lunettes.",tip:"Les fers à lisser et séchoirs proches des tempes aggravent le mélasma — changer les habitudes de coiffage."},combo:{t:"Tempes tachetées : protection et patience",a:"SPF 50 généreux sur les tempes. Vitamine C ou niacinamide ciblé.",tip:"Les tempes de la peau mixte ont la même sensibilité que les joues — les traiter avec la même douceur."},normal:{t:"Taches aux tempes : prévention simple",a:"SPF 50 étendu jusqu'aux tempes. Vitamine C le matin.",tip:"Protéger les tempes lors du coiffage — la chaleur directe sur cette zone est la cause principale des taches."}}
+    },
+    "points_noirs":{
+      menton:{cause:"Pores dilatés par hormones, sébum phase lutéale",dry:{t:"Points noirs au menton : BHA doux",a:"BHA 0.5-1% le soir sur le menton. Masque argile 1x par semaine ciblé.",tip:"L'app peut anticiper et rappeler le BHA dès J17 — pic de sébum au menton en phase lutéale."},oily:{t:"Menton : BHA le soir systématiquement",a:"BHA 2% le soir sur le menton. En phase lutéale, ajouter masque argile 1x par semaine.",tip:"Les points noirs au menton augmentent systématiquement en phase lutéale — traitement préventif possible."},combo:{t:"Menton : traiter comme zone T",a:"BHA localisé sur le menton le soir. Masque argile 1x par semaine sur menton et nez.",tip:"Le menton d'une peau mixte se comporte comme la T-zone pour le sébum."},normal:{t:"Points noirs au menton : hormones en cause",a:"BHA doux le soir sur le menton. Observer si corrélation avec le cycle.",tip:"Si corrélation avec le cycle confirmée, le dermatologue peut proposer une solution hormonale ciblée."}},
+      front:{cause:"Produits coiffants comédogènes, frange, casquette",dry:{t:"Front : produits coiffants à revoir",a:"Vérifier les ingrédients — huiles minérales et silicones lourds obstruent les pores. Laver la frange régulièrement.",tip:"Reculer de 2cm la ligne d'application des produits coiffants suffit à éliminer l'acné du front."},oily:{t:"Front gras : double nettoyage le soir",a:"Double nettoyage le soir pour éliminer produits coiffants + sébum. BHA 2% sur le front après.",tip:"Le double nettoyage (huile puis gel) est particulièrement efficace pour les pores du front chargés en produits coiffants."},combo:{t:"Front T-zone : BHA ciblé",a:"BHA le soir sur le front uniquement. Identifier et changer les produits coiffants comédogènes.",tip:"Tester des produits coiffants labellisés 'non-comédogènes' — résultat visible en 3 semaines."},normal:{t:"Points noirs au front : cause externe",a:"Sur peau normale, c'est presque toujours les produits coiffants. Identifier et éliminer.",tip:"Laver la frange 2x plus souvent que les autres cheveux pendant 2 semaines — test diagnostic simple."}},
+      joues:{cause:"Rare — pores dilatés, produits trop occlusifs",dry:{t:"Points noirs aux joues : revoir la crème",a:"La crème est probablement trop occlusive. Tester une texture plus légère. Les joues ont peu de glandes sébacées.",tip:"Les points noirs aux joues sont souvent des sebaceous filaments normaux — ne pas sur-traiter."},oily:{t:"Points noirs aux joues : vérifier les produits",a:"Vérifier si la crème ou le fond de teint est comédogène. Pores bouchés sur les joues = produit trop lourd.",tip:"Chercher la mention 'non-comédogène' sur tous les produits appliqués sur les joues."},combo:{t:"Joues : produit comédogène probable",a:"Les joues d'une peau mixte ont peu de sébum — des points noirs signalent un produit trop lourd. Alléger la crème sur les joues.",tip:"Tester la crème sur une seule joue pendant 2 semaines — diagnostic simple et efficace."},normal:{t:"Points noirs aux joues : inhabituel",a:"Sur peau normale, c'est le signe d'un produit trop lourd. Identifier et alléger.",tip:"Les points noirs persistants aux joues sur peau normale méritent un avis dermatologue si aucun produit n'est en cause."}},
+      contour_bouche:{cause:"Résidus dentifrice, produits trop gras débordants",dry:{t:"Contour bouche : rinçage insuffisant",a:"Rincer soigneusement après le brossage. Baume lèvres appliqué précisément sur les lèvres uniquement.",tip:"Le baume à lèvres qui déborde sur la peau du contour bouche bouche les pores de cette zone fragile."},oily:{t:"Contour bouche : deux coupables simples",a:"Résidus dentifrice + baume lèvres débordant. Double nettoyage le soir sur cette zone.",tip:"La méthode 60 secondes de massage du nettoyant sur le contour bouche dissout efficacement les résidus."},combo:{t:"Contour bouche : nettoyage ciblé",a:"Insister sur le contour bouche lors du nettoyage. Baume lèvres précis sur les lèvres uniquement.",tip:"Un coton imbibé de toner BHA doux sur le contour bouche le soir — geste rapide et efficace."},normal:{t:"Points noirs contour bouche : cause simple",a:"Presque toujours le baume lèvres ou le dentifrice. Tester l'un ou l'autre séparément.",tip:"Appliquer le baume avec le petit doigt uniquement sur les lèvres — précision maximale, zéro débordement."}},
+      tempes:{cause:"Produits coiffants, lunettes, écouteurs, transpiration",dry:{t:"Tempes : accessoires à désinfecter",a:"Nettoyer branches de lunettes et écouteurs quotidiennement. Éviter les produits coiffants alcoolisés sur les tempes.",tip:"Les écouteurs sans fil accumulés en gomme de caoutchouc sont particulièrement problématiques."},oily:{t:"Tempes : mécanique à confirmer",a:"Identifier l'accessoire : lunettes, casquette, écouteurs. BHA léger le soir sur les tempes.",tip:"Tester sans l'accessoire suspect 10 jours — test diagnostic fiable."},combo:{t:"Tempes : zone fine à traiter doucement",a:"BHA 1% max sur les tempes. Nettoyer accessoires. Éviter les produits coiffants sur cette zone.",tip:"La peau des tempes est aussi fine que le contour des yeux — même douceur requise."},normal:{t:"Points noirs aux tempes : toujours mécanique",a:"Sur peau normale, cause externe certaine. Identifier l'accessoire et nettoyer.",tip:"Changer pour des lunettes à monture hypoallergénique si récurrent."}}
+    },
+    "rougeurs":{
+      menton:{cause:"Rasage, écharpe, couperose débutante",dry:{t:"Rougeurs au menton : barrière fragilisée",a:"Crème barrière aux céramides sur le menton. Éviter actifs forts sur cette zone.",tip:"Si rougeurs après rasage — changer de lame ou de mousse. Rasoir émoussé = cause n°1."},oily:{t:"Rougeurs menton : arrêter les actifs localement",a:"Pause aux acides sur le menton. Centella asiatica ciblée.",tip:"Le menton en inflammation sur peau grasse réagit mal aux actifs — douceur avant purification."},combo:{t:"Menton rouge : isoler la zone",a:"Crème apaisante sur le menton uniquement. Continuer la routine sur le reste du visage.",tip:"Le menton d'une peau mixte peut rougir de façon indépendante de la T-zone."},normal:{t:"Rougeurs au menton : identifier la cause",a:"Rasage ? Écharpe ? Nouveau produit ? Observer et identifier avant d'agir.",tip:"Si rougeurs symétriques sur menton ET joues — signal couperose à mentionner au dermatologue."}},
+      front:{cause:"Produits coiffants réactifs, chaleur, bonnet/casquette",dry:{t:"Front rouge : produit coiffant ou chaleur ?",a:"Vérifier si les produits coiffants coulent sur le front à la transpiration. Eau thermale apaisante.",tip:"Les produits coiffants qui coulent sur le front à la chaleur sont une cause fréquente et sous-estimée."},oily:{t:"Front rouge : identifier le déclencheur",a:"Post-sport ou quotidien ? Si post-sport — friction mécanique. Si quotidien — produit coiffant.",tip:"Un nettoyant doux après le sport sur le front réduit l'inflammation post-transpiration."},combo:{t:"Front T-zone rouge : chaleur + friction",a:"Eau thermale après le sport sur le front. Éviter les bonnets serrés.",tip:"Un bonnet en matière synthétique génère plus de chaleur et de friction qu'un bonnet en coton."},normal:{t:"Rougeurs au front : cause externe",a:"Sur peau normale, c'est toujours externe. Produit coiffant, bonnet, casquette — identifier.",tip:"Tester sans casquette pendant 2 semaines — si amélioration, cause confirmée."}},
+      joues:{cause:"Couperose, froid, alcool, changement température brutal",dry:{t:"Joues rouges : barrière et douceur",a:"Crème barrière aux céramides sur les joues. Éviter changements de température brutaux.",tip:"Rougeurs diffuses symétriques sur les deux joues → signal couperose à tracer dans l'app."},oily:{t:"Joues rouges sur peau grasse : vasculaire probable",a:"Centella asiatica sur les joues. Pause aux acides exfoliants jusqu'à résolution.",tip:"L'alcool dilate les vaisseaux — corrélation alcool/rougeurs joues traçable dans l'app."},combo:{t:"Joues mixtes rouges : actifs à stopper",a:"Stopper les actifs exfoliants sur les joues. Crème céramides ciblée.",tip:"La brume d'eau thermale calme l'inflammation vasculaire des joues en quelques secondes."},normal:{t:"Rougeurs des joues : tracer le pattern",a:"Observer les déclencheurs : froid, alcool, épices, stress. L'app aide à identifier le pattern.",tip:"Si rougeurs toujours aux mêmes endroits depuis plusieurs mois — consultation dermatologique recommandée."}},
+      contour_bouche:{cause:"Dentifrice irritant, eczéma péri-oral, léchage",dry:{t:"Rougeurs contour bouche : dentifrice suspect",a:"Tester un dentifrice sans SLS ni menthol. Crème apaisante aux céramides sur le contour bouche.",tip:"La dermite péri-orale s'aggrave avec les crèmes riches — crème légère apaisante uniquement."},oily:{t:"Contour bouche rouge : éliminer le dentifrice",a:"Rincer soigneusement. Tester un dentifrice doux. Aloé vera gel sur le contour bouche.",tip:"Ne jamais lécher les lèvres — la salive aggrave l'irritation péri-orale."},combo:{t:"Contour bouche : zone à isoler",a:"Tester un dentifrice doux. Crème apaisante sur le contour bouche uniquement.",tip:"Si persistant après changement de dentifrice — dermatologue. La dermite péri-orale nécessite un traitement spécifique."},normal:{t:"Rougeurs péri-orales : dentifrice en premier suspect",a:"Changer de dentifrice en premier. Si persistant après 3 semaines — dermatologue.",tip:"Le SLS (sodium lauryl sulfate) dans le dentifrice est la cause la plus fréquente d'irritation péri-orale."}},
+      tempes:{cause:"Lunettes (nickel), écouteurs, friction",dry:{t:"Tempes rouges : allergie aux matériaux",a:"Nettoyer les branches de lunettes. Tester des montures hypoallergéniques si récurrent.",tip:"Le nickel dans les montures est la cause la plus fréquente d'allergie de contact aux tempes."},oily:{t:"Tempes : friction ou allergie ?",a:"Identifier : lunettes ou écouteurs ? Nettoyer quotidiennement. Crème apaisante sur les tempes.",tip:"Les montures en titane ou en acétate sont hypoallergéniques — alternative aux montures en alliage."},combo:{t:"Tempes rouges : accessoires à identifier",a:"Observer si les rougeurs apparaissent après le port de lunettes ou d'écouteurs. Nettoyer et tester.",tip:"Tester des écouteurs différents pendant 1 semaine — test diagnostic simple."},normal:{t:"Rougeurs aux tempes : matériaux en cause",a:"Sur peau normale, c'est presque toujours une allergie de contact. Identifier l'accessoire.",tip:"Les écouteurs sans fil avec housses en silicone sont moins allergisants que ceux en caoutchouc."}}
+    },
+    "sécheresse":{
+      menton:{cause:"Sur-exfoliation locale, rasage fréquent",dry:{t:"Menton sec : réduire les actifs",a:"Réduire la fréquence des acides sur le menton. Baume riche après le rasage.",tip:"Le menton se comporte souvent comme une peau sèche même sur peau mixte — observer séparément."},oily:{t:"Sécheresse au menton : sur-traitement probable",a:"Un actif trop fort ou trop fréquent sur le menton dessèche même les peaux grasses. Réduire la fréquence.",tip:"Alterner : BHA un soir, hydratant le suivant sur le menton."},combo:{t:"Menton sec, T-zone grasse : deux routines",a:"Crème riche sur le menton, gel-crème sur la T-zone. Application différenciée obligatoire.",tip:"Un stick hydratant sur le menton uniquement évite de sur-hydrater la T-zone."},normal:{t:"Menton sec : actif trop fort ou rasage",a:"Identifier la cause : actif exfoliant ou rasage. Crème barrière sur le menton après identification.",tip:"Le rasoir émoussé dessèche autant qu'il irrite — changer de lame régulièrement."}},
+      front:{cause:"Produits coiffants alcoolisés, chauffage intérieur",dry:{t:"Front sec : produits coiffants alcoolisés",a:"Vérifier si les produits coiffants contiennent de l'alcool dénaturé. Sérum hyaluronique sur le front.",tip:"Le front est la zone la plus exposée au chauffage intérieur — humidificateur dans la pièce."},oily:{t:"Front sec et gras : déshydratation paradoxale",a:"La sécheresse sur un front gras signale une déshydratation. Gel-crème hyaluronique sur le front.",tip:"Alcool dénaturé dans les produits coiffants = sécheresse ET compensation en sébum — cercle vicieux."},combo:{t:"Front T-zone qui tire : hydrater sans alourdir",a:"Sérum hyaluronique léger sur le front. Éviter les crèmes trop riches sur cette zone.",tip:"Un gel hydratant sur le front uniquement — pas de crème riche sur la T-zone d'une peau mixte."},normal:{t:"Front sec : chauffage ou produit coiffant",a:"Identifier la cause saisonnière ou le produit. Sérum hyaluronique ciblé.",tip:"Tester en hiver sans chauffage dans la pièce pendant une semaine — si amélioration, humidificateur recommandé."}},
+      joues:{cause:"Vent, froid, air conditionné, crème trop légère",dry:{t:"Joues très sèches : lipides en urgence",a:"Crème riche aux céramides et lipides sur les joues matin et soir. Huile sèche en dernier le soir.",tip:"Les joues sèches en hiver sur peau mixte ne nécessitent pas de changer toute la routine."},oily:{t:"Joues sèches sur peau grasse : alléger le nettoyage",a:"Le nettoyant est peut-être trop purifiant. Gel-crème hyaluronique sur les joues.",tip:"Si les joues tirent après le nettoyage — le nettoyant est trop agressif. En changer."},combo:{t:"Joues qui tirent : crème ciblée",a:"Passer à une crème plus riche sur les joues uniquement. Gel-crème sur la T-zone.",tip:"Un stick hydratant sur les joues est idéal en déplacement — application ciblée zéro T-zone."},normal:{t:"Joues sèches : changement saisonnier",a:"Passer à une crème légèrement plus riche sur les joues. Un seul changement suffit.",tip:"Un gel-crème aux céramides est parfait pour les joues sèches d'une peau normale en hiver."}},
+      contour_bouche:{cause:"Léchage lèvres, respiration buccale, dentifrice asséchant",dry:{t:"Contour bouche sec : soin occlus la nuit",a:"Baume gras sur le contour bouche avant de dormir. Acide hyaluronique le matin.",tip:"Une fine couche de vaseline sur le contour bouche la nuit change tout en 2 semaines."},oily:{t:"Contour bouche sec sur peau grasse : dentifrice",a:"Tester un dentifrice moins asséchant. Baume léger sur le contour bouche le soir.",tip:"Éviter de lécher les lèvres — la salive dessèche le contour de la bouche plus qu'elle n'hydrate."},combo:{t:"Contour bouche sec : zone indépendante",a:"Traiter le contour bouche séparément. Baume occlus la nuit, hyaluronique le matin.",tip:"La respiration buccale la nuit assèche le contour de la bouche — humidificateur d'air dans la chambre."},normal:{t:"Contour bouche sec : geste simple efficace",a:"Baume léger sur le contour bouche le soir. Résultat visible en 1 semaine.",tip:"Le contour de la bouche bénéficie plus qu'aucune autre zone d'un soin occlus nocturne."}},
+      tempes:{cause:"Lunettes, produits coiffants alcoolisés, rasage",dry:{t:"Tempes sèches : lunettes ou produits coiffants",a:"Appliquer sérum hydratant sur les tempes avant les branches de lunettes. Éviter les produits coiffants alcoolisés.",tip:"Les tempes sont souvent oubliées dans la routine — les inclure dans l'application de la crème."},oily:{t:"Tempes sèches : friction des accessoires",a:"Crème légère sur les tempes si friction de lunettes. Produits coiffants alcoolisés à éviter.",tip:"Un sérum hyaluronique appliqué sur les tempes avant les branches de lunettes — barrière protectrice."},combo:{t:"Tempes sèches sur peau mixte",a:"Hydratant léger sur les tempes. Même texture que sur les joues.",tip:"Les tempes d'une peau mixte se comportent comme les joues — même soin, même texture."},normal:{t:"Tempes sèches : cause externe simple",a:"Identifier : lunettes, produit coiffant. Sérum hydratant sur les tempes.",tip:"Inclure les tempes dans l'application de la crème hydratante — geste souvent oublié."}}
+    },
+    "rides":{
+      menton:{cause:"Gravité, expressions (mastication), perte de volume",dry:{t:"Menton : rides structurelles — rétinol",a:"Peptides + rétinol le soir sur le menton. L'hydratation seule ne suffit pas sur cette zone.",tip:"Les rides de la mâchoire répondent mieux au rétinol qu'à l'acide hyaluronique."},oily:{t:"Rides menton sur peau grasse : peptides légers",a:"Sérum peptides sans texture lourde. Rétinol 0.1% le soir à introduire progressivement.",tip:"Les rides du menton d'une peau grasse répondent bien aux peptides — sans alourdir."},combo:{t:"Menton : rides d'expression à traiter en douceur",a:"Peptides ciblés sur le menton le soir. Rétinol progressif si bien toléré.",tip:"Le menton d'une peau mixte tolère le rétinol mieux que la T-zone."},normal:{t:"Rides au menton : long terme",a:"Rétinol le soir, peptides le matin. SPF 50 obligatoire.",tip:"Les rides du menton s'améliorent de 20-30% en 6 mois de rétinol régulier."}},
+      front:{cause:"Rides d'expression profondes, photovieillissement",dry:{t:"Front : rides d'expression — rétinol + SPF",a:"Rétinol le soir sur le front — zone la plus documentée pour cet actif. SPF 50 le matin obligatoire.",tip:"Les rides du front ne disparaissent pas avec l'hydratation seule — rétinol nécessaire."},oily:{t:"Front : rétinol sans crainte",a:"Les peaux grasses tolèrent bien le rétinol. Commencer à 0.1% le soir sur le front.",tip:"Le rétinol réduit aussi le sébum en plus des rides — double bénéfice pour les peaux grasses."},combo:{t:"Front T-zone : rétinol progressif",a:"Rétinol 0.1% le soir sur le front. Augmenter progressivement selon tolérance.",tip:"Commencer 1 soir sur 3 sur le front avant d'augmenter la fréquence."},normal:{t:"Rides du front : photovieillissement à stopper",a:"SPF 50 le matin = principal actif anti-rides du front. Rétinol le soir pour réparer.",tip:"3 mois de SPF quotidien : résultat mesurable sur le photovieillissement du front."}},
+      joues:{cause:"Rides de déshydratation (réversibles 3-6 mois)",dry:{t:"Joues : rides de déshydratation réversibles",a:"Acide hyaluronique + crème aux céramides et lipides matin ET soir. Ces rides disparaissent en 3 à 6 mois avec une hydratation constante.",tip:"Si les rides des joues s'estompent en 20 min après hydratation — elles sont réversibles avec de la constance."},oily:{t:"Rides joues : déshydratation, pas l'âge",a:"Gel-crème avec acide hyaluronique et peptides. Les rides de déshydratation sur peau grasse disparaissent vite.",tip:"Les rides de déshydratation sur peau grasse sont souvent causées par le sur-nettoyage — alléger le nettoyant."},combo:{t:"Joues : rides de déshydratation à réverser",a:"Crème plus riche sur les joues matin et soir. Acide hyaluronique en sérum. 3 à 6 mois de constance.",tip:"Les rides de déshydratation sont les meilleures nouvelles en anti-âge — elles partent avec de l'hydratation."},normal:{t:"Rides des joues : 3 à 6 mois d'hydratation",a:"Sérum hyaluronique + crème légèrement plus riche sur les joues. Constance = résultat.",tip:"Photographier les joues dans l'app toutes les 4 semaines — la progression est visible et motivante."}},
+      contour_bouche:{cause:"Rides de déshydratation + expressions (réversibles)",dry:{t:"Contour bouche : soin occlus la nuit",a:"Baume occlus la nuit sur le contour de la bouche. Acide hyaluronique le matin. Résultat en 6-8 semaines.",tip:"Le contour de la bouche est la zone qui bénéficie le plus d'un soin overnight."},oily:{t:"Contour bouche sec et ridé : baume doux",a:"Baume léger non-comédogène sur le contour bouche le soir. Peptides en sérum.",tip:"Les ridules autour de la bouche répondent en 6-8 semaines à un soin occlus nocturne régulier."},combo:{t:"Contour bouche : rides réversibles",a:"Baume occlus le soir, peptides le matin. Ces rides partent avec de l'hydratation constante.",tip:"Photographier le contour bouche dans l'app — la progression en 8 semaines est souvent spectaculaire."},normal:{t:"Ridules contour bouche : traitement simple",a:"Baume le soir, hyaluronique le matin. 8 semaines de constance suffisent.",tip:"Vaseline ou lanoline en fine couche sur le contour bouche = soin overnight efficace et pas cher."}},
+      tempes:{cause:"Rides de déshydratation + patte d'oie (réversibles)",dry:{t:"Tempes : patte d'oie et déshydratation",a:"Contour des yeux étendu jusqu'aux tempes matin et soir. Peptides pour stimuler le collagène local.",tip:"Appliquer le contour des yeux en tapotant jusqu'aux tempes — jamais frotter."},oily:{t:"Tempes : traiter comme contour des yeux",a:"Contour des yeux léger étendu aux tempes. Peptides sans texture lourde.",tip:"Les tempes de peau grasse tolèrent bien les peptides — stimulation collagène sans obstruction."},combo:{t:"Tempes : zone fine à hydrater",a:"Contour des yeux étendu aux tempes. Sérum hyaluronique. Ces rides partent avec de l'hydratation.",tip:"La peau des tempes est aussi fine que le contour des yeux — même produit, même douceur."},normal:{t:"Patte d'oie aux tempes : rides de déshydratation",a:"Contour des yeux jusqu'aux tempes + peptides. Résultat visible en 6-8 semaines.",tip:"Les ridules aux tempes répondent très bien à l'hydratation — parmi les plus réversibles du visage."}}
+    }
+  }
+};
+
+
+const G8={
+  desc:"Conseils déclenchés automatiquement selon la régularité de la routine. Ton bienveillant — solution-first, jamais culpabilisant. Source : routine_logs.",
+  hq:"Trigger automatique (routine_logs)",
+  rows:[
+    {f:"Routine soir non faite",ic:"🌙",srclbl:"evening_routine_done = false",trig:"evening_routine_done = false hier soir",q:"Automatique",
+     dry:{t:"Rattraper sans punir la peau",a:"La peau sèche a perdu une nuit de réparation. Ce matin : nettoyant crème doux, sérum hyaluronique, crème barrière riche. Pas d'actifs forts aujourd'hui — laisser la peau récupérer.",tip:"Garder des lingettes micellaires douces sur la table de nuit — alternative rapide pour les soirs de fatigue."},
+     oily:{t:"Double nettoyage ce matin",a:"Une nuit sans nettoyage sur peau grasse = pores chargés en sébum oxydé. Double nettoyage ce matin : huile puis gel doux. Pas de BHA concentré — trop agressif dans ce contexte.",tip:"La méthode 60 secondes de massage du nettoyant est particulièrement efficace ce matin."},
+     combo:{t:"Récupération rapide",a:"Nettoyage complet ce matin. Insister sur la T-zone en douceur. Toner hydratant sur les joues pour ne pas assécher après la purification.",tip:"Un coton plat imbibé de toner doux sur la T-zone suffit les soirs de fatigue — mieux que rien."},
+     normal:{t:"Routine express ce matin",a:"Baume démaquillant doux ce matin pour dissoudre proprement, sérum vitamine C pour relancer l'éclat. Routine habituelle ensuite.",tip:"Si ça arrive souvent, simplifier la routine du soir à 2 étapes max : démaquillant + crème. La constance prime."}},
+    {f:"Démaquillage non fait",ic:"💄",srclbl:"makeup_removed = false",trig:"makeup_removed = false hier soir",q:"Automatique",
+     dry:{t:"Réparer sans agresser",a:"Baume démaquillant doux ce matin — pas de micelles avec alcool. Le maquillage laissé toute la nuit s'oxyde et génère des radicaux libres. Hydratation renforcée après.",tip:"Garder un stick démaquillant ou des disques en coton + huile sur la table de nuit."},
+     oily:{t:"Double nettoyage en douceur",a:"Double nettoyage obligatoire : baume pour dissoudre, gel doux pour purifier. Éviter l'acide salicylique concentré ce matin — la peau a déjà subi.",tip:"La méthode 60 secondes de massage du baume avant rinçage est particulièrement efficace ce matin."},
+     combo:{t:"Deux zones, deux besoins",a:"Les joues : baume démaquillant doux. La T-zone : gel nettoyant léger. Deux textures, un seul résultat propre.",tip:"Le coton plat est bien plus doux que le coton boule pour la peau mixte."},
+     normal:{t:"Récupération en 3 gestes",a:"Baume démaquillant pour dissoudre, eau tiède pour rincer, sérum vitamine C pour relancer l'éclat.",tip:"Si ça arrive souvent, tester les lingettes démaquillantes sans alcool comme solution de secours."}},
+    {f:"Routine matin non faite",ic:"☀️",srclbl:"morning_routine_done = false",trig:"morning_routine_done = false hier matin",q:"Automatique",
+     dry:{t:"La barrière sans protection hier",a:"La peau sèche sans routine matin est exposée toute la journée sans barrière. Ce matin : routine complète avec insistance sur les céramides.",tip:"Observer dans l'app si sauter la routine matin crée un pattern de réactivité — certaines peaux sèches le montrent dès J+1."},
+     oily:{t:"Sébum sans régulation hier",a:"Sans niacinamide ni SPF hier, le sébum et la pollution ont fait leur travail. Ce matin : nettoyage soigneux, sérum niacinamide, SPF.",tip:"Un sérum niacinamide prend 3-4 semaines de constance. Chaque matin manqué décale légèrement ce résultat."},
+     combo:{t:"T-zone sans contrôle hier",a:"La T-zone non régulée hier peut briller plus ce matin. Sérum niacinamide sur la T-zone, hydratant sur les joues.",tip:"Simplifier la routine matin à 3 étapes si le temps manque : nettoyant, sérum, SPF."},
+     normal:{t:"Une journée sans routine — sans gravité",a:"La peau normale récupère vite. Routine habituelle ce matin, sans sur-compenser.",tip:"La routine matin en 2 minutes existe : eau thermale + crème SPF. Le minimum vaut toujours mieux que rien."}},
+    {f:"SPF oublié + UV élevés",ic:"🌞",srclbl:"spf_applied = false + UV ≥ 3",trig:"spf_applied = false hier + UV index ≥ 3 aujourd'hui",q:"Automatique",
+     dry:{t:"SPF obligatoire ce matin — double dose",a:"Hier sans SPF + UV élevés aujourd'hui = double raison d'appliquer soigneusement ce matin. Crème SPF 50 généreuse sur peau sèche.",tip:"Le SPF quotidien est l'investissement anti-âge le plus rentable — l'app peut tracer la régularité SPF sur 30 jours."},
+     oily:{t:"SPF léger mais SPF quand même",a:"Brume SPF 50 ou gel solaire texture eau. Les formules gel actuelles ne génèrent pas de brillance si bien dosées.",tip:"Un gel SPF 50 non-comédogène appliqué correctement (1.5ml) ne génère pas de brillance."},
+     combo:{t:"SPF fluide sur tout le visage",a:"SPF fluide 50 sur tout le visage. Papier matifiant dans le sac pour la journée.",tip:"Tester une brume SPF dans le sac — réapplication en 10 secondes par-dessus le maquillage."},
+     normal:{t:"SPF avant de sortir — sans exception",a:"SPF 50 léger ce matin. Réappliquer en brume après 2h en extérieur.",tip:"Poser le SPF à côté du dentifrice — ancrage dans la routine existante pour ne plus l'oublier."}},
+    {f:"Régularité faible 7 jours",ic:"📉",srclbl:"score < 50% sur 7j",trig:"Moins de 4 routines complètes sur les 7 derniers jours",q:"Automatique",
+     dry:{t:"Simplifier pour tenir",a:"Sur peau sèche, une routine de 3 étapes tous les jours vaut 10x mieux qu'une routine parfaite 3 jours sur 7. Réduire à : nettoyant crème + céramides + SPF.",tip:"Poser les produits dans l'ordre d'utilisation sur le lavabo. L'environnement organise le comportement mieux que la motivation."},
+     oily:{t:"Moins d'étapes, plus de constance",a:"Sur peau grasse, les 2 gestes non-négociables : nettoyant le soir + SPF le matin. Tout le reste est un bonus.",tip:"Associer la routine à un geste déjà automatique : après le brossage des dents."},
+     combo:{t:"3 étapes, tous les jours",a:"3 étapes fixes : nettoyant doux + hydratant léger + SPF. La constance d'abord, le ciblage ensuite.",tip:"L'app peut envoyer un rappel doux le soir à l'heure où la routine est le plus souvent oubliée."},
+     normal:{t:"La régularité bat la perfection",a:"Une routine de 2 minutes ancrée vaut mieux qu'une routine de 10 minutes aléatoire. Identifier les 2 gestes non-négociables et les ancrer d'abord.",tip:"Construire le système d'abord — la motivation suit la constance, pas l'inverse."}},
+    {f:"🎉 Milestone 30 jours",ic:"🏆",srclbl:"score ≥ 85% sur 30j",trig:"26+ routines complètes sur les 30 derniers jours",q:"Automatique",
+     dry:{t:"30 jours de constance — ta peau le montre",a:"C'est exactement le temps qu'il faut pour que les actifs montrent leur plein effet. Le cycle cellulaire est de 28 jours — ta peau s'est renouvelée. C'est le bon moment pour introduire un nouvel actif ou augmenter une concentration.",tip:"Photographier la peau dans l'app aujourd'hui — point de comparaison parfait après 30 jours de constance."},
+     oily:{t:"30 jours — le sébum est régulé",a:"30 jours de niacinamide et SPF quotidiens : le sébum est au minimum de ce qui est atteignable avec des soins topiques. C'est maintenant qu'on peut introduire un actif complémentaire.",tip:"C'est le bon moment pour tester un BHA plus concentré ou ajouter un sérum vitamine C le matin."},
+     combo:{t:"30 jours — T-zone et joues en équilibre",a:"La peau mixte constante sur 30 jours est la plus équilibrée possible. C'est la semaine pour évaluer et potentiellement simplifier encore la routine.",tip:"Observer si la T-zone brille moins qu'au J1 — la constance régule le sébum progressivement."},
+     normal:{t:"30 jours — la peau à son meilleur",a:"La peau normale avec une routine constante est au maximum de ce qu'elle peut être sans intervention médicale. C'est le moment pour introduire un actif anti-âge préventif.",tip:"C'est maintenant que le rétinol préventif a le plus de sens — peau stable, résultats fiables."}}
+  ]
+};
+let cg='g5', g7sym='acné', g7zone='menton';
+
+function sg(g){
+  cg=g;
+  ['g5','g6','g7','g8'].forEach(x=>{
+    const btn=document.getElementById('b-'+x);
+    if(btn) btn.classList.toggle('on',x===g);
+  });
+  ['g5','g6','g7','g8'].forEach(x=>{
+    const b=document.getElementById('banner-'+x);
+    if(b) b.style.display=x===g?'block':'none';
+  });
+  const desc=document.getElementById('gdesc');
+  desc.className='grp-desc '+g;
+  const subBar=document.getElementById('sub-tab-bar');
+  subBar.innerHTML='';
+  if(g==='g7'){
+    subBar.style.display='flex';
+    buildSymTabs();
+  } else {
+    subBar.style.display='none';
+  }
+  render();
+}
+
+function buildSymTabs(){
+  const bar=document.getElementById('sub-tab-bar');
+  bar.innerHTML='';
+  
+  const symLabel=document.createElement('span');
+  symLabel.style.cssText='font-size:11px;color:#999;margin-right:4px;align-self:center';
+  symLabel.textContent='Symptôme :';
+  bar.appendChild(symLabel);
+  
+  G7.symptoms.forEach(function(s){
+    const b=document.createElement('button');
+    b.className='stab'+(s===g7sym?' on':'');
+    b.textContent=G7.symptomLabels[s];
+    b.setAttribute('data-sym', s);
+    b.onclick=function(){
+      g7sym=this.getAttribute('data-sym');
+      buildSymTabs();
+      render();
+    };
+    bar.appendChild(b);
+  });
+  
+  const zoneLabel=document.createElement('span');
+  zoneLabel.style.cssText='font-size:11px;color:#999;margin-left:8px;margin-right:4px;align-self:center';
+  zoneLabel.textContent='Zone :';
+  bar.appendChild(zoneLabel);
+  
+  G7.zones.forEach(function(z){
+    const b=document.createElement('button');
+    b.className='stab'+(z===g7zone?' on':'');
+    b.textContent=G7.zoneLabels[z];
+    b.setAttribute('data-zone', z);
+    b.onclick=function(){
+      g7zone=this.getAttribute('data-zone');
+      buildSymTabs();
+      render();
+    };
+    bar.appendChild(b);
+  });
+}
+
+function buildZoneTabs(){
+  // now handled inside buildSymTabs
+}
+
+function render(){
+  const filter=document.getElementById('sk').value;
+  const skinCols=filter==='all'?['dry','oily','combo','normal']:[filter];
+  const thead=document.getElementById('thead-row');
+  while(thead.children.length>2) thead.removeChild(thead.lastChild);
+  skinCols.forEach(sk=>{
+    const th=document.createElement('th');
+    th.textContent=SKIN_LABELS[sk];
+    thead.appendChild(th);
+  });
+  const tb=document.getElementById('tb');
+  tb.innerHTML='';
+
+  if(cg==='g5'){
+    const grp=G5;
+    document.getElementById('gdesc').textContent=grp.desc;
+    document.getElementById('h-q').textContent=grp.hq;
+    document.getElementById('cnt').textContent=grp.rows.length+' scénarios';
+    grp.rows.forEach(row=>{
+      const tr=document.createElement('tr');
+      const fTD=document.createElement('td');
+      fTD.innerHTML=`<div style="font-weight:600">${row.ic} ${row.f}</div><div style="margin-top:4px"><span class="src-g5">${row.srclbl}</span></div><div class="trigger-txt">${row.trig}</div>`;
+      tr.appendChild(fTD);
+      const qTD=document.createElement('td');
+      qTD.innerHTML=`<span class="q-txt">${row.q}</span>`;
+      tr.appendChild(qTD);
+      skinCols.forEach(sk=>{
+        const td=document.createElement('td');
+        const d=row[sk];
+        if(d) td.innerHTML=`<div class="advice"><strong>${d.t}</strong>${d.a}<span class="tip">💡 ${d.tip}</span></div>`;
+        else td.innerHTML=`<span style="font-size:11px;color:#999">—</span>`;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  } else if(cg==='g6'){
+    const grp=G6;
+    document.getElementById('gdesc').textContent=grp.desc;
+    document.getElementById('h-q').textContent=grp.hq;
+    document.getElementById('cnt').textContent=grp.rows.length+' phases';
+    grp.rows.forEach(row=>{
+      const tr=document.createElement('tr');
+      const fTD=document.createElement('td');
+      fTD.innerHTML=`<div style="font-weight:600">${row.ic} ${row.f}</div><div style="margin-top:4px"><span class="src-g6">${row.srclbl}</span></div><div style="margin-top:3px"><span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;background:${row.phaseBg};color:${row.phaseColor};border:0.5px solid ${row.phaseColor}55;display:inline-block">${row.trig}</span></div>`;
+      tr.appendChild(fTD);
+      const qTD=document.createElement('td');
+      qTD.innerHTML=`<span class="q-txt">${row.q}</span>`;
+      tr.appendChild(qTD);
+      skinCols.forEach(sk=>{
+        const td=document.createElement('td');
+        const d=row[sk];
+        if(d) td.innerHTML=`<div class="advice"><strong>${d.t}</strong>${d.a}<span class="tip">💡 ${d.tip}</span></div>`;
+        else td.innerHTML=`<span style="font-size:11px;color:#999">—</span>`;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  } else if(cg==='g8'){
+    const grp=G8;
+    document.getElementById('gdesc').textContent=grp.desc;
+    document.getElementById('gdesc').className='grp-desc g8';
+    document.getElementById('h-q').textContent=grp.hq;
+    document.getElementById('cnt').textContent=grp.rows.length+' scénarios';
+    grp.rows.forEach(row=>{
+      const tr=document.createElement('tr');
+      const fTD=document.createElement('td');
+      fTD.innerHTML=`<div style="font-weight:600">${row.ic} ${row.f}</div><div style="margin-top:4px"><span class="src-g8">${row.srclbl}</span></div><div class="trigger-txt">${row.trig}</div>`;
+      tr.appendChild(fTD);
+      const qTD=document.createElement('td');
+      qTD.innerHTML=`<span class="q-txt">${row.q}</span>`;
+      tr.appendChild(qTD);
+      skinCols.forEach(sk=>{
+        const td=document.createElement('td');
+        const d=row[sk];
+        if(d) td.innerHTML=`<div class="advice"><strong>${d.t}</strong>${d.a}<span class="tip">💡 ${d.tip}</span></div>`;
+        else td.innerHTML=`<span style="font-size:11px;color:#999">—</span>`;
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  } else if(cg==='g7'){
+    document.getElementById('gdesc').textContent=G7.desc;
+    document.getElementById('h-q').textContent=G7.hq;
+    document.getElementById('cnt').textContent='6 symptômes × 5 zones';
+    const symData=G7.data[g7sym];
+    const zoneData=symData?symData[g7zone]:null;
+    if(!zoneData){
+      const tr=document.createElement('tr');
+      const td=document.createElement('td');
+      td.colSpan=6;
+      td.style.cssText='text-align:center;padding:2rem;color:#999;font-size:12px';
+      td.textContent='Aucune donnée pour cette combinaison.';
+      tr.appendChild(td);
+      tb.appendChild(tr);
+      return;
+    }
+    const tr=document.createElement('tr');
+    const fTD=document.createElement('td');
+    fTD.innerHTML=`<div style="font-weight:600">${G7.symptomLabels[g7sym]}</div><div style="margin-top:4px"><span class="src-g7">${G7.zoneLabels[g7zone]}</span></div><div class="trigger-txt">Cause probable : ${zoneData.cause}</div>`;
+    tr.appendChild(fTD);
+    const qTD=document.createElement('td');
+    qTD.innerHTML=`<span class="q-txt">symptom='${g7sym}' AND trend='plus' AND zone='${g7zone}'</span>`;
+    tr.appendChild(qTD);
+    skinCols.forEach(sk=>{
+      const td=document.createElement('td');
+      const d=zoneData[sk];
+      if(d) td.innerHTML=`<div class="advice"><strong>${d.t}</strong>${d.a}<span class="tip">💡 ${d.tip}</span></div>`;
+      else td.innerHTML=`<span style="font-size:11px;color:#999">—</span>`;
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  }
+}
+sg('g5');
+</script>
+</body>
+</html>

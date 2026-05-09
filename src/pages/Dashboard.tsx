@@ -69,7 +69,8 @@ const defaultDailyLog = {
     rides: "pareil",
     cernes: "pareil",
     eczéma: "pareil"
-  }
+  },
+  symptomZones: {} as Record<string, string | null>
 };
 
 const SYMPTOMS_CONFIG = [
@@ -275,17 +276,44 @@ const Dashboard = () => {
 
               if (profile.skin_problems) setUserConcerns(profile.skin_problems);
 
-              if (profile.am_routine && Array.isArray(profile.am_routine)) setBaseAmProducts(profile.am_routine);
               if (profile.pm_routine && Array.isArray(profile.pm_routine)) setBasePmProducts(profile.pm_routine);
 
               const allUserRoutines = [...(profile.am_routine || []), ...(profile.pm_routine || [])];
               setUserCustomProducts(allUserRoutines.filter((p: string) => !ALL_PRODUCTS.includes(p)));
+
+              // Fetch latest symptom zones
+              const today = new Date().toISOString().split("T")[0];
+              (supabase as any).from("symptom_tracking")
+                .select("symptom, zone")
+                .eq("user_id", session.user.id)
+                .eq("date", today)
+                .then(({ data: zonesData }: any) => {
+                  if (zonesData) {
+                    const zonesMap: Record<string, string> = {};
+                    zonesData.forEach((z: any) => { if (z.zone) zonesMap[z.symptom] = z.zone; });
+                    setDailyLog(prev => ({ ...prev, symptomZones: zonesMap }));
+                  }
+                });
+
+              // Fetch yesterday's routine logs for G8 triggers
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              const yesterdayStr = yesterday.toISOString().split("T")[0];
+              (supabase as any).from("routine_logs")
+                .select("*")
+                .eq("user_id", session.user.id)
+                .eq("date", yesterdayStr)
+                .single()
+                .then(({ data: logData }: any) => {
+                  if (logData) setYesterdayLog(logData);
+                });
 
               setManualUpdates(prev => ({
                 ...prev, heartStress: Date.now(), sleep: Date.now(), cycle: Date.now(), water: Date.now(), alcohol: Date.now()
               }));
             }
           });
+
       }
     });
 
@@ -299,6 +327,9 @@ const Dashboard = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const [yesterdayLog, setYesterdayLog] = useState<any>(null);
+
 
   // Track last update timestamps for manual factors (default: 18h ago)
   const [manualUpdates, setManualUpdates] = useState<Record<string, number>>(() => {
@@ -761,8 +792,15 @@ const Dashboard = () => {
               removedMakeupLastNight: dailyLog.makeupRemoved ?? true,
               didSportToday: dailyLog.didSport !== "Non",
               cycleDay: calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration).day,
-              symptoms: dailyLog.symptoms
+              cyclePhase: calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration).phase,
+              symptoms: dailyLog.symptoms,
+              symptomZones: dailyLog.symptomZones,
+              morningRoutineDone: yesterdayLog?.morning_routine_done ?? true, // Defaulting to true to avoid nagging if no data
+              eveningRoutineDone: yesterdayLog?.evening_routine_done ?? true,
+              makeupRemoved: yesterdayLog?.makeup_removed ?? true,
+              spfApplied: yesterdayLog?.spf_applied ?? true
           };
+
 
           const adviceList = getActiveAdvice(ctx);
 
