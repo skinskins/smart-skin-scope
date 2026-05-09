@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Check, X, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,8 @@ const RoutineSetupOnboarding = () => {
     const [customProductInput, setCustomProductInput] = useState("");
     const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+    const [dbProducts, setDbProducts] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
 
     const toggleSetupProduct = (p: string) => {
         if (setupTimeTab === "am") {
@@ -27,6 +29,35 @@ const RoutineSetupOnboarding = () => {
             setTempPmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
         }
     };
+
+    useEffect(() => {
+        const searchProducts = async () => {
+            if (customProductInput.length < 2) {
+                setDbProducts([]);
+                return;
+            }
+
+            setIsSearching(true);
+            try {
+                const { data, error } = await supabase
+                    .from('user_products')
+                    .select('*')
+                    .or(`product_name.ilike.%${customProductInput}%,brand.ilike.%${customProductInput}%`)
+                    .limit(6);
+
+                if (!error && data) {
+                    setDbProducts(data);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        const timer = setTimeout(searchProducts, 300);
+        return () => clearTimeout(timer);
+    }, [customProductInput]);
 
     const addCustomSetupProduct = () => {
         if (!customProductInput.trim()) return;
@@ -39,6 +70,20 @@ const RoutineSetupOnboarding = () => {
         }
 
         setCustomProductInput("");
+        setDbProducts([]);
+    };
+
+    const addProductFromDb = (pName: string, pBrand: string) => {
+        const p = `${pBrand} - ${pName}`;
+        if (setupTimeTab === "am" && !tempAmProducts.includes(p)) setTempAmProducts(prev => [...prev, p]);
+        if (setupTimeTab === "pm" && !tempPmProducts.includes(p)) setTempPmProducts(prev => [...prev, p]);
+
+        if (!userCustomProducts.includes(p)) {
+            setUserCustomProducts(prev => [...prev, p]);
+        }
+
+        setCustomProductInput("");
+        setDbProducts([]);
     };
 
     const handleSkip = () => {
@@ -127,11 +172,34 @@ const RoutineSetupOnboarding = () => {
 
                         <div>
                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-4">Je ne trouve pas mon produit</p>
-                            <div className="flex gap-2">
-                                <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Ex: Crème hydratante La Roche Posay" className="text-sm rounded-xl py-6" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
-                                <button onClick={addCustomSetupProduct} className="bg-primary/20 text-primary px-5 rounded-xl text-sm font-bold hover:bg-primary/30 transition-all">
-                                    +
-                                </button>
+                            <div className="relative">
+                                <div className="flex gap-2">
+                                    <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Ex: Crème hydratante La Roche Posay" className="text-sm rounded-xl py-6" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
+                                    <button onClick={addCustomSetupProduct} className="bg-primary/20 text-primary px-5 rounded-xl text-sm font-bold hover:bg-primary/30 transition-all">
+                                        +
+                                    </button>
+                                </div>
+
+                                {dbProducts.length > 0 && (
+                                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                        {dbProducts.map((p) => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => addProductFromDb(p.product_name, p.brand)}
+                                                className="w-full px-4 py-3 text-left text-sm hover:bg-accent border-b border-border/50 last:border-0 transition-colors flex flex-col"
+                                            >
+                                                <span className="font-semibold text-foreground">{p.product_name}</span>
+                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{p.brand}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {isSearching && (
+                                    <div className="absolute right-16 top-1/2 -translate-y-1/2">
+                                        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

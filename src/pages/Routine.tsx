@@ -29,6 +29,8 @@ const Routine = () => {
   const [productsSaved, setProductsSaved] = useState(false);
   const [productFeedback, setProductFeedback] = useState<{ message: string; tips: { text: string; source?: string }[]; positive: boolean } | null>(null);
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const { weather: liveWeather } = useWeatherData(localStorage.getItem("manualLocation") || undefined);
 
@@ -50,6 +52,35 @@ const Routine = () => {
       }
     });
   }, []);
+
+  useEffect(() => {
+    const searchProducts = async () => {
+      if (customProductInput.length < 2) {
+        setDbProducts([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const { data, error } = await supabase
+          .from('user_products')
+          .select('*')
+          .or(`product_name.ilike.%${customProductInput}%,brand.ilike.%${customProductInput}%`)
+          .limit(6);
+
+        if (!error && data) {
+          setDbProducts(data);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timer = setTimeout(searchProducts, 300);
+    return () => clearTimeout(timer);
+  }, [customProductInput]);
 
   const currentProducts = productTime === "am" ? baseAmProducts : basePmProducts;
   const selected = productTime === "am" ? amSelected : pmSelected;
@@ -224,6 +255,20 @@ const Routine = () => {
     }
 
     setCustomProductInput("");
+    setDbProducts([]);
+  };
+
+  const addProductFromDb = (pName: string, pBrand: string) => {
+    const p = `${pBrand} - ${pName}`;
+    if (setupTimeTab === "am" && !tempAmProducts.includes(p)) setTempAmProducts(prev => [...prev, p]);
+    if (setupTimeTab === "pm" && !tempPmProducts.includes(p)) setTempPmProducts(prev => [...prev, p]);
+
+    if (!userCustomProducts.includes(p)) {
+      setUserCustomProducts(prev => [...prev, p]);
+    }
+
+    setCustomProductInput("");
+    setDbProducts([]);
   };
 
   return (
@@ -352,11 +397,34 @@ const Routine = () => {
 
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ajouter un produit (ex: Crème VICHY)</p>
-              <div className="flex gap-2">
-                <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Nom du produit" className="text-sm rounded-xl" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
-                <button onClick={addCustomSetupProduct} className="bg-primary text-primary-foreground px-4 rounded-xl text-sm font-semibold hover:opacity-90 transition-all">
-                  Ajouter
-                </button>
+              <div className="relative">
+                <div className="flex gap-2">
+                  <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Nom du produit ou marque" className="text-sm rounded-xl" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
+                  <button onClick={addCustomSetupProduct} className="bg-primary text-primary-foreground px-4 rounded-xl text-sm font-semibold hover:opacity-90 transition-all">
+                    Ajouter
+                  </button>
+                </div>
+
+                {dbProducts.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    {dbProducts.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => addProductFromDb(p.product_name, p.brand)}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-accent border-b border-border/50 last:border-0 transition-colors flex flex-col"
+                      >
+                        <span className="font-semibold text-foreground">{p.product_name}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{p.brand}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {isSearching && (
+                  <div className="absolute right-20 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
             </div>
           </div>
