@@ -35,12 +35,12 @@ const Login = () => {
             const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
             const profile = data as any;
             if (profile && profile.skin_goals && (profile.skin_goals as any).length > 0) {
-                navigate("/checkin-advice");
+                navigate("/dashboard");
             } else {
                 navigate("/signup");
             }
         } else {
-            navigate("/checkin-advice");
+            navigate("/dashboard");
         }
     };
 

@@ -130,7 +130,6 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-          <Route path="/checkin" element={<AuthGuard><DailyCheckin /></AuthGuard>} />
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
