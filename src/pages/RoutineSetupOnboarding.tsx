@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, X, ArrowRight } from "lucide-react";
+import { Check, X, ArrowRight, Search, Plus, ImageOff } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -131,75 +131,77 @@ const RoutineSetupOnboarding = () => {
                         </p>
                     </div>
 
-                    <div className="flex bg-muted  p-1 shrink-0">
-                        <button onClick={() => setSetupTimeTab("am")}
-                            className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-colors ${setupTimeTab === "am" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
-                            ☀️ Matin
-                        </button>
-                        <button onClick={() => setSetupTimeTab("pm")}
-                            className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-colors ${setupTimeTab === "pm" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}>
-                            🌙 Soir
-                        </button>
+                    <div className="relative shrink-0 mt-4 mb-2">
+                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input 
+                            value={customProductInput} 
+                            onChange={e => setCustomProductInput(e.target.value)} 
+                            placeholder="Rechercher un produit ou marque..." 
+                            className="pl-12 text-sm rounded-2xl py-7 bg-muted/30 border-none focus-visible:ring-2 focus-visible:ring-primary/50 shadow-inner" 
+                            onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} 
+                        />
+                        {isSearching && (
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex-1 overflow-y-auto min-h-0 space-y-5 pb-4">
+                    <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pb-4">
+                        {/* Search Results */}
+                        {dbProducts.length > 0 && (
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Résultats trouvés</p>
+                                <div className="grid gap-3">
+                                    {dbProducts.map((p) => (
+                                        <div key={p.id} className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl group transition-all hover:border-primary/40 shadow-sm">
+                                            <div className="w-16 h-16 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
+                                                {p.photo_url ? (
+                                                    <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain transition-transform group-hover:scale-105" />
+                                                ) : (
+                                                    <ImageOff size={20} className="text-muted-foreground/40" />
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-foreground truncate">{p.product_name}</p>
+                                                <p className="text-[11px] text-muted-foreground uppercase tracking-wider truncate mt-0.5">{p.brand}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => addProductFromDb(p.product_name, p.brand)}
+                                                className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all shrink-0 shadow-sm"
+                                            >
+                                                <Plus size={20} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div>
-                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Produits classiques</p>
-                            <div className="flex flex-col gap-2">
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Produits classiques</p>
+                            <div className="grid gap-2.5">
                                 {Array.from(new Set([...ALL_PRODUCTS, ...userCustomProducts])).map(p => {
                                     const isActive = setupTimeTab === "am" ? tempAmProducts.includes(p) : tempPmProducts.includes(p);
                                     const isCustom = !ALL_PRODUCTS.includes(p);
                                     return (
                                         <div key={p} className="flex gap-2">
-                                            <button onClick={() => toggleSetupProduct(p)} className={`flex-1 flex justify-between items-center px-4 py-3.5 rounded-xl border transition-all text-sm font-semibold ${isActive ? 'border-primary bg-primary/10 text-primary shadow-sm' : 'border-border bg-card text-foreground hover:bg-accent'}`}>
+                                            <button onClick={() => toggleSetupProduct(p)} className={`flex-1 flex justify-between items-center px-5 py-4 rounded-2xl border transition-all text-sm font-bold ${isActive ? 'border-primary bg-primary/5 text-primary shadow-sm' : 'border-border bg-card text-foreground/80 hover:bg-accent'}`}>
                                                 {p}
-                                                {isActive && <Check size={16} />}
+                                                {isActive && <Check size={18} />}
                                             </button>
                                             {isCustom && (
                                                 <button onClick={() => {
                                                     setUserCustomProducts(prev => prev.filter(x => x !== p));
                                                     setTempAmProducts(prev => prev.filter(x => x !== p));
                                                     setTempPmProducts(prev => prev.filter(x => x !== p));
-                                                }} className="px-4 py-3.5 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 hover:bg-destructive/20 transition-colors">
-                                                    <X size={16} />
+                                                }} className="px-4 py-4 bg-destructive/10 text-destructive rounded-2xl border border-destructive/20 hover:bg-destructive/20 transition-colors">
+                                                    <X size={18} />
                                                 </button>
                                             )}
                                         </div>
                                     );
                                 })}
-                            </div>
-                        </div>
-
-                        <div>
-                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 mt-4">Je ne trouve pas mon produit</p>
-                            <div className="relative">
-                                <div className="flex gap-2">
-                                    <Input value={customProductInput} onChange={e => setCustomProductInput(e.target.value)} placeholder="Ex: Crème hydratante La Roche Posay" className="text-sm rounded-xl py-6" onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} />
-                                    <button onClick={addCustomSetupProduct} className="bg-primary/20 text-primary px-5 rounded-xl text-sm font-bold hover:bg-primary/30 transition-all">
-                                        +
-                                    </button>
-                                </div>
-
-                                {dbProducts.length > 0 && (
-                                    <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                                        {dbProducts.map((p) => (
-                                            <button
-                                                key={p.id}
-                                                onClick={() => addProductFromDb(p.product_name, p.brand)}
-                                                className="w-full px-4 py-3 text-left text-sm hover:bg-accent border-b border-border/50 last:border-0 transition-colors flex flex-col"
-                                            >
-                                                <span className="font-semibold text-foreground">{p.product_name}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{p.brand}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {isSearching && (
-                                    <div className="absolute right-16 top-1/2 -translate-y-1/2">
-                                        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </div>
