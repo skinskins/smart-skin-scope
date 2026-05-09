@@ -604,8 +604,8 @@ function StepCompte({ data, onChange, onNext, onBack, onClose }: {
           data.drynessBaseline  && { symptom: "sécheresse", trend: baselineMap[data.drynessBaseline] },
         ].filter(Boolean).map((row: any) =>
           (supabase as any).from("symptom_tracking").upsert(
-            { user_id: userId, date: today, symptom: row.symptom, trend: row.trend, zone: null },
-            { onConflict: "user_id,date,symptom" }
+            { user_id: userId, date: today, symptom: row.symptom, trend: row.trend, zone: null, period: "daily" },
+            { onConflict: "user_id,date,symptom,period" }
           )
         ),
         ...data.selectedProducts.map(p =>

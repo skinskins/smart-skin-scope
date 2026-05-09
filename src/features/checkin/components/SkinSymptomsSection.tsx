@@ -34,7 +34,8 @@ export default function SkinSymptomsSection() {
         .from("symptom_tracking")
         .select("symptom, trend")
         .eq("user_id", session.user.id)
-        .eq("date", today);
+        .eq("date", today)
+        .eq("period", "daily");
 
       if (error || !data) return;
 
@@ -57,8 +58,8 @@ export default function SkinSymptomsSection() {
     await (supabase as any)
       .from("symptom_tracking")
       .upsert(
-        { user_id: session.user.id, date: today, symptom, trend: value, zone: null },
-        { onConflict: "user_id,date,symptom" }
+        { user_id: session.user.id, date: today, symptom, trend: value, zone: null, period: "daily" },
+        { onConflict: "user_id,date,symptom,period" }
       );
   };
 
