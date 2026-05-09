@@ -206,7 +206,7 @@
           },
           "advice": {
             "dry": {
-              "title": "Réparer sans agresser",
+              "title": "SOS Peau sèche : démaquillage oublié",
               "body": "Le maquillage laissé toute la nuit s'oxyde et génère des radicaux libres — particulièrement néfaste pour les peaux sèches dont la barrière est déjà fragile. Ce matin : baume démaquillant doux (pas d'eau micellaire avec alcool), puis hydratation renforcée.",
               "tip": "Si ça t'arrive souvent, garde des disques en coton + huile démaquillante sur ta table de nuit. La friction zéro est essentielle pour les peaux sèches sensibles."
             },
@@ -2191,12 +2191,12 @@
               "tip": "Garder des lingettes micellaires douces sur la table de nuit — alternative rapide pour les soirs de fatigue."
             },
             "oily": {
-              "title": "Double nettoyage ce matin",
+              "title": "Double nettoyage purifiant",
               "body": "Une nuit sans nettoyage sur peau grasse = pores chargés en sébum oxydé. Double nettoyage ce matin : huile puis gel doux. Pas de BHA concentré — trop agressif dans ce contexte.",
               "tip": "La méthode 60 secondes de massage du nettoyant est particulièrement efficace ce matin."
             },
             "combo": {
-              "title": "Récupération rapide",
+              "title": "Récupération zonale rapide",
               "body": "Nettoyage complet ce matin. Insister sur la T-zone en douceur. Toner hydratant sur les joues pour ne pas assécher après la purification.",
               "tip": "Un coton plat imbibé de toner doux sur la T-zone suffit les soirs de fatigue — mieux que rien."
             },
@@ -2217,7 +2217,7 @@
           },
           "advice": {
             "dry": {
-              "title": "Réparer sans agresser",
+              "title": "Réparer la barrière après maquillage",
               "body": "Baume démaquillant doux ce matin — pas de micelles avec alcool. Le maquillage laissé toute la nuit s'oxyde et génère des radicaux libres. Hydratation renforcée après.",
               "tip": "Garder un stick démaquillant ou des disques en coton + huile sur la table de nuit."
             },

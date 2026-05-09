@@ -151,10 +151,23 @@ export function getActiveAdvice(ctx: Context): AdviceItem[] {
     processGroup(skincareMatrixExtended, "g6", "medium");
     processGroup(skincareMatrixExtended, "g8", "low");
 
-    return results.sort((a, b) => {
+    // Deduplicate and Prioritize
+    const sortedResults = results.sort((a, b) => {
         const order = { high: 0, medium: 1, low: 2 };
         return order[a.priority] - order[b.priority];
-    }).slice(0, 8); // Increased slice to 8 to show more rich advice
+    });
+
+    const uniqueAdvice: AdviceItem[] = [];
+    const seenTitles = new Set<string>();
+
+    for (const item of sortedResults) {
+        if (!seenTitles.has(item.title)) {
+            uniqueAdvice.push(item);
+            seenTitles.add(item.title);
+        }
+    }
+
+    return uniqueAdvice.slice(0, 8);
 }
 
 
