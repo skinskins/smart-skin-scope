@@ -72,7 +72,7 @@ const Signup = () => {
                     if (data.skin_goals) setSkinGoals(data.skin_goals);
 
                     if (data.skin_goals && (data.skin_goals as any).length > 0) {
-                        navigate("/checkin-advice");
+                        navigate("/dashboard");
                     } else if (data.skin_type) {
                         setStep(5);
                     } else if (data.age) {
@@ -182,7 +182,7 @@ const Signup = () => {
             }
             setLoading(false);
             localStorage.removeItem("guestProfile");
-            navigate("/checkin-advice", { state: { isOnboarding: true, firstName } });
+            navigate("/dashboard", { state: { isOnboarding: true, firstName } });
         }
     };
 
@@ -227,7 +227,7 @@ const Signup = () => {
                                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Prénom</label>
                                     <div className="relative">
                                         <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                        <Input type="text" placeholder="Janvier" required
+                                        <Input type="text" placeholder="John" required
                                             className="pl-12"
                                             value={firstName} onChange={(e) => setFirstName(e.target.value)} />
                                     </div>
