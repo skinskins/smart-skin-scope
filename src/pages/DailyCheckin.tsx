@@ -177,10 +177,26 @@ const DailyCheckin = () => {
             // Mark as checked in today
             localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
 
-            // Save symptoms to symptom_tracking table
             const { data: sessionData } = await supabase.auth.getSession();
             if (sessionData?.session) {
                 const today = new Date().toISOString().split("T")[0];
+                
+                // 1. History log for Passport
+                await (supabase as any).from("daily_checkins").upsert({
+                    user_id: sessionData.session.user.id,
+                    date: today,
+                    stress_level: data.stressLevel,
+                    sleep_hours: data.sleepHours,
+                    water_glasses: mappedWaterGlasses,
+                    food_quality: data.foodQuality,
+                    did_sport: data.didSport,
+                    sport_intensity: data.didSport ? data.sportIntensity : null,
+                    alcohol_drinks: finalAlcoholDrinks,
+                    makeup_removed: makeupRemoved,
+                    cycle_phase: data.cyclePhase
+                }, { onConflict: "user_id,date" });
+
+                // 2. Save symptoms to symptom_tracking table
                 const symptomEntries = Object.entries(data.symptoms).map(([symptom, trend]) => ({
                     user_id: sessionData.session.user.id,
                     date: today,

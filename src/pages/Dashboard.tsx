@@ -18,6 +18,7 @@ import { classifyStravaIntensity } from "@/data/stravaIntensity";
 import StravaConnect from "./StravaConnect";
 import { useMemo } from "react";
 
+
 type MetricTrend = "up" | "down" | "stable";
 type TrendTone = "positive" | "neutral" | "negative";
 
@@ -356,6 +357,20 @@ const Dashboard = () => {
                 updates.period_duration = syncValue.periodDuration ?? newLog.periodDuration;
             }
             await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
+
+            // Log to history for Passport
+            const today = new Date().toISOString().split("T")[0];
+            await (supabase as any).from("daily_checkins").upsert({
+                user_id: session.user.id,
+                date: today,
+                sleep_hours: newLog.sleepHours,
+                stress_level: newLog.stressLevel,
+                water_glasses: newLog.waterGlasses,
+                alcohol_drinks: newLog.alcoholDrinks,
+                did_sport: newLog.didSport,
+                makeup_removed: newLog.makeupRemoved,
+                cycle_phase: newLog.cyclePhase
+            }, { onConflict: "user_id,date" });
         }
         
         setEditingFactor(null);
@@ -600,6 +615,21 @@ const Dashboard = () => {
 
     setProductFeedback(feedback);
     setTimeout(() => setProductFeedback(null), 8000);
+
+    // Sync to routine_logs for Passport
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        const today = new Date().toISOString().split("T")[0];
+        (supabase as any).from("routine_logs").upsert({
+          user_id: session.user.id,
+          date: today,
+          morning_routine_done: time === "am" ? true : undefined,
+          evening_routine_done: time === "pm" ? true : undefined,
+          makeup_removed: hasNettoyant,
+          spf_applied: hasSPF
+        }, { onConflict: "user_id,date" });
+      }
+    });
   };
 
   const saveRoutineConfig = async () => {
@@ -799,6 +829,8 @@ const Dashboard = () => {
       </motion.div>
 
       {/* Détail du conseil */}
+
+
       <Dialog open={!!selectedTip} onOpenChange={() => setSelectedTip(null)}>
         <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
           <DialogHeader className="mb-8">

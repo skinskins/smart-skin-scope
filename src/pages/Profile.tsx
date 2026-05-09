@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PassportPromptCard from "@/features/passport/components/PassportPromptCard";
+
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -177,6 +179,11 @@ const Profile = () => {
           </div>
         </motion.div>
       </div>
+
+      <div className="mt-8">
+        <PassportPromptCard />
+      </div>
+
 
       <Dialog open={!!editingField} onOpenChange={() => setEditingField(null)}>
         <DialogContent className="max-w-sm rounded-[40px] border-none bg-background premium-shadow p-8">
