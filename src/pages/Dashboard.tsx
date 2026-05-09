@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp, X, User } from "lucide-react";
+import { Droplets, Sun, Flame, Fingerprint, CircleDot, Calendar, CloudSun, Heart, Moon, Wine, Dumbbell, FlaskConical, Thermometer, Bluetooth, BluetoothOff, Check, Stethoscope, ChevronRight, MapPin, Camera, Pencil, Lightbulb, ShieldAlert, Sparkles, GlassWater, FlaskRound, ThumbsUp, X, User, Activity, TrendingUp, Waves } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import faceScan from "@/assets/face-scan.png";
 import MetricCard from "@/components/MetricCard";
@@ -59,7 +59,28 @@ const defaultDailyLog = {
   didSport: "Non",
   stravaData: null as any,
   foodQuality: "Équilibrée",
+  symptoms: {
+    acné: "pareil",
+    rougeurs: "pareil",
+    sécheresse: "pareil",
+    taches: "pareil",
+    points_noirs: "pareil",
+    rides: "pareil",
+    cernes: "pareil",
+    eczéma: "pareil"
+  }
 };
+
+const SYMPTOMS_CONFIG = [
+  { id: "acné", label: "Acné", icon: <CircleDot size={16} strokeWidth={1.5} />, problem: "Acné" },
+  { id: "rougeurs", label: "Rougeurs", icon: <Flame size={16} strokeWidth={1.5} />, problem: "Rougeurs" },
+  { id: "sécheresse", label: "Sécheresse", icon: <Droplets size={16} strokeWidth={1.5} />, problem: "Déshydratation" },
+  { id: "taches", label: "Taches", icon: <Sun size={16} strokeWidth={1.5} />, problem: "Taches" },
+  { id: "points_noirs", label: "Points noirs", icon: <Fingerprint size={16} strokeWidth={1.5} />, problem: "Points noirs" },
+  { id: "rides", label: "Rides", icon: <Activity size={16} strokeWidth={1.5} />, problem: "Rides" },
+  { id: "cernes", label: "Cernes", icon: <Moon size={16} strokeWidth={1.5} />, problem: "Cernes" },
+  { id: "eczéma", label: "Eczéma", icon: <Waves size={16} strokeWidth={1.5} />, problem: "Eczéma" },
+];
 
 
 const cyclePhases = ["Menstruation", "Folliculaire", "Ovulatoire", "Lutéal"];
@@ -159,6 +180,7 @@ const Dashboard = () => {
   const [editSkinType, setEditSkinType] = useState("");
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
   const [selectedTip, setSelectedTip] = useState<AdviceItem | null>(null);
+  const [userConcerns, setUserConcerns] = useState<string[]>([]);
   
   const [isStravaLoading, setIsStravaLoading] = useState(false);
 
@@ -246,8 +268,11 @@ const Dashboard = () => {
                 cycleDuration: profile.cycle_duration ?? prev.cycleDuration,
                 periodDuration: profile.period_duration ?? prev.periodDuration,
                 stressLevel: profile.stress_level ?? prev.stressLevel,
-                foodQuality: profile.food_quality ?? prev.foodQuality
+                foodQuality: profile.food_quality ?? prev.foodQuality,
+                symptoms: profile.symptoms ?? prev.symptoms
               }));
+
+              if (profile.skin_problems) setUserConcerns(profile.skin_problems);
 
               if (profile.am_routine && Array.isArray(profile.am_routine)) setBaseAmProducts(profile.am_routine);
               if (profile.pm_routine && Array.isArray(profile.pm_routine)) setBasePmProducts(profile.pm_routine);
@@ -334,6 +359,47 @@ const Dashboard = () => {
         }
         
         setEditingFactor(null);
+  };
+
+  const cycleTrend = (symptomId: string) => {
+    const nextMap: Record<string, string> = {
+      pareil: "plus",
+      plus: "moins",
+      moins: "pareil"
+    };
+
+    setDailyLog(prev => {
+      const current = prev.symptoms?.[symptomId] || "pareil";
+      const next = nextMap[current];
+      const updatedSymptoms = {
+        ...(prev.symptoms || {}),
+        [symptomId]: next
+      };
+
+      const newLog = {
+        ...prev,
+        symptoms: updatedSymptoms
+      };
+      
+      localStorage.setItem("dailyCheckinData", JSON.stringify(newLog));
+      markUpdated('symptoms');
+      
+      // Async background sync
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          const today = new Date().toISOString().split("T")[0];
+          (supabase as any).from("symptom_tracking").upsert({
+            user_id: session.user.id,
+            date: today,
+            symptom: symptomId,
+            trend: next,
+            zone: null
+          }, { onConflict: "user_id,date,symptom" });
+        }
+      });
+
+      return newLog;
+    });
   };
 
   const markUpdated = useCallback((factorId: string) => {
@@ -664,7 +730,8 @@ const Dashboard = () => {
               alcoholLastNight: dailyLog.alcoholDrinks ?? 0,
               removedMakeupLastNight: dailyLog.makeupRemoved ?? true,
               didSportToday: dailyLog.didSport !== "Non",
-              cycleDay: calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration).day
+              cycleDay: calculateCyclePhase(dailyLog.lastPeriodDate, dailyLog.cycleDuration, dailyLog.periodDuration).day,
+              symptoms: dailyLog.symptoms
           };
 
           const adviceList = getActiveAdvice(ctx);
@@ -803,6 +870,46 @@ const Dashboard = () => {
                     </div>
                 </div>
             ))}
+        </div>
+      </motion.div>
+
+      {/* Observations quotidiennes */}
+      <h2 className="text-lg font-display text-foreground mb-10 text-center">Observations quotidiennes</h2>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+        className="premium-card p-10 mb-20 bg-white/60">
+        <div className="grid grid-cols-1 gap-10">
+            {SYMPTOMS_CONFIG
+                .filter(s => userConcerns.length === 0 || userConcerns.includes(s.problem))
+                .map((config) => {
+                const value = dailyLog.symptoms?.[config.id] || "pareil";
+                const trendLabel = value === "moins" ? "Amélioration" : value === "plus" ? "Poussée" : "Stable";
+                const trendIcon = value === "moins" ? "↓" : value === "plus" ? "↑" : "→";
+                const trendColor = value === "moins" ? "text-primary" : value === "plus" ? "text-[#C08484]" : "text-muted-foreground/40";
+                
+                return (
+                    <div 
+                        key={config.id} 
+                        onClick={() => cycleTrend(config.id)}
+                        className="flex items-center justify-between group cursor-pointer hover:bg-white/40 p-4 -mx-4 rounded-[24px] transition-all active:scale-[0.98] border border-transparent hover:border-border/20"
+                    >
+                        <div className="flex items-center gap-6">
+                            <div className="w-12 h-12 rounded-full border border-border/40 bg-muted/5 flex items-center justify-center text-primary/40 group-hover:bg-white transition-all">
+                                {config.icon}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40 mb-1.5">{config.label}</p>
+                                <p className="text-base font-bold text-foreground tracking-tight">{trendLabel}</p>
+                            </div>
+                        </div>
+                        <div 
+                            className={`w-12 h-12 flex items-center justify-center rounded-full border border-border/20 group-hover:border-primary/40 transition-all text-xl font-display ${trendColor} italic bg-white/40 shadow-sm group-hover:premium-shadow`}
+                            title="Changer l'état"
+                        >
+                            {trendIcon}
+                        </div>
+                    </div>
+                );
+            })}
         </div>
       </motion.div>
 

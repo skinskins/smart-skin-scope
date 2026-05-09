@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, HeartPulse, Moon, Droplets, GlassWater, Flame, Check, X, MapPin, Pencil, Thermometer, CloudSun, Sun, Sparkles, Dumbbell, Salad, Waves } from "lucide-react";
+import { ArrowLeft, ArrowRight, HeartPulse, Moon, Droplets, GlassWater, Flame, Check, X, MapPin, Pencil, Thermometer, CloudSun, Sun, Sparkles, Dumbbell, Salad, Waves, CircleDot, Activity, Fingerprint } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
@@ -21,6 +21,19 @@ export const defaultDailyLog = {
 
 import { supabase } from "@/integrations/supabase/client";
 
+type Trend = "moins" | "pareil" | "plus";
+
+const SYMPTOMS_CONFIG = [
+    { id: "acné", label: "Acné", icon: <CircleDot size={14} strokeWidth={1.5} />, problem: "Acné" },
+    { id: "rougeurs", label: "Rougeurs", icon: <Flame size={14} strokeWidth={1.5} />, problem: "Rougeurs" },
+    { id: "sécheresse", label: "Sécheresse", icon: <Droplets size={14} strokeWidth={1.5} />, problem: "Déshydratation" },
+    { id: "taches", label: "Taches", icon: <Sun size={14} strokeWidth={1.5} />, problem: "Taches" },
+    { id: "points_noirs", label: "Points noirs", icon: <Fingerprint size={14} strokeWidth={1.5} />, problem: "Points noirs" },
+    { id: "rides", label: "Rides", icon: <Activity size={14} strokeWidth={1.5} />, problem: "Rides" },
+    { id: "cernes", label: "Cernes", icon: <Moon size={14} strokeWidth={1.5} />, problem: "Cernes" },
+    { id: "eczéma", label: "Eczéma", icon: <Waves size={14} strokeWidth={1.5} />, problem: "Eczéma" },
+];
+
 const DailyCheckin = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -39,8 +52,20 @@ const DailyCheckin = () => {
         didSport: false,
         sportIntensity: "Légère",
         cycleDuration: 28,
-        periodDuration: 5
+        periodDuration: 5,
+        symptoms: {
+            acné: "pareil" as Trend,
+            rougeurs: "pareil" as Trend,
+            sécheresse: "pareil" as Trend,
+            taches: "pareil" as Trend,
+            points_noirs: "pareil" as Trend,
+            rides: "pareil" as Trend,
+            cernes: "pareil" as Trend,
+            eczéma: "pareil" as Trend
+        }
     });
+
+    const [userConcerns, setUserConcerns] = useState<string[]>([]);
 
 
 
@@ -71,6 +96,17 @@ const DailyCheckin = () => {
         if (lastCheckin === today && !isOnboarding) {
             navigate("/dashboard", { replace: true });
         }
+
+        const fetchConcerns = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data } = await supabase.from('profiles').select('skin_problems').eq('id', session.user.id).single();
+                if (data?.skin_problems) {
+                    setUserConcerns(data.skin_problems);
+                }
+            }
+        };
+        fetchConcerns();
     }, [isOnboarding, navigate]);
 
     const handleSave = async () => {
@@ -83,7 +119,8 @@ const DailyCheckin = () => {
             ...data,
             waterGlasses: mappedWaterGlasses,
             alcoholDrinks: finalAlcoholDrinks,
-            makeupRemoved
+            makeupRemoved,
+            symptoms: data.symptoms
         };
         localStorage.setItem("dailyCheckinData", JSON.stringify(payload));
         localStorage.setItem("manualUpdates", JSON.stringify({
@@ -139,6 +176,23 @@ const DailyCheckin = () => {
 
             // Mark as checked in today
             localStorage.setItem("lastCheckinDate", new Date().toISOString().split('T')[0]);
+
+            // Save symptoms to symptom_tracking table
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session) {
+                const today = new Date().toISOString().split("T")[0];
+                const symptomEntries = Object.entries(data.symptoms).map(([symptom, trend]) => ({
+                    user_id: sessionData.session.user.id,
+                    date: today,
+                    symptom,
+                    trend,
+                    zone: null
+                }));
+
+                await (supabase as any).from("symptom_tracking").upsert(symptomEntries, {
+                    onConflict: "user_id,date,symptom"
+                });
+            }
         } catch (e) {
             console.error("Erreur d'enregistrement réseau", e);
         }
@@ -244,6 +298,71 @@ const DailyCheckin = () => {
                                 >
                                     Non
                                 </button>
+                            </div>
+                        </div>
+                    </motion.section>
+
+                    {/* État de la peau */}
+                    <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="space-y-6">
+                        <h2 className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] px-4 flex items-center gap-3">
+                            <Sparkles size={14} strokeWidth={1.5} /> État de la peau
+                        </h2>
+                        <div className="premium-card p-8 space-y-10">
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic text-center">
+                                Évolution par rapport à hier
+                            </p>
+                            
+                            <div className="space-y-12">
+                                {SYMPTOMS_CONFIG
+                                    .filter(s => userConcerns.length === 0 || userConcerns.includes(s.problem))
+                                    .map((symptom) => (
+                                        <div key={symptom.id} className="space-y-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-primary opacity-60">{symptom.icon}</div>
+                                            <p className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em]">{symptom.label}</p>
+                                            <span className="ml-auto text-[9px] font-bold text-primary/40 uppercase tracking-widest italic">
+                                                {data.symptoms[symptom.id as keyof typeof data.symptoms]}
+                                            </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {(["moins", "pareil", "plus"] as Trend[]).map((trend) => {
+                                                const isSelected = data.symptoms[symptom.id as keyof typeof data.symptoms] === trend;
+                                                const labels: Record<Trend, string> = {
+                                                    moins: "Amélioration",
+                                                    pareil: "Stable",
+                                                    plus: "Poussée"
+                                                };
+                                                const icons: Record<Trend, string> = {
+                                                    moins: "↓",
+                                                    pareil: "→",
+                                                    plus: "↑"
+                                                };
+
+                                                return (
+                                                    <button
+                                                        key={trend}
+                                                        onClick={() => setData({
+                                                            ...data,
+                                                            symptoms: {
+                                                                ...data.symptoms,
+                                                                [symptom.id]: trend
+                                                            }
+                                                        })}
+                                                        className={`flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all ${
+                                                            isSelected 
+                                                                ? 'bg-primary text-primary-foreground border-primary premium-shadow' 
+                                                                : 'bg-muted/10 border-transparent text-foreground/40 hover:bg-muted/20'
+                                                        }`}
+                                                    >
+                                                        <span className="text-lg font-bold">{icons[trend]}</span>
+                                                        <span className="text-[8px] font-bold uppercase tracking-widest">{labels[trend]}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </motion.section>
