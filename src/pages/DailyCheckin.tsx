@@ -135,9 +135,9 @@ const DailyCheckin = () => {
         }
 
         if (isOnboarding) {
-            navigate("/checkin-advice", { state: { ...location.state } });
+            navigate("/home", { state: { ...location.state, justCompleted: true } });
         } else {
-            navigate("/checkin-advice");
+            navigate("/home", { state: { justCompleted: true } });
         }
     };
 

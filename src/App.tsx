@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "./pages/Dashboard";
+import HomeScreen from "./pages/HomeScreen";
 import Diagnosis from "./pages/Diagnosis";
 import Tips from "./pages/Tips";
 import Progress from "./pages/Progress";
@@ -123,12 +124,12 @@ const PublicOnlyGuard = ({ children }: { children: React.ReactNode }) => {
   // If guest exists, redirect away from public pages to checkin-advice
   const isGuest = localStorage.getItem('guestProfile') !== null;
   if (!session && isGuest && (location.pathname === "/onboarding" || location.pathname === "/login" || location.pathname === "/signup")) {
-    return <Navigate to="/checkin-advice" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   // Logged in with complete profile → send to app
   if (session && isProfileComplete) {
-    return <Navigate to="/checkin-advice" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   // Logged in but profile incomplete → send to onboarding to complete it
@@ -149,6 +150,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
+          <Route path="/home" element={<AuthGuard><HomeScreen /></AuthGuard>} />
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/checkin" element={<AuthGuard><DailyCheckin /></AuthGuard>} />
           <Route path="/checkin-advice" element={<AuthGuard><CheckinAdvice /></AuthGuard>} />

@@ -1,11 +1,11 @@
-import { Home, Stethoscope, Lightbulb, TrendingUp } from "lucide-react";
+import { Home, Stethoscope, Sparkles, TrendingUp } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
-  { path: "/dashboard", icon: Home, label: "Accueil" },
-  { path: "/diagnosis", icon: Stethoscope, label: "Diagnostic" },
-  { path: "/tips", icon: Lightbulb, label: "Conseils" },
+  { path: "/home", icon: Home, label: "Accueil" },
+  { path: "/routine/products", icon: Sparkles, label: "Routine" },
   { path: "/progress", icon: TrendingUp, label: "Progrès" },
+  { path: "/diagnosis", icon: Stethoscope, label: "Diagnostic" },
 ];
 
 const BottomNav = () => {
