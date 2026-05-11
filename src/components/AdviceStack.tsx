@@ -15,7 +15,7 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
   if (count === 0) return null;
 
   const CARD_W = 320;
-  const CARD_H = 340;
+  const MIN_H = 400;
 
   const handleDragEnd = (_: any, info: any) => {
     if (info.offset.x < -100) {
@@ -26,7 +26,7 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
   };
 
   return (
-    <div className="relative py-12 flex justify-center items-center" style={{ height: CARD_H + 60 }}>
+    <div className="relative py-12 flex justify-center items-center" style={{ minHeight: MIN_H + 100 }}>
       <AnimatePresence initial={false}>
         {adviceList.map((advice, i) => {
           const rel = ((i - activeCard) + count) % count;
@@ -43,7 +43,9 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
               key={`${i}-${activeCard}`}
               drag={isTop ? "x" : false}
               dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.6}
               onDragEnd={handleDragEnd}
+              whileDrag={{ scale: 1.05, rotate: 0 }}
               animate={{ 
                 x: xOffset, 
                 rotate: rotate, 
@@ -61,25 +63,33 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
               style={{
                 position: "absolute",
                 width: CARD_W,
-                height: CARD_H,
+                minHeight: MIN_H,
+                height: "auto",
                 cursor: isTop ? "grab" : "default",
                 touchAction: "none"
               }}
-              onClick={() => isTop && onSelectAdvice(advice)}
-              className={`p-8 rounded-[32px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex flex-col justify-between active:cursor-grabbing hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)] transition-shadow`}
+              className={`p-10 rounded-[40px] bg-white border border-black/[0.03] shadow-[0_30px_70px_rgba(0,0,0,0.12)] flex flex-col justify-between active:cursor-grabbing hover:shadow-[0_40px_80px_rgba(0,0,0,0.15)] transition-shadow`}
             >
-              <div className="flex items-start gap-6">
-                <span className="text-5xl">{advice.iconStr}</span>
-                <div className="flex-1 overflow-hidden">
-                  <h3 className="font-display text-xl text-foreground italic mb-2">{advice.title}</h3>
-                  <p className="text-[13px] text-foreground/60 leading-relaxed italic">
+              <div className="flex flex-col gap-8">
+                <div className="flex items-center gap-4">
+                  <span className="text-xl w-11 h-11 flex items-center justify-center bg-primary/5 rounded-2xl shadow-inner">{advice.iconStr}</span>
+                  <h3 className="font-display text-xl text-foreground italic leading-tight flex-1 tracking-tight">{advice.title}</h3>
+                </div>
+                <div className="space-y-5">
+                  <p className="text-[16px] text-foreground/80 leading-relaxed italic font-light">
                     {advice.text}
                   </p>
                 </div>
               </div>
               
               <div className="flex items-center justify-between border-t border-primary/5 pt-6">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.2em] opacity-80">
+                <div 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (isTop) onSelectAdvice(advice); 
+                  }}
+                  className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.2em] opacity-80 cursor-pointer hover:opacity-100 transition-opacity"
+                >
                   Explorer <ChevronRight size={12} strokeWidth={3} />
                 </div>
                 <div className="flex gap-1.5">
