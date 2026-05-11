@@ -13,9 +13,7 @@ const ALL_PRODUCTS = [
 
 const RoutineSetupOnboarding = () => {
     const navigate = useNavigate();
-    const [setupTimeTab, setSetupTimeTab] = useState<"am" | "pm">("am");
-    const [tempAmProducts, setTempAmProducts] = useState<string[]>([]);
-    const [tempPmProducts, setTempPmProducts] = useState<string[]>([]);
+    const [userProducts, setUserProducts] = useState<string[]>([]);
     const [customProductInput, setCustomProductInput] = useState("");
     const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -23,11 +21,7 @@ const RoutineSetupOnboarding = () => {
     const [isSearching, setIsSearching] = useState(false);
 
     const toggleSetupProduct = (p: string) => {
-        if (setupTimeTab === "am") {
-            setTempAmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
-        } else {
-            setTempPmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
-        }
+        setUserProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
     };
 
     useEffect(() => {
@@ -62,8 +56,7 @@ const RoutineSetupOnboarding = () => {
     const addCustomSetupProduct = () => {
         if (!customProductInput.trim()) return;
         const p = customProductInput.trim();
-        if (setupTimeTab === "am" && !tempAmProducts.includes(p)) setTempAmProducts(prev => [...prev, p]);
-        if (setupTimeTab === "pm" && !tempPmProducts.includes(p)) setTempPmProducts(prev => [...prev, p]);
+        if (!userProducts.includes(p)) setUserProducts(prev => [...prev, p]);
 
         if (!ALL_PRODUCTS.includes(p) && !userCustomProducts.includes(p)) {
             setUserCustomProducts(prev => [...prev, p]);
@@ -75,8 +68,7 @@ const RoutineSetupOnboarding = () => {
 
     const addProductFromDb = (pName: string, pBrand: string) => {
         const p = `${pBrand} - ${pName}`;
-        if (setupTimeTab === "am" && !tempAmProducts.includes(p)) setTempAmProducts(prev => [...prev, p]);
-        if (setupTimeTab === "pm" && !tempPmProducts.includes(p)) setTempPmProducts(prev => [...prev, p]);
+        if (!userProducts.includes(p)) setUserProducts(prev => [...prev, p]);
 
         if (!userCustomProducts.includes(p)) {
             setUserCustomProducts(prev => [...prev, p]);
@@ -93,16 +85,16 @@ const RoutineSetupOnboarding = () => {
     const saveRoutineConfig = async () => {
         setLoading(true);
 
-        localStorage.setItem("local_am_routine", JSON.stringify(tempAmProducts));
-        localStorage.setItem("local_pm_routine", JSON.stringify(tempPmProducts));
+        localStorage.setItem("local_am_routine", JSON.stringify(userProducts));
+        localStorage.setItem("local_pm_routine", JSON.stringify(userProducts));
 
         try {
             const { data: sessionData } = await supabase.auth.getSession();
             if (sessionData?.session) {
                 // @ts-ignore
                 await (supabase as any).from("profiles").update({
-                    am_routine: tempAmProducts,
-                    pm_routine: tempPmProducts
+                    am_routine: userProducts,
+                    pm_routine: userProducts
                 }).eq("id", sessionData.session.user.id);
             }
         } catch (e) {
@@ -125,9 +117,9 @@ const RoutineSetupOnboarding = () => {
                     className="space-y-6 flex-1 flex flex-col pt-8"
                 >
                     <div>
-                        <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Votre Routine</h1>
+                        <h1 className="text-3xl font-display font-bold text-foreground mb-3 leading-tight">Vos Produits Skincare</h1>
                         <p className="text-muted-foreground text-sm leading-relaxed">
-                            Quels produits utilisez-vous habituellement ? Configurez votre routine une seule fois pour y avoir accès sur votre tableau de bord tous les jours !
+                            Quels produits utilisez-vous habituellement ? Sélectionnez tous les produits que vous possédez pour personnaliser vos conseils quotidiens.
                         </p>
                     </div>
 
@@ -182,7 +174,7 @@ const RoutineSetupOnboarding = () => {
                             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4 px-1">Produits classiques</p>
                             <div className="grid gap-2.5">
                                 {Array.from(new Set([...ALL_PRODUCTS, ...userCustomProducts])).map(p => {
-                                    const isActive = setupTimeTab === "am" ? tempAmProducts.includes(p) : tempPmProducts.includes(p);
+                                    const isActive = userProducts.includes(p);
                                     const isCustom = !ALL_PRODUCTS.includes(p);
                                     return (
                                         <div key={p} className="flex gap-2">
@@ -193,8 +185,7 @@ const RoutineSetupOnboarding = () => {
                                             {isCustom && (
                                                 <button onClick={() => {
                                                     setUserCustomProducts(prev => prev.filter(x => x !== p));
-                                                    setTempAmProducts(prev => prev.filter(x => x !== p));
-                                                    setTempPmProducts(prev => prev.filter(x => x !== p));
+                                                    setUserProducts(prev => prev.filter(x => x !== p));
                                                 }} className="px-4 py-4 bg-destructive/10 text-destructive rounded-2xl border border-destructive/20 hover:bg-destructive/20 transition-colors">
                                                     <X size={18} />
                                                 </button>

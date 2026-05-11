@@ -133,6 +133,17 @@ const Dashboard = () => {
 
   const [dailyLog, setDailyLog] = useState(() => {
     const today = new Date().toISOString().split('T')[0];
+    const saved = localStorage.getItem("dailyCheckinData");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.checkinDate === today) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Error parsing saved dailyCheckinData", e);
+      }
+    }
     return { ...defaultDailyLog, checkinDate: today };
   });
 
@@ -178,24 +189,6 @@ const Dashboard = () => {
   };
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
   const diagResult = useDiagnosisResult();
-  const [baseAmProducts, setBaseAmProducts] = useState<string[]>(() => {
-    const saved = localStorage.getItem("local_am_routine");
-    return saved ? JSON.parse(saved) : ["Nettoyant", "Hydratant", "SPF 50"];
-  });
-  const [basePmProducts, setBasePmProducts] = useState<string[]>(() => {
-    const saved = localStorage.getItem("local_pm_routine");
-    return saved ? JSON.parse(saved) : ["Nettoyant", "Hydratant"];
-  });
-  const [amSelected, setAmSelected] = useState<string[]>([]);
-  const [pmSelected, setPmSelected] = useState<string[]>([]);
-  const [routineSetupOpen, setRoutineSetupOpen] = useState(false);
-  const [tempAmProducts, setTempAmProducts] = useState<string[]>([]);
-  const [tempPmProducts, setTempPmProducts] = useState<string[]>([]);
-  const [customProductInput, setCustomProductInput] = useState("");
-  const [setupTimeTab, setSetupTimeTab] = useState<"am" | "pm">("am");
-  const [productTime, setProductTime] = useState<"am" | "pm">("am");
-  const [productsSaved, setProductsSaved] = useState(false);
-  const [productFeedback, setProductFeedback] = useState<{ message: string; tips: { text: string; source?: string }[]; positive: boolean } | null>(null);
   const [deviceConnected] = useState(false);
   const [factorOpen, setFactorOpen] = useState<string | null>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
@@ -206,7 +199,6 @@ const Dashboard = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editSkinType, setEditSkinType] = useState("");
-  const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
   const [selectedTip, setSelectedTip] = useState<AdviceItem | null>(null);
   const bioTrackingRef = useRef<HTMLDivElement>(null);
   const bioRef = useRef<any>(null); 
@@ -297,16 +289,12 @@ const Dashboard = () => {
                 cycleDuration: profile.cycle_duration ?? prev.cycleDuration,
                 periodDuration: profile.period_duration ?? prev.periodDuration,
                 stressLevel: profile.stress_level ?? prev.stressLevel,
-                foodQuality: profile.food_quality ?? prev.foodQuality,
-                symptoms: profile.symptoms ?? prev.symptoms
+                foodQuality: profile.food_quality ?? prev.foodQuality
               }));
 
               if (profile.skin_problems) setUserConcerns(profile.skin_problems);
 
-              if (profile.pm_routine && Array.isArray(profile.pm_routine)) setBasePmProducts(profile.pm_routine);
 
-              const allUserRoutines = [...(profile.am_routine || []), ...(profile.pm_routine || [])];
-              setUserCustomProducts(allUserRoutines.filter((p: string) => !ALL_PRODUCTS.includes(p)));
 
               // Fetch latest symptom zones
               const today = new Date().toISOString().split("T")[0];
@@ -360,8 +348,11 @@ const Dashboard = () => {
                       checkinDate: today
                     }));
                   }
-                  setIsFetchingCheckin(false);
                 });
+              
+              // Only set loading to false after all initial fetches are started
+              // (Note: individual functional updates handle the data merging)
+              setIsFetchingCheckin(false);
             } else {
               setIsFetchingCheckin(false);
             }
@@ -542,235 +533,11 @@ const Dashboard = () => {
     }
   }, [liveWeather, weatherLoading]);
 
-  const currentProducts = productTime === "am" ? baseAmProducts : basePmProducts;
-  const selected = productTime === "am" ? amSelected : pmSelected;
-  const setSelected = productTime === "am" ? setAmSelected : setPmSelected;
 
-  const toggleProduct = (p: string) => {
-    setProductsSaved(false);
-    setSelected((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
-  };
 
-  const saveProducts = () => {
-    setProductsSaved(true);
-    const sel = productTime === "am" ? amSelected : pmSelected;
-    const time = productTime;
 
-    type Tip = { text: string; source?: string };
-    const feedback: { message: string; tips: Tip[]; positive: boolean } = { message: "", tips: [], positive: true };
 
-    const hasSPF = sel.includes("SPF 50");
-    const hasHydratant = sel.includes("Hydratant");
-    const hasNettoyant = sel.includes("Nettoyant");
-    const hasRetinol = sel.includes("Rétinol");
-    const hasSerum = sel.includes("Sérum");
-    const hasContourYeux = sel.includes("Contour yeux");
-    const hasLotion = sel.includes("Lotion Tonique");
-    const hasMasque = sel.includes("Masque");
 
-    const hydration = skinMetrics.find(m => m.label === "Hydratation")!;
-    const redness = skinMetrics.find(m => m.label === "Rougeurs")!;
-    const sebum = skinMetrics.find(m => m.label === "Sébum")!;
-    const uv = dailyLog.weather.uv;
-    const humidity = dailyLog.weather.humidity;
-
-    if (time === "am") {
-      if (!hasSPF && uv >= 3) {
-        feedback.message = "⚠️ Protection solaire manquante";
-        feedback.positive = false;
-        feedback.tips.push({
-          text: `UV à ${uv} aujourd'hui. 80% du vieillissement cutané est dû aux UV (photo-vieillissement). Un SPF 30+ réduit le risque de mélanome de 50%.`,
-          source: "Journal of Clinical Oncology, 2011"
-        });
-      } else if (hasSPF && hasHydratant && hasNettoyant) {
-        feedback.message = "Routine matinale exemplaire ! ☀️";
-        feedback.positive = true;
-        if (hasSerum) {
-          feedback.tips.push({
-            text: "L'application d'un sérum avant l'hydratant augmente l'absorption des actifs de 20 à 30% grâce aux molécules plus petites qui pénètrent mieux l'épiderme.",
-            source: "British Journal of Dermatology"
-          });
-        }
-      } else {
-        feedback.message = "Routine enregistrée ✓";
-        feedback.positive = true;
-      }
-
-      if (!hasHydratant && hydration.value < 70) {
-        feedback.tips.push({
-          text: "Hydratation cutanée basse. La perte insensible en eau (PIE) augmente de 25% sans hydratant, accélérant l'apparition de ridules.",
-          source: "International Journal of Cosmetic Science"
-        });
-        feedback.positive = false;
-      }
-
-      if (!hasNettoyant) {
-        feedback.tips.push({
-          text: "Le nettoyage matinal élimine le sébum nocturne et optimise la pénétration des actifs suivants. Optez pour un nettoyant doux pH 5.5.",
-          source: "Skin Research & Technology"
-        });
-      }
-
-      if (hasSPF && uv >= 6) {
-        feedback.tips.push({
-          text: `UV élevé (${uv}). Réappliquez votre SPF toutes les 2h en exposition directe. Les UVA traversent les vitres et les nuages.`,
-          source: "OMS – Recommandations UV"
-        });
-      }
-
-      if (humidity < 35 && !hasSerum) {
-        feedback.tips.push({
-          text: "Air sec détecté. Un sérum à l'acide hyaluronique peut retenir jusqu'à 1000× son poids en eau et compenser la faible humidité ambiante.",
-          source: "Journal of Drugs in Dermatology"
-        });
-      }
-
-    } else {
-      // PM routine
-      if (hasRetinol && hasSPF) {
-        feedback.message = "⚠️ Incompatibilité détectée";
-        feedback.positive = false;
-        feedback.tips.push({
-          text: "Le SPF n'est pas nécessaire le soir. De plus, certains filtres UV peuvent interférer avec l'absorption du rétinol et réduire son efficacité.",
-          source: "Dermatologic Therapy, 2006"
-        });
-      } else if (hasRetinol && hasNettoyant) {
-        feedback.message = "Routine du soir optimale ! 🌙";
-        feedback.positive = true;
-        feedback.tips.push({
-          text: "Le rétinol stimule le renouvellement cellulaire et la production de collagène. Études cliniques : réduction des rides de 44% après 12 semaines d'usage régulier.",
-          source: "Archives of Dermatology, 2007"
-        });
-      } else {
-        feedback.message = "Routine du soir enregistrée ✓";
-        feedback.positive = true;
-      }
-
-      if (!hasNettoyant) {
-        feedback.tips.push({
-          text: "Le double nettoyage du soir retire les particules fines (PM2.5) et résidus de SPF qui obstruent les pores et causent un stress oxydatif cutané.",
-          source: "Journal of Dermatological Science"
-        });
-        feedback.positive = false;
-      }
-
-      if (hasContourYeux) {
-        feedback.tips.push({
-          text: "La peau du contour des yeux est 10× plus fine que le reste du visage. L'application nocturne de peptides favorise la microcirculation et réduit les cernes de 35%.",
-          source: "Clinical, Cosmetic & Investigational Dermatology"
-        });
-      }
-
-      if (hasRetinol && !hasHydratant) {
-        feedback.tips.push({
-          text: "Le rétinol peut altérer la barrière cutanée. Appliquez toujours un hydratant par-dessus pour limiter l'irritation (méthode « sandwich »).",
-          source: "Journal of the American Academy of Dermatology"
-        });
-        feedback.positive = false;
-      }
-
-      if (hasMasque) {
-        feedback.tips.push({
-          text: "Les masques de nuit à base de céramides restaurent la barrière cutanée. Idéal 2-3×/semaine pour une hydratation profonde sans surcharger la peau.",
-          source: "Experimental Dermatology"
-        });
-      }
-    }
-
-    // Diagnostic-based contextual feedback
-    if (redness.value > 30) {
-      if (!hasLotion) {
-        feedback.tips.push({
-          text: "Rougeurs élevées détectées. La niacinamide (vitamine B3) à 4% réduit les rougeurs de 21% en 8 semaines et renforce la barrière cutanée.",
-          source: "British Journal of Dermatology, 2000"
-        });
-      }
-    }
-
-    if (sebum.value > 60 && time === "am" && !hasLotion) {
-      feedback.tips.push({
-        text: "Production de sébum élevée. L'acide salicylique (BHA) régule la production de sébum et exfolie l'intérieur des pores, réduisant les imperfections de 52%.",
-        source: "Journal of the European Academy of Dermatology"
-      });
-    }
-
-    if (diagResult?.zones) {
-      const alertZones = diagResult.zones.filter(z => z.status === "alert");
-      if (alertZones.length > 0 && time === "pm") {
-        feedback.tips.push({
-          text: `Zone(s) en alerte : ${alertZones.map(z => z.label).join(", ")}. Ciblez ces zones avec un soin localisé (acide azélaïque, centella asiatica) pour accélérer la réparation tissulaire.`,
-          source: "Phytotherapy Research"
-        });
-      }
-    }
-
-    if (feedback.tips.length === 0 && feedback.positive) {
-      feedback.tips.push({
-        text: "Routine bien équilibrée pour votre type de peau. La régularité est le facteur n°1 d'efficacité en skincare — continuez ainsi !",
-        source: "American Academy of Dermatology"
-      });
-    }
-
-    setProductFeedback(feedback);
-    setTimeout(() => setProductFeedback(null), 8000);
-
-    // Sync to routine_logs for Passport
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        const today = new Date().toISOString().split("T")[0];
-        (supabase as any).from("routine_logs").upsert({
-          user_id: session.user.id,
-          date: today,
-          morning_routine_done: time === "am" ? true : undefined,
-          evening_routine_done: time === "pm" ? true : undefined,
-          makeup_removed: hasNettoyant,
-          spf_applied: hasSPF
-        }, { onConflict: "user_id,date" });
-      }
-    });
-  };
-
-  const saveRoutineConfig = async () => {
-    setBaseAmProducts(tempAmProducts);
-    setBasePmProducts(tempPmProducts);
-    localStorage.setItem("local_am_routine", JSON.stringify(tempAmProducts));
-    localStorage.setItem("local_pm_routine", JSON.stringify(tempPmProducts));
-    setRoutineSetupOpen(false);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session) {
-        // @ts-ignore
-        await (supabase as any).from("profiles").update({
-          am_routine: tempAmProducts,
-          pm_routine: tempPmProducts
-        }).eq("id", sessionData.session.user.id);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const toggleSetupProduct = (p: string) => {
-    if (setupTimeTab === "am") {
-      setTempAmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
-    } else {
-      setTempPmProducts(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
-    }
-  };
-
-  const addCustomSetupProduct = () => {
-    if (!customProductInput.trim()) return;
-    const p = customProductInput.trim();
-    if (setupTimeTab === "am" && !tempAmProducts.includes(p)) setTempAmProducts(prev => [...prev, p]);
-    if (setupTimeTab === "pm" && !tempPmProducts.includes(p)) setTempPmProducts(prev => [...prev, p]);
-
-    if (!ALL_PRODUCTS.includes(p) && !userCustomProducts.includes(p)) {
-      setUserCustomProducts(prev => [...prev, p]);
-    }
-
-    setCustomProductInput("");
-  };
 
   const openEditDialog = (id: string) => {
     setEditValues({ 

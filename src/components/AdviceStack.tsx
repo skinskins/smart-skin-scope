@@ -46,18 +46,18 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
               dragElastic={0.6}
               onDragEnd={handleDragEnd}
               whileDrag={{ scale: 1.05, rotate: 0 }}
-              animate={{ 
-                x: xOffset, 
-                rotate: rotate, 
-                scale: scale, 
+              animate={{
+                x: xOffset,
+                rotate: rotate,
+                scale: scale,
                 opacity: 1,
                 zIndex: zIndex
               }}
-              exit={{ 
-                opacity: 0, 
-                scale: 0.8, 
+              exit={{
+                opacity: 0,
+                scale: 0.8,
                 x: xOffset > 0 ? 200 : -200,
-                transition: { duration: 0.2 } 
+                transition: { duration: 0.2 }
               }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               style={{
@@ -81,22 +81,22 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between border-t border-primary/5 pt-6">
-                <div 
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    if (isTop) onSelectAdvice(advice); 
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isTop) onSelectAdvice(advice);
                   }}
                   className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.2em] opacity-80 cursor-pointer hover:opacity-100 transition-opacity"
                 >
-                  Explorer <ChevronRight size={12} strokeWidth={3} />
+                  Plus d'infos <ChevronRight size={12} strokeWidth={3} />
                 </div>
                 <div className="flex gap-1.5">
                   {adviceList.map((_, dotIdx) => (
-                    <div 
-                      key={dotIdx} 
-                      className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${dotIdx === i ? 'bg-primary w-4' : 'bg-primary/10'}`} 
+                    <div
+                      key={dotIdx}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${dotIdx === i ? 'bg-primary w-4' : 'bg-primary/10'}`}
                     />
                   ))}
                 </div>

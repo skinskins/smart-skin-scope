@@ -7,17 +7,15 @@ import { Input } from "@/components/ui/input";
 const ALL_PRODUCTS = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux", "Rétinol", "Masque", "Huile de soin", "Exfoliant AHA/BHA", "Traitement local"];
 
 const Routine = () => {
-  const [baseAmProducts, setBaseAmProducts] = useState<string[]>(() => {
-    const saved = localStorage.getItem("local_am_routine");
-    return saved ? JSON.parse(saved) : ["Nettoyant", "Hydratant", "SPF 50"];
+  const [userProducts, setUserProducts] = useState<string[]>(() => {
+    const am = localStorage.getItem("local_am_routine");
+    const pm = localStorage.getItem("local_pm_routine");
+    const amList = am ? JSON.parse(am) : ["Nettoyant", "Hydratant", "SPF 50"];
+    const pmList = pm ? JSON.parse(pm) : ["Nettoyant", "Hydratant"];
+    return Array.from(new Set([...amList, ...pmList]));
   });
-  const [basePmProducts, setBasePmProducts] = useState<string[]>(() => {
-    const saved = localStorage.getItem("local_pm_routine");
-    return saved ? JSON.parse(saved) : ["Nettoyant", "Hydratant"];
-  });
-
+  
   const [customProductInput, setCustomProductInput] = useState("");
-  const [productTime, setProductTime] = useState<"am" | "pm">("am");
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -30,11 +28,12 @@ const Routine = () => {
           .then(({ data, error }) => {
             if (data && !error) {
               const profile = data as any;
-              if (profile.am_routine && Array.isArray(profile.am_routine)) setBaseAmProducts(profile.am_routine);
-              if (profile.pm_routine && Array.isArray(profile.pm_routine)) setBasePmProducts(profile.pm_routine);
+              const am = profile.am_routine || [];
+              const pm = profile.pm_routine || [];
+              const combined = Array.from(new Set([...am, ...pm]));
+              setUserProducts(combined);
 
-              const allUserRoutines = [...(profile.am_routine || []), ...(profile.pm_routine || [])];
-              setUserCustomProducts(allUserRoutines.filter((p: string) => !ALL_PRODUCTS.includes(p)));
+              setUserCustomProducts(combined.filter((p: string) => !ALL_PRODUCTS.includes(p)));
             }
           });
       }
@@ -70,16 +69,14 @@ const Routine = () => {
     return () => clearTimeout(timer);
   }, [customProductInput]);
 
-  const currentProducts = productTime === "am" ? baseAmProducts : basePmProducts;
-
-  const syncBaselineToSupabase = async (am: string[], pm: string[]) => {
+  const syncProductsToSupabase = async (products: string[]) => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData?.session) {
         // @ts-ignore
         await (supabase as any).from("profiles").update({
-          am_routine: am,
-          pm_routine: pm
+          am_routine: products,
+          pm_routine: products // Syncing both for now to avoid breaking other parts of the app
         }).eq("id", sessionData.session.user.id);
       }
     } catch (e) {
@@ -87,38 +84,24 @@ const Routine = () => {
     }
   };
 
-  const toggleBaselineProduct = (p: string) => {
-    if (productTime === "am") {
-      const newList = baseAmProducts.includes(p) ? baseAmProducts.filter(x => x !== p) : [...baseAmProducts, p];
-      setBaseAmProducts(newList);
-      localStorage.setItem("local_am_routine", JSON.stringify(newList));
-      syncBaselineToSupabase(newList, basePmProducts);
-    } else {
-      const newList = basePmProducts.includes(p) ? basePmProducts.filter(x => x !== p) : [...basePmProducts, p];
-      setBasePmProducts(newList);
-      localStorage.setItem("local_pm_routine", JSON.stringify(newList));
-      syncBaselineToSupabase(baseAmProducts, newList);
-    }
+  const toggleProduct = (p: string) => {
+    const newList = userProducts.includes(p) ? userProducts.filter(x => x !== p) : [...userProducts, p];
+    setUserProducts(newList);
+    localStorage.setItem("local_am_routine", JSON.stringify(newList));
+    localStorage.setItem("local_pm_routine", JSON.stringify(newList));
+    syncProductsToSupabase(newList);
   };
 
-  const addCustomBaselineProduct = () => {
+  const addCustomProduct = () => {
     if (!customProductInput.trim()) return;
     const p = customProductInput.trim();
     
-    if (productTime === "am") {
-      if (!baseAmProducts.includes(p)) {
-        const newList = [...baseAmProducts, p];
-        setBaseAmProducts(newList);
-        localStorage.setItem("local_am_routine", JSON.stringify(newList));
-        syncBaselineToSupabase(newList, basePmProducts);
-      }
-    } else {
-      if (!basePmProducts.includes(p)) {
-        const newList = [...basePmProducts, p];
-        setBasePmProducts(newList);
-        localStorage.setItem("local_pm_routine", JSON.stringify(newList));
-        syncBaselineToSupabase(baseAmProducts, newList);
-      }
+    if (!userProducts.includes(p)) {
+      const newList = [...userProducts, p];
+      setUserProducts(newList);
+      localStorage.setItem("local_am_routine", JSON.stringify(newList));
+      localStorage.setItem("local_pm_routine", JSON.stringify(newList));
+      syncProductsToSupabase(newList);
     }
 
     if (!ALL_PRODUCTS.includes(p) && !userCustomProducts.includes(p)) {
@@ -129,23 +112,15 @@ const Routine = () => {
     setDbProducts([]);
   };
 
-  const addBaselineProductFromDb = (pName: string, pBrand: string) => {
+  const addProductFromDb = (pName: string, pBrand: string) => {
     const p = `${pBrand} - ${pName}`;
     
-    if (productTime === "am") {
-      if (!baseAmProducts.includes(p)) {
-        const newList = [...baseAmProducts, p];
-        setBaseAmProducts(newList);
-        localStorage.setItem("local_am_routine", JSON.stringify(newList));
-        syncBaselineToSupabase(newList, basePmProducts);
-      }
-    } else {
-      if (!basePmProducts.includes(p)) {
-        const newList = [...basePmProducts, p];
-        setBasePmProducts(newList);
-        localStorage.setItem("local_pm_routine", JSON.stringify(newList));
-        syncBaselineToSupabase(baseAmProducts, newList);
-      }
+    if (!userProducts.includes(p)) {
+      const newList = [...userProducts, p];
+      setUserProducts(newList);
+      localStorage.setItem("local_am_routine", JSON.stringify(newList));
+      localStorage.setItem("local_pm_routine", JSON.stringify(newList));
+      syncProductsToSupabase(newList);
     }
 
     if (!userCustomProducts.includes(p)) {
@@ -159,21 +134,8 @@ const Routine = () => {
   return (
     <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
       <div className="mb-10 text-center">
-        <h1 className="text-3xl font-display text-foreground leading-tight">Ma Routine</h1>
-      </div>
-
-      {/* Global AM/PM Toggle */}
-      <div className="flex justify-center mb-8">
-        <div className="flex bg-muted/40 rounded-full p-1 border border-border/20">
-          <button onClick={() => setProductTime("am")}
-            className={`px-8 py-2 rounded-full text-xs font-bold transition-all ${productTime === "am" ? 'bg-primary text-primary-foreground premium-shadow' : 'text-muted-foreground hover:text-foreground'}`}>
-            Matin
-          </button>
-          <button onClick={() => setProductTime("pm")}
-            className={`px-8 py-2 rounded-full text-xs font-bold transition-all ${productTime === "pm" ? 'bg-primary text-primary-foreground premium-shadow' : 'text-muted-foreground hover:text-foreground'}`}>
-            Soir
-          </button>
-        </div>
+        <h1 className="text-3xl font-display text-foreground leading-tight">Mes Produits</h1>
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mt-2">Votre inventaire skincare</p>
       </div>
 
       <div className="space-y-8 flex flex-col">
@@ -188,7 +150,7 @@ const Routine = () => {
                 onChange={e => setCustomProductInput(e.target.value)} 
                 placeholder="Chercher un produit ou marque..." 
                 className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary" 
-                onKeyDown={e => { if (e.key === 'Enter') addCustomBaselineProduct() }} 
+                onKeyDown={e => { if (e.key === 'Enter') addCustomProduct() }} 
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -218,7 +180,7 @@ const Routine = () => {
                         <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
                       </div>
                       <button 
-                        onClick={() => addBaselineProductFromDb(p.product_name, p.brand)}
+                        onClick={() => addProductFromDb(p.product_name, p.brand)}
                         className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all shrink-0"
                       >
                         <Plus size={16} />
@@ -231,14 +193,14 @@ const Routine = () => {
 
             {/* Generic Categories (Horizontal Scroll) */}
             <div className="space-y-3">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Produits classiques</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Produits classiques</p>              
               <div className="flex overflow-x-auto pb-4 gap-2 no-scrollbar -mx-1 px-1">
                 {Array.from(new Set([...ALL_PRODUCTS, ...userCustomProducts])).map(p => {
-                  const isActive = productTime === "am" ? baseAmProducts.includes(p) : basePmProducts.includes(p);
+                  const isActive = userProducts.includes(p);
                   return (
                     <div key={p} className="flex gap-1 shrink-0">
                       <button 
-                        onClick={() => toggleBaselineProduct(p)} 
+                        onClick={() => toggleProduct(p)} 
                         className={`flex items-center gap-2 px-5 py-3 rounded-full border transition-all text-xs font-semibold whitespace-nowrap ${isActive ? 'border-primary bg-primary/5 text-primary shadow-sm' : 'border-border bg-card text-foreground/80 hover:bg-accent'}`}
                       >
                         {p}
@@ -251,14 +213,14 @@ const Routine = () => {
             </div>
           </div>
         </motion.div>
-
+ 
         {/* My Routine Section (Bottom) */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="premium-card p-8 order-2">
-          <p className="text-[10px] font-bold text-foreground/80 tracking-widest mb-6 uppercase">Ma Routine {productTime === "am" ? "du matin" : "du soir"}</p>
+          <p className="text-[10px] font-bold text-foreground/80 tracking-widest mb-6 uppercase">Mes Produits enregistrés</p>
           <div className="flex flex-col gap-3">
             <AnimatePresence mode="popLayout">
-              {currentProducts.length > 0 ? (
-                currentProducts.map((p) =>
+              {userProducts.length > 0 ? (
+                userProducts.map((p) =>
                   <motion.div 
                     key={p} 
                     initial={{ opacity: 0, x: -10 }} 
@@ -268,7 +230,7 @@ const Routine = () => {
                   >
                     <span className="text-foreground/90">{p}</span>
                     <button 
-                      onClick={() => toggleBaselineProduct(p)}
+                      onClick={() => toggleProduct(p)}
                       className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
                     >
                       <Minus size={16} />
@@ -276,7 +238,7 @@ const Routine = () => {
                   </motion.div>
                 )
               ) : (
-                <p className="text-xs text-muted-foreground italic py-6 text-center">Aucun produit dans votre routine pour le moment.</p>
+                <p className="text-xs text-muted-foreground italic py-6 text-center">Aucun produit dans votre inventaire pour le moment.</p>
               )}
             </AnimatePresence>
           </div>
