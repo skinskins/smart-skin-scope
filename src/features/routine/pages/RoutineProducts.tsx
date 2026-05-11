@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Search, Plus, Check, ImageOff, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useProductVerdicts } from "@/hooks/useProductVerdicts";
+import { INCIVerdictBadge } from "../components/INCIVerdictBadge";
 
 interface SearchResult {
   source: "catalog" | "obf";
@@ -51,6 +53,8 @@ const groupByType = (products: UserProduct[]): [string, UserProduct[]][] => {
 // ── Swipeable product card ────────────────────────────────────────
 interface ProductCardProps {
   product: UserProduct;
+  verdict: 'recommended' | 'avoid' | 'neutral';
+  reason: string | null;
   isSwiped: boolean;
   onSwipeOpen: (id: string) => void;
   onSwipeClose: () => void;
@@ -58,7 +62,7 @@ interface ProductCardProps {
   onToggle: (id: string, field: "morning_use" | "evening_use", val: boolean) => void;
 }
 
-function ProductCard({ product, isSwiped, onSwipeOpen, onSwipeClose, onArchive, onToggle }: ProductCardProps) {
+function ProductCard({ product, verdict, reason, isSwiped, onSwipeOpen, onSwipeClose, onArchive, onToggle }: ProductCardProps) {
   const startX = useRef(0);
   const dragging = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +136,7 @@ function ProductCard({ product, isSwiped, onSwipeOpen, onSwipeClose, onArchive, 
               {product.brand}
             </p>
           )}
+          <INCIVerdictBadge verdict={verdict} reason={reason} />
         </div>
 
         {/* Morning / Evening toggles */}
@@ -165,6 +170,7 @@ function ProductCard({ product, isSwiped, onSwipeOpen, onSwipeClose, onArchive, 
 // ── Main screen ───────────────────────────────────────────────────
 export default function RoutineProducts() {
   const navigate = useNavigate();
+  const { verdicts } = useProductVerdicts();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -449,17 +455,22 @@ export default function RoutineProducts() {
                     {type}
                   </p>
                   <div className="border border-[#E5E5E5] bg-white">
-                    {products.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        isSwiped={swipedId === product.id}
-                        onSwipeOpen={(id) => setSwipedId(id)}
-                        onSwipeClose={() => setSwipedId(null)}
-                        onArchive={handleArchive}
-                        onToggle={handleToggle}
-                      />
-                    ))}
+                    {products.map((product) => {
+                      const v = verdicts.find(v => v.product_id === product.id);
+                      return (
+                        <ProductCard
+                          key={product.id}
+                          product={product}
+                          verdict={v?.verdict || 'neutral'}
+                          reason={v?.reason || null}
+                          isSwiped={swipedId === product.id}
+                          onSwipeOpen={(id) => setSwipedId(id)}
+                          onSwipeClose={() => setSwipedId(null)}
+                          onArchive={handleArchive}
+                          onToggle={handleToggle}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               ))}

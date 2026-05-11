@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Check, X, ChevronRight, Sparkles, Sun, Leaf, Target, Plane } from "lucide-react";
+import { Check, X, ChevronRight, Sparkles, Sun, Leaf, Target, Plane, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -267,13 +267,21 @@ const HomeScreen = () => {
     <div className="min-h-screen bg-[#F8FAFC] pb-28 overflow-x-hidden">
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="px-5 pt-8 pb-2">
-        <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">
-          {greeting}{userName ? `, ${userName}` : ""} ✨
-        </p>
-        <h1 className="text-2xl font-display font-black text-[#111111] uppercase tracking-tight mt-1">
-          Accueil
-        </h1>
+      <div className="px-5 pt-8 pb-2 flex items-center gap-4">
+        <button 
+          onClick={() => navigate("/dashboard")}
+          className="w-10 h-10 flex items-center justify-center border border-[#111111] text-[#111111] hover:bg-[#111111] hover:text-white transition-all"
+        >
+          <User size={20} />
+        </button>
+        <div>
+          <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.2em]">
+            {greeting}{userName ? `, ${userName}` : ""} ✨
+          </p>
+          <h1 className="text-2xl font-display font-black text-[#111111] uppercase tracking-tight mt-1">
+            Accueil
+          </h1>
+        </div>
       </div>
 
       {/* ── Advice Cards Carousel ──────────────────────────────── */}
@@ -354,7 +362,7 @@ const HomeScreen = () => {
               >
                 <button
                   className="pointer-events-auto px-8 py-4 bg-[#111111] text-white text-xs font-bold uppercase tracking-[0.15em] shadow-xl hover:bg-black transition-colors"
-                  onClick={() => navigate("/checkin")}
+                  onClick={() => navigate("/skin-checkin")}
                 >
                   Faire mon check-in
                 </button>

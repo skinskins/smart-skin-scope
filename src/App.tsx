@@ -26,7 +26,7 @@ import PassportScreen5 from "./features/passport/pages/PassportScreen5";
 import RoutineProducts from "./features/routine/pages/RoutineProducts";
 
 import DailyCheckin from "./pages/DailyCheckin";
-import CheckinAdvice from "./pages/CheckinAdvice";
+
 import RGPD from "./pages/RGPD";
 import StravaConnect from "./pages/StravaConnect";
 import Callback from "./pages/Callback";
@@ -152,8 +152,9 @@ const App = () => (
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
           <Route path="/home" element={<AuthGuard><HomeScreen /></AuthGuard>} />
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-          <Route path="/checkin" element={<AuthGuard><DailyCheckin /></AuthGuard>} />
-          <Route path="/checkin-advice" element={<AuthGuard><CheckinAdvice /></AuthGuard>} />
+          <Route path="/checkin" element={<AuthGuard><SkinCheckIn /></AuthGuard>} />
+          <Route path="/old-checkin" element={<AuthGuard><DailyCheckin /></AuthGuard>} />
+          <Route path="/checkin-advice" element={<AuthGuard><HomeScreen /></AuthGuard>} />
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
