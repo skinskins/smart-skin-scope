@@ -80,7 +80,7 @@ export default function DailyCheckinModal({ open, onClose, initialLog, userConce
               {symptom.icon}
             </div>
             <div className="text-center">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-50">État de votre peau</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">État de votre peau</p>
               <h3 className="text-xl font-display text-foreground capitalize">{symptom.label}</h3>
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function DailyCheckinModal({ open, onClose, initialLog, userConce
                 className={`flex items-center justify-between p-5 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${currentTrend === opt.id ? opt.color + ' border-primary' : 'bg-white border-border/40'}`}
               >
                 <span className="text-sm font-bold">{opt.label}</span>
-                <span className={`text-xl font-display italic ${currentTrend === opt.id ? '' : 'opacity-20'}`}>{opt.icon}</span>
+                <span className={`text-xl font-display italic ${currentTrend === opt.id ? '' : 'opacity-40'}`}>{opt.icon}</span>
               </button>
             ))}
           </div>

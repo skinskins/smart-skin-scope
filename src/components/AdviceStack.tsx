@@ -76,7 +76,7 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
                   <h3 className="font-display text-xl text-foreground italic leading-tight flex-1 tracking-tight">{advice.title}</h3>
                 </div>
                 <div className="space-y-5">
-                  <p className="text-[16px] text-foreground/80 leading-relaxed italic font-light">
+                  <p className="text-[17px] text-foreground leading-relaxed italic font-normal">
                     {advice.text}
                   </p>
                 </div>
@@ -88,9 +88,9 @@ const AdviceStack: React.FC<AdviceStackProps> = ({ adviceList, onSelectAdvice })
                     e.stopPropagation();
                     if (isTop) onSelectAdvice(advice);
                   }}
-                  className="flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-[0.2em] opacity-80 cursor-pointer hover:opacity-100 transition-opacity"
+                  className="flex items-center gap-2 text-[12px] font-bold text-primary uppercase tracking-[0.2em] cursor-pointer hover:opacity-100 transition-opacity"
                 >
-                  Plus d'infos <ChevronRight size={12} strokeWidth={3} />
+                  Plus d'infos <ChevronRight size={16} strokeWidth={3} />
                 </div>
                 <div className="flex gap-1.5">
                   {adviceList.map((_, dotIdx) => (

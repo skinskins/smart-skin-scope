@@ -577,8 +577,8 @@ const Dashboard = () => {
   const ManualLabel = ({ id }: { id: string }) => {
     if (deviceConnected) return null;
     return (
-      <p className="text-[9px] text-muted-foreground/60">
-        Manuel · <span className="text-primary/50">{formatUpdatedAgo(manualUpdates[id] ?? Date.now())}</span>
+      <p className="text-[11px] text-muted-foreground">
+        Manuel · <span className="text-primary/70">{formatUpdatedAgo(manualUpdates[id] ?? Date.now())}</span>
       </p>
     );
   };
@@ -729,7 +729,7 @@ const Dashboard = () => {
             {selectedTip?.tip && (
               <div className="flex gap-4 p-6 bg-primary/5 rounded-[32px] border border-primary/10">
                 <div className="bg-white rounded-full p-2 text-primary shadow-sm h-fit"><Lightbulb size={14} strokeWidth={2.5} /></div>
-                <p className="text-[11px] font-bold text-primary/80 leading-relaxed  tracking-widest italic">{selectedTip.tip}</p>
+                <p className="text-[12px] font-bold text-primary/80">{selectedTip.tip}</p>
               </div>
             )}
 
@@ -751,13 +751,13 @@ const Dashboard = () => {
           <div className="flex items-center gap-6">
             <div className="w-12 h-12 rounded-full border border-border/60 bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><MapPin size={22} strokeWidth={1.5} /></div>
             <div className="flex-1">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Position actuelle</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Position actuelle</p>
               <div className="flex items-center gap-2">
                 <p className="text-xl font-bold text-foreground">{dailyLog.location || "Paris"}</p>
-                <Pencil size={12} strokeWidth={1.5} className="text-muted-foreground/30" />
+                <Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50" />
               </div>
             </div>
-            <span className="ml-auto flex items-center gap-2 text-[10px] font-bold text-primary uppercase tracking-widest"><span className="w-2 h-2 bg-primary rounded-full animate-pulse" />Actuellement</span>
+            <span className="ml-auto flex items-center gap-2 text-[11px] font-bold text-primary uppercase tracking-widest"><span className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse" />Actuellement</span>
           </div>
         </button>
         <div className="flex gap-x-12 gap-y-10 px-4">
@@ -768,10 +768,10 @@ const Dashboard = () => {
             { id: "air", icon: <CloudSun size={16} />, val: dailyLog.weather?.pollution ?? "Bon", sub: "Qualité Air" }
           ].map((item) => (
             <div key={item.id} className="flex flex-col items-center text-center gap-3">
-              <div className="text-muted-foreground opacity-40">{item.icon}</div>
+              <div className="text-muted-foreground/60">{item.icon}</div>
               <div className="space-y-1.5">
                 <p className="text-sm font-bold text-foreground">{item.val}</p>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">{item.sub}</p>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{item.sub}</p>
               </div>
             </div>
           ))}
@@ -801,11 +801,11 @@ const Dashboard = () => {
                     className="flex items-center justify-between group cursor-pointer hover:bg-white/40 p-4 -mx-4 rounded-[24px] transition-all active:scale-[0.98] border border-transparent hover:border-border/20"
                   >
                     <div className="flex items-center gap-6">
-                      <div className="w-12 h-12 rounded-full border border-border/40 bg-muted/5 flex items-center justify-center text-primary/40 group-hover:bg-white transition-all">
+                      <div className="w-12 h-12 rounded-full border border-border/40 bg-muted/5 flex items-center justify-center text-primary/60 group-hover:bg-white transition-all">
                         {config.icon}
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-40 mb-1.5">{config.label}</p>
+                        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">{config.label}</p>
                         <p className="text-base font-bold text-foreground tracking-tight">{trendLabel}</p>
                       </div>
                     </div>
@@ -829,32 +829,32 @@ const Dashboard = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('cycle'); setEditValue(dailyLog.cyclePhase || ""); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Calendar size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Cycle</p><p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Calendar size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Cycle</p><p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('stress'); setEditValue(dailyLog.stressLevel ?? 3); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Heart size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Stress</p><p className="text-sm font-bold text-foreground">{dailyLog.stressLevel !== null ? `${dailyLog.stressLevel}/5` : "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Heart size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Stress</p><p className="text-sm font-bold text-foreground">{dailyLog.stressLevel !== null ? `${dailyLog.stressLevel}/5` : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('makeup'); setEditValue(dailyLog.makeupRemoved ?? false); setMakeupStep(1); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Sparkles size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Peau</p><p className="text-sm font-bold text-foreground">{dailyLog.makeupRemoved !== null ? (dailyLog.makeupRemoved ? "Nette" : "Maquillée") : "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Sparkles size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Peau</p><p className="text-sm font-bold text-foreground">{dailyLog.makeupRemoved !== null ? (dailyLog.makeupRemoved ? "Nette" : "Maquillée") : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('alcohol'); setEditValue(dailyLog.alcoholDrinks ?? 0); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Wine size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Alcool</p><p className="text-sm font-bold text-foreground">{dailyLog.alcoholDrinks !== undefined && dailyLog.alcoholDrinks !== null ? (dailyLog.alcoholDrinks > 0 ? `${dailyLog.alcoholDrinks} u.` : "Aucun") : "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Wine size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Alcool</p><p className="text-sm font-bold text-foreground">{dailyLog.alcoholDrinks !== undefined && dailyLog.alcoholDrinks !== null ? (dailyLog.alcoholDrinks > 0 ? `${dailyLog.alcoholDrinks} u.` : "Aucun") : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('sleep'); setEditValue(dailyLog.sleepHours ?? 8); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Moon size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Sommeil</p><p className="text-sm font-bold text-foreground">{dailyLog.sleepHours !== null ? `${dailyLog.sleepHours}h` : "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Moon size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Sommeil</p><p className="text-sm font-bold text-foreground">{dailyLog.sleepHours !== null ? `${dailyLog.sleepHours}h` : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('sport'); setEditValue(dailyLog.didSport || "Non"); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Dumbbell size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Dumbbell size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Activité</p>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Activité</p>
                 <p className="text-sm font-bold text-foreground">{dailyLog.didSport !== null && dailyLog.didSport !== "" ? dailyLog.didSport : "N/A"}</p>
                 {dailyLog.stravaData && dailyLog.didSport !== "Non" && (
-                  <div className="flex items-center gap-1.5 mt-2 text-[8px] font-mono font-bold text-[#FC4C02] uppercase tracking-[0.05em]">
+                  <div className="flex items-center gap-1.5 mt-2 text-[10px] font-mono font-bold text-[#FC4C02] uppercase tracking-[0.05em]">
                     <span className="w-1.5 h-1.5 bg-[#FC4C02] rounded-full animate-pulse" />
                     Synchro : {dailyLog.stravaData.sport}
                   </div>
@@ -862,12 +862,12 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('water'); setEditValue(dailyLog.waterGlasses ?? 4); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><GlassWater size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Eau</p><p className="text-sm font-bold text-foreground">{dailyLog.waterGlasses !== null ? `${dailyLog.waterGlasses} verres` : "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><GlassWater size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Eau</p><p className="text-sm font-bold text-foreground">{dailyLog.waterGlasses !== null ? `${dailyLog.waterGlasses} verres` : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('alimentation'); setEditValue(dailyLog.foodQuality || "Équilibrée"); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><FlaskRound size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
-              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Alimentation</p><p className="text-sm font-bold text-foreground">{dailyLog.foodQuality || "N/A"}</p></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><FlaskRound size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Alimentation</p><p className="text-sm font-bold text-foreground">{dailyLog.foodQuality || "N/A"}</p></div>
             </div>
           </div>
         </motion.div>
@@ -922,7 +922,7 @@ const Dashboard = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-3">
                         <div className="flex justify-between items-center px-1">
-                          <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</label>
+                          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</label>
                           <span className="text-[11px] font-bold text-primary">{dailyLog.cycleDuration}j</span>
                         </div>
                         <Slider
@@ -940,7 +940,7 @@ const Dashboard = () => {
                       </div>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center px-1">
-                          <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Règles</label>
+                          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Règles</label>
                           <span className="text-[11px] font-bold text-primary">{dailyLog.periodDuration}j</span>
                         </div>
                         <Slider
@@ -1046,7 +1046,7 @@ const Dashboard = () => {
                           Non
                         </button>
                       </div>
-                      <p className="text-[9px] text-center text-muted-foreground italic px-4 leading-relaxed">Si vous ne portiez pas de maquillage, votre peau est considérée comme propre par défaut.</p>
+                      <p className="text-[11px] text-center text-muted-foreground italic px-4 leading-relaxed">Si vous ne portiez pas de maquillage, votre peau est considérée comme propre par défaut.</p>
                     </div>
                   ) : (
                     <div className="space-y-8">
@@ -1065,7 +1065,7 @@ const Dashboard = () => {
                           Non, pas encore
                         </button>
                       </div>
-                      <button onClick={() => { setMakeupStep(1); setWearingMakeup(null); }} className="w-full text-[9px] font-bold text-muted-foreground uppercase text-center mt-4 underline underline-offset-4 opacity-60 hover:opacity-100 transition-opacity">Retour</button>
+                      <button onClick={() => { setMakeupStep(1); setWearingMakeup(null); }} className="w-full text-[11px] font-bold text-muted-foreground uppercase text-center mt-4 underline underline-offset-4 hover:opacity-100 transition-opacity">Retour</button>
                     </div>
                   )}
                 </div>

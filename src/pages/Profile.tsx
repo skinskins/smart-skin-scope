@@ -85,7 +85,7 @@ const Profile = () => {
     <div className="min-h-screen pb-32 px-6 pt-12 max-w-lg mx-auto overflow-hidden">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 flex justify-between items-start">
         <div className="space-y-1">
-          <p className="text-[11px] font-bold text-primary uppercase tracking-[0.3em] opacity-80">Espace Personnel</p>
+          <p className="text-[11px] font-bold text-primary uppercase tracking-[0.3em]">Espace Personnel</p>
           <h1 className="text-4xl font-display text-foreground">Mon Profil</h1>
         </div>
         <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-destructive/5 flex items-center justify-center text-destructive hover:bg-destructive/10 transition-all active:scale-90">
@@ -104,9 +104,9 @@ const Profile = () => {
         >
           <div className="flex justify-between items-start mb-6">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><User size={20} strokeWidth={1.5} /></div>
-            <Pencil size={12} className="text-muted-foreground/30 group-hover:text-primary transition-colors" />
+            <Pencil size={14} className="text-muted-foreground/50 group-hover:text-primary transition-colors" />
           </div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 opacity-50">Prénom</p>
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Prénom</p>
           <p className="text-3xl font-display text-foreground italic group-hover:text-primary transition-colors">{firstName || "Non défini"}</p>
         </motion.div>
 
@@ -120,10 +120,10 @@ const Profile = () => {
         >
           <div className="flex justify-between items-center mb-4">
             <Activity size={16} className="text-primary/60" />
-            <Pencil size={10} className="text-muted-foreground/30 group-hover:text-primary" />
+            <Pencil size={14} className="text-muted-foreground/50 group-hover:text-primary" />
           </div>
           <div>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-50">Peau</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Peau</p>
             <p className="text-xl font-display text-foreground italic">{skinType || "..."}</p>
           </div>
         </motion.div>
@@ -138,20 +138,20 @@ const Profile = () => {
         >
           <div className="flex justify-between items-center mb-4">
             <Sparkles size={16} className="text-primary/60" />
-            <Pencil size={10} className="text-muted-foreground/30 group-hover:text-primary" />
+            <Pencil size={14} className="text-muted-foreground/50 group-hover:text-primary" />
           </div>
           <div>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 opacity-50">Sensibilités</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Sensibilités</p>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {skinProblems.length > 0 ? (
                 skinProblems.slice(0, 3).map(p => (
-                  <span key={p} className="px-2 py-0.5 bg-primary/5 text-primary text-[9px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{p}</span>
+                  <span key={p} className="px-2 py-0.5 bg-primary/5 text-primary text-[11px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{p}</span>
                 ))
               ) : (
                 <p className="text-xl font-display text-foreground italic">Aucune</p>
               )}
               {skinProblems.length > 3 && (
-                <span className="text-[9px] font-bold text-muted-foreground opacity-40">+{skinProblems.length - 3}</span>
+                <span className="text-[11px] font-bold text-muted-foreground">+{skinProblems.length - 3}</span>
               )}
             </div>
           </div>
@@ -168,14 +168,14 @@ const Profile = () => {
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
               <Target size={16} className="text-primary/60" />
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-50">Mes Objectifs</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Mes Objectifs</p>
             </div>
-            <Pencil size={10} className="text-muted-foreground/30 group-hover:text-primary" />
+            <Pencil size={14} className="text-muted-foreground/50 group-hover:text-primary" />
           </div>
           <div className="flex flex-wrap gap-2">
             {skinGoals.length > 0 ? skinGoals.map(g => (
-              <span key={g} className="px-3 py-1 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{g}</span>
-            )) : <p className="text-sm font-medium text-foreground/30 italic">Définir mes priorités...</p>}
+              <span key={g} className="px-3 py-1 bg-primary/5 text-primary text-[11px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{g}</span>
+            )) : <p className="text-sm font-medium text-foreground/60 italic">Définir mes priorités...</p>}
           </div>
         </motion.div>
       </div>
@@ -207,7 +207,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3">
                 {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
                   <button key={type} onClick={() => setSkinType(type)}
-                    className={`py-5 rounded-[24px] border text-[10px] font-bold uppercase tracking-widest transition-all ${skinType === type ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinType === type ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                     {type}
                   </button>
                 ))}
@@ -218,7 +218,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3 max-h-[45vh] overflow-y-auto pr-1">
                 {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
                   <button key={prob} onClick={() => toggleProblem(prob)}
-                    className={`py-5 rounded-[24px] border text-[10px] font-bold uppercase tracking-widest transition-all ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                     {prob}
                   </button>
                 ))}
@@ -229,7 +229,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3 max-h-[45vh] overflow-y-auto pr-1">
                 {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
                   <button key={goal} onClick={() => toggleGoal(goal)}
-                    className={`py-5 rounded-[24px] border text-[10px] font-bold uppercase tracking-widest transition-all ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                     {goal}
                   </button>
                 ))}

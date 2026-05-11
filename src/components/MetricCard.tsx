@@ -68,14 +68,14 @@ const MetricCard = ({
 
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div style={{ color }} className="transition-transform group-hover:scale-110 duration-200 opacity-80">
+            <div style={{ color }} className="transition-transform group-hover:scale-110 duration-200">
               {icon}
             </div>
-            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
           </div>
           {trend && (
             <div className={cn(
-              "px-2 py-0.5 rounded-full border border-border/40 font-medium text-[8px] uppercase tracking-wide",
+              "px-2 py-0.5 rounded-full border border-border/40 font-bold text-[10px] uppercase tracking-wide",
               computedTone === "positive" ? "text-primary bg-primary/5" :
                 computedTone === "negative" ? "text-destructive bg-destructive/5" :
                   "text-muted-foreground bg-muted/20"
@@ -86,7 +86,7 @@ const MetricCard = ({
         </div>
         <div className="flex items-end gap-1.5 mb-4">
           <span className="text-4xl font-display text-foreground leading-none">{value}</span>
-          <span className="text-muted-foreground/60 font-medium text-[10px] mb-1">/{maxValue}</span>
+          <span className="text-muted-foreground font-medium text-[11px] mb-1">/{maxValue}</span>
         </div>
         <div className="h-1 bg-muted/30 rounded-full overflow-hidden">
           <motion.div
@@ -98,7 +98,7 @@ const MetricCard = ({
           />
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <p className="text-[8px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Voir détails →</p>
+          <p className="text-[11px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Voir détails →</p>
         </div>
       </motion.div>
 
@@ -135,9 +135,9 @@ const MetricCard = ({
               </div>
             )}
             {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
-            <div className="bg-muted  p-3">
-              <p className="text-[11px] text-muted-foreground">
-                <span className="font-semibold">Ce qui influence :</span>{" "}
+            <div className="bg-muted p-4">
+              <p className="text-[12px] text-muted-foreground leading-relaxed">
+                <span className="font-bold">Ce qui influence :</span>{" "}
                 {label === "Hydratation" && "Apport en eau, humidité, crème hydratante, alcool."}
                 {label === "Éclat" && "Qualité du sommeil, sérums vitamine C, fréquence d'exfoliation."}
                 {label === "Rougeurs" && "Stress, exposition UV, produits agressifs, allergies."}
