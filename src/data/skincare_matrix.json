@@ -192,6 +192,146 @@
         }
       ]
     },
+    "intensite_sensibilites": {
+      "acne": [
+        {
+          "niveau": "Légère",
+          "description": "Quelques imperfections ponctuelles, pas d'inflammation marquée",
+          "actifs_recommandes": ["Niacinamide (5-10%)", "Acide salicylique (0,5-1%)", "Zinc"],
+          "actifs_a_eviter": ["Huiles comédogènes", "Soins trop occlusifs"],
+          "frequence_exfoliation": "2x par semaine maximum",
+          "nettoyage": "Nettoyant doux matin et soir, sans over-cleansing",
+          "conseil_lifestyle": "Changer la taie d'oreiller 2x par semaine",
+          "regles_coherence": {
+            "si_type_peau_seche": "Privilégier niacinamide seul, éviter BHA qui dessèche davantage",
+            "si_type_peau_grasse": "BHA 1% soir + niacinamide matin, gel nettoyant",
+            "si_cycle_luteale": "Renforcer BHA la semaine précédant les règles",
+            "si_stress_eleve": "Réduire les actifs irritants, prioriser apaisant + niacinamide"
+          }
+        },
+        {
+          "niveau": "Modérée",
+          "description": "Imperfections régulières, quelques boutons inflammatoires, zones récurrentes",
+          "actifs_recommandes": ["Acide salicylique (1-2%)", "Niacinamide (10%)", "Acide azélaïque (10%)", "Peroxyde de benzoyle (2,5%)"],
+          "actifs_a_eviter": ["Huiles comédogènes", "Rétinol fort sans progressivité", "AHA si peau réactive"],
+          "frequence_exfoliation": "3x par semaine (BHA soir)",
+          "nettoyage": "Double nettoyage le soir si maquillage ou SPF, nettoyant adapté peau mixte/grasse",
+          "conseil_lifestyle": "Éviter de toucher le visage, nettoyer les pinceaux de maquillage hebdomadairement",
+          "regles_coherence": {
+            "si_type_peau_seche": "Acide azélaïque en priorité sur BHA, bien hydrater avec acide hyaluronique entre les actifs",
+            "si_type_peau_sensible": "Acide azélaïque uniquement, patch test, introduire progressivement",
+            "si_deshydratation_moderee_ou_forte": "Traiter la déshydratation en priorité avant les actifs anti-acné",
+            "si_cycle_luteale": "Introduire BHA 3 jours avant la phase lutéale pour anticiper",
+            "si_rougeurs_moderees": "Éviter peroxyde de benzoyle, préférer acide azélaïque anti-inflammatoire"
+          }
+        },
+        {
+          "niveau": "Forte",
+          "description": "Acné inflammatoire persistante, kystes, nombreuses zones touchées",
+          "actifs_recommandes": ["Acide salicylique (2%)", "Peroxyde de benzoyle (2,5-5%)", "Niacinamide (10%)", "Acide azélaïque (15-20%)"],
+          "actifs_a_eviter": ["Rétinol (risque d'irritation croisée)", "AHA", "Gommages physiques", "Huiles non-comédogènes inconnues"],
+          "frequence_exfoliation": "BHA uniquement, soir en cure, pas quotidiennement",
+          "nettoyage": "Nettoyant adapté acné, 2x par jour, eau tiède (pas chaude)",
+          "conseil_lifestyle": "Consulter un dermatologue recommandé — skincare seul insuffisant à ce stade",
+          "alerte": "Recommander systématiquement un avis dermatologique",
+          "regles_coherence": {
+            "si_type_peau_seche_ou_sensible": "Avertir que les actifs forts risquent d'aggraver, consulter dermatologue prioritaire",
+            "si_rougeurs_fortes": "Ne pas cumuler les actifs anti-acné et anti-rougeurs — choisir l'un ou l'autre selon la zone",
+            "si_deshydratation": "Barrière très fragilisée : hydrater impérativement avant tout actif, espacer les applications"
+          }
+        }
+      ],
+      "rougeurs": [
+        {
+          "niveau": "Légère",
+          "description": "Rougeurs occasionnelles, légère réactivité à certains produits ou températures",
+          "actifs_recommandes": ["Centella asiatica", "Allantoïne", "Niacinamide (5%)"],
+          "actifs_a_eviter": ["Parfums", "Alcool dénat.", "Menthol"],
+          "texture_privilegiee": "Émulsions légères, formules sans parfum",
+          "conseil_lifestyle": "Éviter les douches trop chaudes, eau froide pour finir le nettoyage du visage",
+          "regles_coherence": {
+            "si_objectif_eclat": "Utiliser vitamine C en formule douce (vitamine C dérivée / ascorbyl glucoside), pas d'acide pur",
+            "si_acne_legere": "Niacinamide couvre les deux problématiques, privilégier cette combinaison",
+            "si_meteo_vent_fort": "Renforcer la barrière avec céramides pour éviter l'aggravation"
+          }
+        },
+        {
+          "niveau": "Modérée",
+          "description": "Rougeurs fréquentes, diffuses ou localisées (joues, nez), réactivité marquée",
+          "actifs_recommandes": ["Centella asiatica (fort)", "Avoine colloïdale", "Allantoïne", "Acide azélaïque (5-10%)", "Niacinamide (5%)"],
+          "actifs_a_eviter": ["AHA", "BHA", "Rétinol", "Parfums", "Alcool", "Vitamine C pure (acide ascorbique)"],
+          "texture_privilegiee": "Crèmes épaisses sans parfum, baumes réparateurs, formules minimalistes",
+          "conseil_lifestyle": "Identifier et éviter les triggers (alcool, épices, chaleur, stress)",
+          "regles_coherence": {
+            "si_acne_moderee_ou_forte": "Ne pas cumuler actifs anti-acné irritants — acide azélaïque seul couvre les deux",
+            "si_deshydratation": "Traiter la déshydratation en premier : une barrière fragilisée amplifie les rougeurs",
+            "si_stress_eleve": "Le stress aggrave les rougeurs via inflammation systémique : soins apaisants prioritaires",
+            "si_cycle_menstruation": "Rougeurs souvent amplifiées J1-J5 : éviter tout actif nouveau ou irritant"
+          }
+        },
+        {
+          "niveau": "Forte",
+          "description": "Rougeurs permanentes, couperose possible, peau très réactive au moindre actif",
+          "actifs_recommandes": ["Centella asiatica (haute concentration)", "Avoine colloïdale", "Allantoïne", "Bêta-glucane"],
+          "actifs_a_eviter": ["Tous les acides (AHA, BHA, PHA)", "Rétinol", "Vitamine C pure", "Parfums", "Alcool", "Gommages"],
+          "texture_privilegiee": "Formules ultra-minimalistes, baumes, crèmes réparatrices sans actifs",
+          "conseil_lifestyle": "Consulter un dermatologue pour écarter une rosacée diagnostiquée",
+          "alerte": "Recommander systématiquement un avis dermatologique",
+          "regles_coherence": {
+            "si_acne": "Ne jamais combiner actifs anti-acné standards — orientation dermatologue impérative",
+            "si_objectif_anti_age_ou_eclat": "Tous les actifs pertinents (rétinol, AHA, vitamine C) sont contre-indiqués : rediriger vers une routine barrière pure",
+            "si_deshydratation_forte": "Double urgence barrière : traiter les deux simultanément mais uniquement avec des actifs non-irritants (céramides, acide hyaluronique, avoine)"
+          }
+        }
+      ],
+      "deshydratation": [
+        {
+          "niveau": "Légère",
+          "description": "Peau qui tiraille légèrement, éclat réduit, légers plissements à l'expression",
+          "actifs_recommandes": ["Acide hyaluronique (faible poids moléculaire)", "Glycérine", "Aloe vera"],
+          "actifs_a_eviter": ["Produits à base d'alcool", "Nettoyants moussants agressifs"],
+          "texture_privilegiee": "Sérum hydratant léger + crème légère",
+          "routine_cle": "Appliquer le sérum hyaluronique sur peau légèrement humide pour maximiser l'absorption",
+          "conseil_lifestyle": "Augmenter l'apport en eau (objectif 1,5-2L/j), humidificateur en hiver",
+          "regles_coherence": {
+            "si_type_peau_grasse": "La peau grasse peut être déshydratée : utiliser acide hyaluronique sous le soin matifiant",
+            "si_meteo_froid_sec": "Renforcer l'occlusif (squalane) par-dessus le sérum pour éviter l'évaporation",
+            "si_acne_legere": "Hydrater avec acide hyaluronique même en cure anti-acné pour éviter l'effet rebond sébacé"
+          }
+        },
+        {
+          "niveau": "Modérée",
+          "description": "Tiraillements réguliers, teint terne, rides de déshydratation visibles, inconfort fréquent",
+          "actifs_recommandes": ["Acide hyaluronique multi-poids moléculaire", "Glycérine", "Bêta-glucane", "Céramides", "Urée (5%)"],
+          "actifs_a_eviter": ["Alcool dénat.", "Nettoyants moussants agressifs", "AHA sans hydratation compensatoire"],
+          "texture_privilegiee": "Essence hydratante + sérum + crème riche",
+          "routine_cle": "Méthode layering : appliquer plusieurs couches légères plutôt qu'une seule couche épaisse",
+          "conseil_lifestyle": "Limiter la caféine et l'alcool, augmenter eau et aliments riches en eau (concombre, pastèque)",
+          "regles_coherence": {
+            "si_acne_moderee": "Traiter déshydratation en priorité — la peau déshydratée surcompense en sébum et aggrave l'acné",
+            "si_rougeurs_moderees": "Barrière fragilisée amplifie les rougeurs : hydrater avec céramides + acide hyaluronique avant tout autre actif",
+            "si_meteo_froid_sec": "Ajouter impérativement un occlusif (squalane, beurre de karité léger) en dernière étape",
+            "si_cycle_luteale": "Sébum augmenté peut masquer la déshydratation : maintenir l'hydratation même si peau grasse apparemment"
+          }
+        },
+        {
+          "niveau": "Forte",
+          "description": "Peau qui tiraille en permanence, squame possible, sensation de masque, rides de déshydratation marquées",
+          "actifs_recommandes": ["Acide hyaluronique multi-poids moléculaire", "Céramides (1, 3, 6-II)", "Glycérine", "Urée (5-10%)", "Squalane", "Panthénol (B5)"],
+          "actifs_a_eviter": ["Tous les acides exfoliants (AHA, BHA) jusqu'à rétablissement de la barrière", "Alcool", "Parfums", "Rétinol"],
+          "texture_privilegiee": "Balm cleanser, essence + sérum + crème barrière + huile ou baume de finition",
+          "routine_cle": "Stopper temporairement tous les actifs — 2 semaines de routine barrière pure avant réintroduction",
+          "conseil_lifestyle": "Humidificateur obligatoire, éviter eau trop chaude, revoir alimentation et hydratation quotidienne",
+          "alerte": "Si la déshydratation persiste malgré une routine adaptée, écarter une condition dermatologique sous-jacente",
+          "regles_coherence": {
+            "si_acne_forte": "Situation complexe : la peau ne peut pas traiter l'acné si la barrière est effondrée — protocole barrière en priorité 2 semaines, puis réintroduction progressive d'un seul actif anti-acné doux",
+            "si_rougeurs_fortes": "Urgence barrière maximale : uniquement soins réparateurs ultra-minimalistes, aucun actif",
+            "si_objectif_anti_age_ou_eclat": "Reporter tous les actifs (rétinol, AHA, vitamine C) jusqu'au rétablissement de la barrière",
+            "si_meteo_froid_sec_ou_pollution": "Double agression externe : renforcer la protection avec un occlusif épais matin et soir"
+          }
+        }
+      ]
+    },
     "regles_globales": [
       "Ne jamais recommander de produit commercial spécifique (marque)",
       "Toujours mentionner SPF si objectif Éclat, Taches ou Anti-âge",

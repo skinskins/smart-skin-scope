@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import faceScan from "@/assets/face-scan.png";
 import MetricCard from "@/components/MetricCard";
 import SkinScoreRing from "@/components/SkinScoreRing";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -131,13 +131,14 @@ const Dashboard = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const log = { ...defaultDailyLog, ...parsed };
+        let log = { ...defaultDailyLog, ...parsed };
         
         if (log.checkinDate !== today) {
-          return {
+          log = {
             ...log,
             sleepHours: null,
             stressLevel: null,
+            waterGlasses: null,
             alcoholDrinks: null,
             makeupRemoved: null,
             didSport: null,
@@ -145,6 +146,13 @@ const Dashboard = () => {
             checkinDate: "" 
           };
         }
+
+        // Recalculate cycle phase if we have the date but no phase or old phase
+        if (log.lastPeriodDate && (!log.cyclePhase || log.checkinDate !== today)) {
+            const calc = calculateCyclePhase(log.lastPeriodDate, log.cycleDuration, log.periodDuration);
+            log.cyclePhase = calc.phase;
+        }
+
         return log;
       } catch { }
     }
@@ -212,8 +220,8 @@ const Dashboard = () => {
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
   const [selectedTip, setSelectedTip] = useState<AdviceItem | null>(null);
   const [userConcerns, setUserConcerns] = useState<string[]>([]);
-  const bioTrackingRef = useState<HTMLDivElement | null>(null)[0];
-  const bioRef = useState<any>(null)[0]; // We'll use a simple ID instead for reliability
+  const bioTrackingRef = useRef<HTMLDivElement>(null);
+  const bioRef = useRef<any>(null); 
 
   const [isStravaLoading, setIsStravaLoading] = useState(false);
 
@@ -285,8 +293,8 @@ const Dashboard = () => {
 
         // Fetch remote data to ensure persistence across devices
         // @ts-ignore
-        supabase.from('profiles').select('*').eq('id', session.user.id).single()
-          .then(({ data, error }) => {
+        (supabase as any).from('profiles').select('*').eq('id', session.user.id).single()
+          .then(({ data, error }: any) => {
             if (data && !error) {
               const profile = data as any;
               setSkinType(profile.skin_type || null);
@@ -422,7 +430,7 @@ const Dashboard = () => {
         updates.period_duration = newLog.periodDuration;
       }
       // @ts-ignore
-      await supabase.from("profiles").update(updates).eq("id", session.user.id);
+      await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
 
       // Log to history for Passport
       const today = new Date().toISOString().split("T")[0];
@@ -716,7 +724,7 @@ const Dashboard = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData?.session) {
         // @ts-ignore
-        await supabase.from("profiles").update({
+        await (supabase as any).from("profiles").update({
           am_routine: tempAmProducts,
           pm_routine: tempPmProducts
         }).eq("id", sessionData.session.user.id);
@@ -748,7 +756,12 @@ const Dashboard = () => {
   };
 
   const openEditDialog = (id: string) => {
-    setEditValues({ heartRate: dailyLog.heartRate, stressLevel: dailyLog.stressLevel, sleepHours: dailyLog.sleepHours, location: manualLocation || dailyLog.location });
+    setEditValues({ 
+      heartRate: dailyLog.heartRate ?? 72, 
+      stressLevel: dailyLog.stressLevel ?? 3, 
+      sleepHours: dailyLog.sleepHours ?? 7.5, 
+      location: manualLocation || dailyLog.location || "Paris" 
+    });
     setEditingFactor(id);
   };
 
@@ -762,7 +775,7 @@ const Dashboard = () => {
         if (editName) updates.first_name = editName;
         if (editSkinType) updates.skin_type = editSkinType;
 
-        await supabase.from("profiles").update(updates).eq("id", session.user.id);
+        await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
 
         if (editName) {
           await supabase.auth.updateUser({ data: { first_name: editName } });

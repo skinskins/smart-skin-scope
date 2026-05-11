@@ -26,7 +26,7 @@ const Routine = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         // @ts-ignore
-        supabase.from('profiles').select('*').eq('id', session.user.id).single()
+        (supabase as any).from('profiles').select('*').eq('id', session.user.id).single()
           .then(({ data, error }) => {
             if (data && !error) {
               const profile = data as any;
@@ -50,7 +50,7 @@ const Routine = () => {
 
       setIsSearching(true);
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('user_products')
           .select('*')
           .or(`product_name.ilike.%${customProductInput}%,brand.ilike.%${customProductInput}%`)
@@ -77,7 +77,7 @@ const Routine = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData?.session) {
         // @ts-ignore
-        await supabase.from("profiles").update({
+        await (supabase as any).from("profiles").update({
           am_routine: am,
           pm_routine: pm
         }).eq("id", sessionData.session.user.id);

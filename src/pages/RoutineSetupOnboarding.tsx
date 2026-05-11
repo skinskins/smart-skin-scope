@@ -39,7 +39,7 @@ const RoutineSetupOnboarding = () => {
 
             setIsSearching(true);
             try {
-                const { data, error } = await supabase
+                const { data, error } = await (supabase as any)
                     .from('user_products')
                     .select('*')
                     .or(`product_name.ilike.%${customProductInput}%,brand.ilike.%${customProductInput}%`)
@@ -100,7 +100,7 @@ const RoutineSetupOnboarding = () => {
             const { data: sessionData } = await supabase.auth.getSession();
             if (sessionData?.session) {
                 // @ts-ignore
-                await supabase.from("profiles").update({
+                await (supabase as any).from("profiles").update({
                     am_routine: tempAmProducts,
                     pm_routine: tempPmProducts
                 }).eq("id", sessionData.session.user.id);

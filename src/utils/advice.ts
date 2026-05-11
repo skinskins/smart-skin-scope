@@ -65,6 +65,7 @@ export function getActiveAdvice(ctx: Context): AdviceItem[] {
     const skinType = ctx.skinType as "dry" | "oily" | "combo" | "normal";
 
     const processGroup = (matrix: any, groupKey: string, priority: "high" | "medium" | "low") => {
+        if (!matrix || !matrix.groups) return;
         const group = matrix.groups[groupKey];
         if (!group) return;
 
@@ -177,4 +178,5 @@ export const SKIN_TYPE_MAP: Record<string, string> = {
     "Grasse": "oily",
     "Mixte": "combo",
     "Normale": "normal",
+    "Acnéique": "oily",
 };

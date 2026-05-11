@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb } from "lucide-react";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import matrixData from "@/data/skincare_matrix.json";
 
-const matrix = matrixData.skincare_matrix;
+const matrix = (matrixData as any).skincare_matrix;
 
 const professions = [
     "Étudiant(e)",
@@ -24,6 +24,12 @@ const professions = [
 ];
 
 const channels = ["Instagram", "LinkedIn", "TikTok", "Facebook", "Twitter/X", "Bouche à oreille", "Recherche Google", "Autre"];
+
+const BASELINE_MAP: Record<string, string> = {
+    "Légère": "moins", "Légères": "moins",
+    "Modérée": "pareil", "Modérées": "pareil",
+    "Forte": "plus", "Fortes": "plus",
+};
 
 const Signup = () => {
     const navigate = useNavigate();
@@ -51,7 +57,13 @@ const Signup = () => {
     const [quizStep, setQuizStep] = useState(1);
     const [quizAnswers, setQuizAnswers] = useState({ q1: "", q2: "", q3: "", q4: "" });
 
+    // Step 3.1: Skin State Baselines (Amira branch)
+    const [acneBaseline, setAcneBaseline] = useState("");
+    const [rednessBaseline, setRednessBaseline] = useState("");
+    const [drynessBaseline, setDrynessBaseline] = useState("");
+
     const [step, setStep] = useState(1);
+    const [showSkinState, setShowSkinState] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -108,7 +120,7 @@ const Signup = () => {
         const advices: { title: string, content: string, iconStr: string }[] = [];
 
         // 1. Type Advice
-        const typeInfo = matrix.types_de_peau.find(t => t.type === skinType);
+        const typeInfo = matrix.types_de_peau.find((t: any) => t.type === skinType);
         if (typeInfo) {
             advices.push({
                 title: `Peau ${skinType}`,
@@ -117,9 +129,39 @@ const Signup = () => {
             });
         }
 
-        // 2. Goals Advice
+        // 2. Intensity-based advice (The new matrix section)
+        if (acneBaseline) {
+            const acneInfo = matrix.intensite_sensibilites.acne.find((a: any) => a.niveau === acneBaseline);
+            if (acneInfo) {
+                let content = `${acneInfo.description}. Misez sur ${acneInfo.actifs_recommandes.slice(0, 2).join(' et ')}.`;
+                if (acneInfo.regles_coherence?.si_type_peau_seche && skinType === "Sèche") {
+                    content += ` Note : ${acneInfo.regles_coherence.si_type_peau_seche}`;
+                }
+                if (acneInfo.alerte) content += ` Important : ${acneInfo.alerte}`;
+                advices.push({ title: `Acné ${acneBaseline}`, content, iconStr: "🩹" });
+            }
+        }
+
+        if (rednessBaseline) {
+            const rednessInfo = matrix.intensite_sensibilites.rougeurs.find((r: any) => r.niveau === rednessBaseline);
+            if (rednessInfo) {
+                let content = `${rednessInfo.description}. Incorporez ${rednessInfo.actifs_recommandes.slice(0, 2).join(' ou ')}.`;
+                if (rednessInfo.alerte) content += ` Important : ${rednessInfo.alerte}`;
+                advices.push({ title: `Rougeurs ${rednessBaseline}`, content, iconStr: "🌿" });
+            }
+        }
+
+        if (drynessBaseline) {
+            const drynessInfo = matrix.intensite_sensibilites.deshydratation.find((d: any) => d.niveau === drynessBaseline);
+            if (drynessInfo) {
+                let content = `${drynessInfo.description}. ${drynessInfo.routine_cle}.`;
+                advices.push({ title: `Sécheresse ${drynessBaseline}`, content, iconStr: "💧" });
+            }
+        }
+
+        // 3. Goals Advice
         skinGoals.forEach(goal => {
-            const goalInfo = matrix.objectifs.find(o => o.objectif === goal);
+            const goalInfo = matrix.objectifs.find((o: any) => o.objectif === goal);
             if (goalInfo) {
                 let content = `Pour votre objectif ${goal}, misez sur ${goalInfo.actifs_cles.slice(0, 2).join(' et ')}.`;
                 if (goalInfo.regles.includes("SPF obligatoire")) {
@@ -133,7 +175,7 @@ const Signup = () => {
             }
         });
 
-        // 3. Problem / Sensitivity Rules
+        // 4. Special Rules
         if (skinType === "Sensible" || skinProblems.includes("Eczéma")) {
             advices.push({
                 title: "Précaution",
@@ -142,14 +184,39 @@ const Signup = () => {
             });
         }
 
-        return advices.slice(0, 3);
+        return advices.slice(0, 4); // Show up to 4 advices
     };
 
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (step === 3 && !showPreview) {
+        // New logic: Step 3 -> Step 3.1 (Skin State)
+        if (step === 3 && !showSkinState && !showPreview) {
+            const hasAcne = skinProblems.includes("Acné") || skinProblems.includes("Points noirs") || skinType === "Acnéique";
+            const hasRedness = skinProblems.includes("Rougeurs") || skinProblems.includes("Eczéma");
+            const hasDryness = skinProblems.includes("Déshydratation") || skinType === "Sèche";
+
+            if (hasAcne || hasRedness || hasDryness) {
+                setShowSkinState(true);
+                window.scrollTo(0, 0);
+                return;
+            } else {
+                setShowPreview(true);
+                window.scrollTo(0, 0);
+                return;
+            }
+        }
+
+        if (showSkinState) {
+            setShowSkinState(false);
             setShowPreview(true);
+            window.scrollTo(0, 0);
+            return;
+        }
+
+        if (step === 3 && showPreview) {
+            setStep(4);
+            setShowPreview(false);
             window.scrollTo(0, 0);
             return;
         }
@@ -157,6 +224,7 @@ const Signup = () => {
         if (step < 4) {
             setStep(step + 1);
             setShowPreview(false);
+            setShowSkinState(false);
             window.scrollTo(0, 0);
             return;
         }
@@ -184,6 +252,8 @@ const Signup = () => {
                 return;
             }
 
+            const today = new Date().toISOString().split("T")[0];
+
             const { error: profileError } = await (supabase as any).from("profiles").upsert({
                 id: userId,
                 first_name: firstName,
@@ -196,6 +266,15 @@ const Signup = () => {
                 skin_problems: skinProblems.length > 0 ? skinProblems : null,
                 skin_goals: skinGoals.length > 0 ? skinGoals : null
             });
+
+            // Save skin state baselines to symptom_tracking
+            const baselinePromises = [
+                acneBaseline && (supabase as any).from("symptom_tracking").upsert({ user_id: userId, date: today, symptom: "acné", trend: BASELINE_MAP[acneBaseline], period: "daily" }),
+                rednessBaseline && (supabase as any).from("symptom_tracking").upsert({ user_id: userId, date: today, symptom: "rougeurs", trend: BASELINE_MAP[rednessBaseline], period: "daily" }),
+                drynessBaseline && (supabase as any).from("symptom_tracking").upsert({ user_id: userId, date: today, symptom: "sécheresse", trend: BASELINE_MAP[drynessBaseline], period: "daily" }),
+            ].filter(Boolean);
+
+            await Promise.all(baselinePromises);
 
             if (profileError) {
                 console.error("Profile update error:", profileError);
@@ -221,7 +300,11 @@ const Signup = () => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     onClick={() => {
-                        if (showPreview) setShowPreview(false);
+                        if (showPreview) {
+                            if (acneBaseline || rednessBaseline || drynessBaseline) setShowSkinState(true);
+                            else setShowPreview(false);
+                        }
+                        else if (showSkinState) setShowSkinState(false);
                         else if (step > 1) setStep(step - 1);
                         else navigate("/onboarding");
                     }}
@@ -230,12 +313,12 @@ const Signup = () => {
                     <ArrowLeft size={18} strokeWidth={1.5} className="text-foreground" />
                 </motion.button>
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em] bg-white/40 px-5 py-2.5 rounded-full border border-border/40 backdrop-blur-sm">
-                    {showPreview ? "Aperçu Lab" : `Étape ${step} / 4`}
+                    {showPreview ? "Aperçu Lab" : showSkinState ? "État Actuel" : `Étape ${step} / 4`}
                 </div>
             </div>
 
             <motion.div
-                key={showPreview ? "preview" : step}
+                key={showPreview ? "preview" : showSkinState ? "skin-state" : step}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -270,7 +353,6 @@ const Signup = () => {
                                 </motion.div>
                             ))}
 
-                            {/* Blur transition to more tips */}
                             <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-10 pointer-events-none" />
                             
                             <motion.div
@@ -296,7 +378,76 @@ const Signup = () => {
 
                         <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-30">
                             <button
-                                onClick={() => { setStep(4); setShowPreview(false); }}
+                                onClick={handleNext}
+                                className="w-full h-16 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+                            >
+                                CONTINUER <ArrowRight size={18} strokeWidth={2.5} />
+                            </button>
+                        </div>
+                    </div>
+                ) : showSkinState ? (
+                    <div className="space-y-8 h-full flex flex-col">
+                        <div className="mb-6">
+                            <h1 className="text-4xl font-display text-foreground leading-tight mb-3">État actuel</h1>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre point de départ aujourd'hui</p>
+                        </div>
+
+                        <div className="space-y-10 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
+                            {(skinProblems.includes("Acné") || skinProblems.includes("Points noirs") || skinType === "Acnéique") && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 ml-4">
+                                        <Activity size={14} className="text-primary/60" />
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Intensité de l'acné</label>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {["Légère", "Modérée", "Forte"].map(lvl => (
+                                            <button key={lvl} onClick={() => setAcneBaseline(lvl)}
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${acneBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                {lvl}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {(skinProblems.includes("Rougeurs") || skinProblems.includes("Eczéma")) && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 ml-4">
+                                        <Flame size={14} className="text-primary/60" />
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Intensité des rougeurs</label>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {["Légères", "Modérées", "Fortes"].map(lvl => (
+                                            <button key={lvl} onClick={() => setRednessBaseline(lvl)}
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${rednessBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                {lvl}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {(skinProblems.includes("Déshydratation") || skinType === "Sèche") && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 ml-4">
+                                        <Droplets size={14} className="text-primary/60" />
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Niveau de sécheresse</label>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {["Légère", "Modérée", "Forte"].map(lvl => (
+                                            <button key={lvl} onClick={() => setDrynessBaseline(lvl)}
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${drynessBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                {lvl}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-30">
+                            <button
+                                onClick={handleNext}
                                 className="w-full h-16 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
                             >
                                 CONTINUER <ArrowRight size={18} strokeWidth={2.5} />
@@ -575,81 +726,6 @@ const Signup = () => {
                                                 </button>
                                             ))}
                                         </div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        {step === 4 && (
-                            <>
-                                <div className="mb-10">
-                                    <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Inscription</h1>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Créez votre profil biologique</p>
-                                </div>
-                                <div className="space-y-6 flex-1 overflow-y-auto pb-4 custom-scrollbar">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Prénom</label>
-                                        <div className="relative">
-                                            <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <Input type="text" placeholder="John" required
-                                                className="pl-12"
-                                                value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Nom</label>
-                                        <div className="relative">
-                                            <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <Input type="text" placeholder="Doe" required
-                                                className="pl-12"
-                                                value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Email</label>
-                                        <div className="relative">
-                                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <Input type="email" placeholder="email@example.com" required
-                                                className="pl-12"
-                                                value={email} onChange={(e) => setEmail(e.target.value)} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Mot de passe</label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <Input type="password" placeholder="••••••••" required
-                                                className="pl-12"
-                                                value={password} onChange={(e) => setPassword(e.target.value)} />
-                                        </div>
-                                        <div className="px-4 space-y-2.5 mt-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${password.length >= 8 ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
-                                                <p className={`text-[9px] font-bold uppercase tracking-wider ${password.length >= 8 ? 'text-primary' : 'text-muted-foreground/40'}`}>8 caractères min.</p>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(password) ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
-                                                <p className={`text-[9px] font-bold uppercase tracking-wider ${/[A-Z]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>Une majuscule</p>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-1.5 h-1.5 rounded-full ${/[0-9]/.test(password) ? 'bg-primary' : 'bg-muted-foreground/20'}`} />
-                                                <p className={`text-[9px] font-bold uppercase tracking-wider ${/[0-9]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>Un chiffre</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="pt-8 border-t border-border/40">
-                                        <p className="text-[9px] font-bold text-muted-foreground text-center leading-relaxed tracking-widest uppercase opacity-60 px-4">
-                                            En créant un compte, vous acceptez notre{" "}
-                                            <button type="button" onClick={() => navigate("/rgpd")} className="text-primary hover:opacity-70 transition-all underline underline-offset-4">politique de confidentialité</button>
-                                        </p>
-                                    </div>
-                                    <div className="pt-6 text-center">
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                            Déjà un compte ?{" "}
-                                            <button type="button" onClick={() => navigate("/login")} className="text-primary border-b border-primary/20 ml-2 hover:border-primary transition-all">
-                                                Se connecter
-                                            </button>
-                                        </p>
                                     </div>
                                 </div>
                             </>
