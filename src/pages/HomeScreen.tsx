@@ -32,20 +32,20 @@ interface PourVousCardData {
 const ADVICE_CARDS: AdviceCardData[] = [
   {
     subtitle: "UV élevé · Protection solaire",
-    text: "Les UVA traversent les nuages et accélèrent le vieillissement cutané. Une protection quotidienne est indispensable même par temps couvert.",
-    product: "La Roche-Posay Anthelios UV Mune 400",
+    advice_text: "Les UVA traversent les nuages et accélèrent le vieillissement cutané. Une protection quotidienne est indispensable même par temps couvert.",
+    advice_title: "La Roche-Posay Anthelios UV Mune 400",
     number: "01",
   },
   {
     subtitle: "Sommeil · Récupération",
-    text: "Moins de 7h de sommeil augmente la production de cortisol et favorise l'apparition d'imperfections. La peau se régénère profondément la nuit.",
-    product: "Nuxe Nuit Merveilleuse — Sérum réparateur nocturne",
+    advice_text: "Moins de 7h de sommeil augmente la production de cortisol et favorise l'apparition d'imperfections. La peau se régénère profondément la nuit.",
+    advice_title: "Nuxe Nuit Merveilleuse — Sérum réparateur nocturne",
     number: "02",
   },
   {
     subtitle: "Hydratation · Barrière cutanée",
-    text: "Votre apport hydrique influence directement la fermeté et l'éclat. Renforcez votre barrière avec un sérum à l'acide hyaluronique.",
-    product: "Vichy Minéral 89 — Acide hyaluronique 89 %",
+    advice_text: "Votre apport hydrique influence directement la fermeté et l'éclat. Renforcez votre barrière avec un sérum à l'acide hyaluronique.",
+    advice_title: "Vichy Minéral 89 — Acide hyaluronique 89 %",
     number: "03",
   },
 ];
@@ -238,10 +238,16 @@ const HomeScreen = () => {
           if (data) setUserProducts(data);
         });
 
-      // Fetch symptoms
+      // Fetch symptoms — redirect to check-in if no entry today and not skipped
       supabase.from('symptom_tracking').select('*').eq('user_id', userId).eq('date', today).eq('period', 'daily')
         .then(({ data }) => {
-          if (data) setDailySymptoms(data);
+          if (data) {
+            setDailySymptoms(data);
+            if (data.length === 0) {
+              const skipped = sessionStorage.getItem(`checkin_skipped_${today}`);
+              if (!skipped) navigate('/skin-checkin');
+            }
+          }
         });
 
       // Fetch checkin (cycle phase)
@@ -322,21 +328,21 @@ const HomeScreen = () => {
       // --- SLOT 1: Symptômes + INCI ---
       const symptomsPlus = dailySymptoms.filter(s => s.trend === 'plus');
       if (symptomsPlus.length > 0) {
-        const activeSymptom = symptomsPlus[0]; // Take first one for simplicity/slot limit
-        const acids = ['glycolic acid', 'salicylic acid', 'lactic acid', 'tartaric acid', 'lha'];
+        const activeSymptom = symptomsPlus[0]; 
+        const irritants = ['glycolic acid', 'salicylic acid', 'lactic acid', 'tartaric acid', 'lha', 'retinol', 'retinal'];
         
-        // Find a product with acids if redness is up
         const irritantProduct = userProducts.find(p => {
           const ingredients = (p.ingredients || '').toLowerCase();
-          return (activeSymptom.symptom === 'rougeurs' || activeSymptom.symptom === 'sensibilité') && 
-                 acids.some(a => ingredients.includes(a));
+          const name = p.product_name.toLowerCase();
+          const isIrritant = irritants.some(a => ingredients.includes(a) || name.includes(a));
+          return (activeSymptom.symptom === 'rougeurs' || activeSymptom.symptom === 'sensibilité') && isIrritant;
         });
 
         if (irritantProduct) {
           slots.push({
             advice_title: irritantProduct.product_name,
             advice_text: `Tes ${activeSymptom.symptom} s'aggravent — évite ton *${irritantProduct.product_name}* ce soir.`,
-            advice_tip: "Les actifs exfoliants peuvent irriter une barrière cutanée déjà sollicitée.",
+            advice_tip: "Les actifs exfoliants ou le rétinol peuvent irriter une barrière cutanée déjà réactive.",
             advice_group: "slot1",
             priority: "high",
             subtitle: "Symptômes + INCI",
@@ -347,14 +353,26 @@ const HomeScreen = () => {
 
       // --- SLOT 2: Routine + Ordre ---
       if (userProducts.length >= 2) {
-        const serum = userProducts.find(p => p.product_name.toLowerCase().includes('sérum'));
-        const cream = userProducts.find(p => p.product_name.toLowerCase().includes('crème') || p.product_name.toLowerCase().includes('hydratant'));
+        const vitC = userProducts.find(p => p.product_name.toLowerCase().includes('vitamine c') || p.product_name.toLowerCase().includes('vitamin c'));
+        const spf = userProducts.find(p => p.product_name.toLowerCase().includes('spf') || p.product_name.toLowerCase().includes('solaire') || p.product_name.toLowerCase().includes('protection'));
+        const serum = userProducts.find(p => p.product_name.toLowerCase().includes('sérum') || p.product_name.toLowerCase().includes('serum'));
+        const cream = userProducts.find(p => p.product_name.toLowerCase().includes('crème') || p.product_name.toLowerCase().includes('hydratant') || p.product_name.toLowerCase().includes('cream'));
 
-        if (serum && cream) {
+        if (vitC && spf) {
+          slots.push({
+            advice_title: "Duo Antioxydant",
+            advice_text: `Applique ton *${vitC.product_name}* sous ton *${spf.product_name}* pour booster la protection.`,
+            advice_tip: "La Vitamine C neutralise les radicaux libres que le SPF ne peut pas tous filtrer.",
+            advice_group: "slot2",
+            priority: "medium",
+            subtitle: "Routine · Association",
+            number: "02"
+          });
+        } else if (serum && cream) {
           slots.push({
             advice_title: "Ordre d'application",
             advice_text: `Applique ton *${serum.product_name}* avant ta *${cream.product_name}*, pas après.`,
-            advice_tip: "Les textures fluides pénètrent mieux sur peau nue, la crème scelle l'hydratation ensuite.",
+            advice_tip: "Les textures fluides (sérums) pénètrent mieux sur peau nue, la crème scelle l'hydratation.",
             advice_group: "slot2",
             priority: "medium",
             subtitle: "Routine · Ordre",
@@ -391,7 +409,9 @@ const HomeScreen = () => {
 
       if (slot3) slots.push(slot3);
 
-      setAdviceList(slots.slice(0, 3));
+      const result = slots.slice(0, 3);
+      const padded = [...result, ...ADVICE_CARDS.slice(result.length)].slice(0, 3);
+      setAdviceList(padded);
     };
 
     calculateAdvice();
@@ -431,7 +451,11 @@ const HomeScreen = () => {
       const rows = adviceList.map(advice => ({
         user_id: userId,
         date: today,
-        ...advice
+        advice_title: advice.advice_title,
+        advice_text: advice.advice_text,
+        advice_tip: advice.advice_tip,
+        advice_group: advice.advice_group,
+        priority: advice.priority
       }));
 
       console.log("[HomeScreen] Upserting advice rows:", rows.length);
