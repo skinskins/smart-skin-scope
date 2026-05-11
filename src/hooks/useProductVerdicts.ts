@@ -90,6 +90,46 @@ export function useProductVerdicts() {
         });
 
         setVerdicts(newVerdicts);
+
+        // --- PERSISTENCE: INCI Verdicts ---
+        const nonNeutralVerdicts = newVerdicts.filter(v => v.verdict !== 'neutral');
+        console.log("[useProductVerdicts] Calculated verdicts. Non-neutral count:", nonNeutralVerdicts.length);
+
+        if (nonNeutralVerdicts.length > 0) {
+          const { data: existing, error: checkError } = await supabase
+            .from("daily_inci_verdicts")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("date", today)
+            .limit(1);
+
+          if (checkError) console.error("[useProductVerdicts] Check existing error:", checkError);
+
+          if (!existing || existing.length === 0) {
+            const rows = nonNeutralVerdicts.map(v => {
+              const product = products.find(p => p.id === v.product_id);
+              return {
+                user_id: userId,
+                date: today,
+                product_id: v.product_id,
+                product_name: product?.product_name || 'Inconnu',
+                verdict: v.verdict,
+                reason: v.reason,
+                rule_id: v.reason?.includes("acides") ? "rule_acids_redness" : (v.reason?.includes("niacinamide") ? "rule_niacinamide_redness" : "rule_stress_alcohol")
+              };
+            });
+
+            console.log("[useProductVerdicts] Upserting verdicts rows:", rows.length);
+            const { error } = await supabase.from("daily_inci_verdicts").upsert(rows, { onConflict: 'user_id,date,product_id' });
+            if (error) {
+              console.error("[useProductVerdicts] Upsert error:", error);
+            } else {
+              console.log("[useProductVerdicts] Verdicts persisted successfully");
+            }
+          } else {
+            console.log("[useProductVerdicts] Verdicts already exist for today");
+          }
+        }
       } catch (error) {
         console.error('Error fetching product verdicts:', error);
       } finally {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Check, X, ChevronRight, Sparkles, Sun, Leaf, Target, Plane, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useWeatherData } from "@/hooks/useWeatherData";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -187,6 +188,10 @@ const HomeScreen = () => {
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [userName, setUserName] = useState("");
   const [amProducts, setAmProducts] = useState<RoutineProduct[]>([]);
+  const [manualLocation] = useState<string | null>(() => localStorage.getItem("manualLocation"));
+  const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
+  const [adviceList, setAdviceList] = useState<any[]>([]);
+  const [isPersisting, setIsPersisting] = useState({ weather: false, advice: false });
 
   // Initialise check-in state + routine products
   useEffect(() => {
@@ -212,6 +217,168 @@ const HomeScreen = () => {
       if (fn) setUserName(fn);
     });
   }, []);
+
+  // --- PERSISTENCE: Weather ---
+  useEffect(() => {
+    if (weatherLoading || !liveWeather.locationName || liveWeather.locationName === "...") return;
+    if (isPersisting.weather) return;
+
+    const persistWeather = async () => {
+      console.log("[HomeScreen] Attempting weather persistence...");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log("[HomeScreen] No session for weather persistence");
+        return;
+      }
+
+      const userId = session.user.id;
+      const today = new Date().toISOString().split("T")[0];
+      console.log("[HomeScreen] User:", userId, "Date:", today);
+
+      // Check if already exists for today
+      const { data: existing, error: checkError } = await supabase
+        .from("daily_weather")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .maybeSingle();
+
+      if (checkError) console.error("[HomeScreen] Check weather error:", checkError);
+
+      if (existing) {
+        console.log("[HomeScreen] Weather already exists for today");
+        setIsPersisting(prev => ({ ...prev, weather: true }));
+        return;
+      }
+
+      console.log("[HomeScreen] Upserting weather data:", {
+        location: liveWeather.locationName,
+        temp: liveWeather.temp
+      });
+
+      const { error } = await supabase.from("daily_weather").upsert({
+        user_id: userId,
+        date: today,
+        location: liveWeather.locationName,
+        temp_c: liveWeather.temp,
+        humidity: liveWeather.humidity,
+        uv_index: liveWeather.uv,
+        aqi_score: liveWeather.aqiScore,
+        pollution_label: liveWeather.pollution
+      }, { onConflict: 'user_id,date' });
+
+      if (error) {
+        console.error("[HomeScreen] Upsert weather error:", error);
+      } else {
+        setIsPersisting(prev => ({ ...prev, weather: true }));
+        console.log("[HomeScreen] Weather persisted successfully");
+      }
+    };
+
+    persistWeather();
+  }, [liveWeather, weatherLoading, isPersisting.weather]);
+
+  // --- CALCULATE: Advice List ---
+  useEffect(() => {
+    const factors = JSON.parse(localStorage.getItem("dailyCheckinData") || "{}");
+    const tips: any[] = [];
+
+    // Weather tips
+    if (liveWeather.uv >= 6) {
+      tips.push({ 
+        advice_title: "UV élevé", 
+        advice_text: `Indice UV à ${liveWeather.uv}. Réappliquez votre SPF toutes les 2h.`,
+        advice_tip: "Les UVA traversent les nuages et accélèrent le vieillissement.",
+        advice_group: "Météo",
+        priority: "high"
+      });
+    }
+    if (liveWeather.humidity > 0 && liveWeather.humidity < 40) {
+      tips.push({
+        advice_title: "Air sec",
+        advice_text: "L'humidité est basse aujourd'hui. Renforcez l'hydratation.",
+        advice_tip: "Un sérum à l'acide hyaluronique aide à retenir l'eau.",
+        advice_group: "Météo",
+        priority: "medium"
+      });
+    }
+
+    // Check-in tips
+    if (factors.sleep && factors.sleep < 7) {
+      tips.push({
+        advice_title: "Manque de sommeil",
+        advice_text: "Votre peau se régénère la nuit. Moins de 7h altère ce processus.",
+        advice_tip: "Une nuit de 8h booste le renouvellement cellulaire.",
+        advice_group: "Mode de vie",
+        priority: "high"
+      });
+    }
+    if (factors.water && factors.water < 6) {
+      tips.push({
+        advice_title: "Déshydratation",
+        advice_text: "L'apport en eau est insuffisant pour la barrière cutanée.",
+        advice_tip: "Visez 8 verres par jour pour un teint éclatant.",
+        advice_group: "Santé",
+        priority: "medium"
+      });
+    }
+
+    if (tips.length > 0) {
+      setAdviceList(tips);
+    }
+  }, [liveWeather]);
+
+  // --- PERSISTENCE: Advice ---
+  useEffect(() => {
+    if (adviceList.length === 0 || isPersisting.advice) return;
+
+    const persistAdvice = async () => {
+      console.log("[HomeScreen] Attempting advice persistence... adviceList count:", adviceList.length);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log("[HomeScreen] No session for advice persistence");
+        return;
+      }
+
+      const userId = session.user.id;
+      const today = new Date().toISOString().split("T")[0];
+
+      // Check if already exists for today
+      const { data: existing, error: checkError } = await supabase
+        .from("daily_advice_log")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .limit(1);
+
+      if (checkError) console.error("[HomeScreen] Check advice error:", checkError);
+
+      if (existing && existing.length > 0) {
+        console.log("[HomeScreen] Advice already exists for today");
+        setIsPersisting(prev => ({ ...prev, advice: true }));
+        return;
+      }
+
+      const rows = adviceList.map(advice => ({
+        user_id: userId,
+        date: today,
+        ...advice
+      }));
+
+      console.log("[HomeScreen] Upserting advice rows:", rows.length);
+
+      const { error } = await supabase.from("daily_advice_log").upsert(rows, { onConflict: 'user_id,date,advice_title' });
+
+      if (error) {
+        console.error("[HomeScreen] Upsert advice error:", error);
+      } else {
+        setIsPersisting(prev => ({ ...prev, advice: true }));
+        console.log("[HomeScreen] Advice persisted successfully");
+      }
+    };
+
+    persistAdvice();
+  }, [adviceList, isPersisting.advice]);
 
   // "Tes conseils sont prêts" transition when arriving from check-in
   useEffect(() => {
