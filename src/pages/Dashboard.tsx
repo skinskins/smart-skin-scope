@@ -310,14 +310,18 @@ const Dashboard = () => {
               // Fetch latest symptom zones
               const today = new Date().toISOString().split("T")[0];
               (supabase as any).from("symptom_tracking")
-                .select("symptom, zone")
+                .select("symptom, zone, trend")
                 .eq("user_id", session.user.id)
                 .eq("date", today)
                 .then(({ data: zonesData }: any) => {
                   if (zonesData) {
                     const zonesMap: Record<string, string> = {};
-                    zonesData.forEach((z: any) => { if (z.zone) zonesMap[z.symptom] = z.zone; });
-                    setDailyLog(prev => ({ ...prev, symptomZones: zonesMap }));
+                    const trendsMap: Record<string, string> = {};
+                    zonesData.forEach((z: any) => { 
+                      if (z.zone) zonesMap[z.symptom] = z.zone; 
+                      if (z.trend) trendsMap[z.symptom] = z.trend;
+                    });
+                    setDailyLog(prev => ({ ...prev, symptomZones: zonesMap, symptoms: { ...(prev.symptoms || {}), ...trendsMap } }));
                   }
                 });
 
@@ -349,7 +353,7 @@ const Dashboard = () => {
                       alcoholDrinks: checkinData.alcohol_drinks ?? prev.alcoholDrinks,
                       stressLevel: checkinData.stress_level ?? prev.stressLevel,
                       foodQuality: checkinData.food_quality ?? prev.foodQuality,
-                      didSport: checkinData.did_sport ?? prev.didSport,
+                      didSport: checkinData.sport_intensity ?? (checkinData.did_sport ? "Modéré" : "Non"),
                       makeupRemoved: checkinData.makeup_removed ?? prev.makeupRemoved,
                       cyclePhase: checkinData.cycle_phase ?? prev.cyclePhase,
                       checkinDate: today
@@ -429,7 +433,7 @@ const Dashboard = () => {
       if (editingFactor === 'stress') updates.stress_level = newLog.stressLevel;
       if (editingFactor === 'water') updates.water_glasses = newLog.waterGlasses;
       if (editingFactor === 'alcohol') updates.alcohol_drinks = newLog.alcoholDrinks;
-      if (editingFactor === 'sport') updates.did_sport = newLog.didSport;
+      if (editingFactor === 'sport') updates.did_sport = newLog.didSport !== "Non";
       if (editingFactor === 'makeup') updates.makeup_removed = newLog.makeupRemoved;
       if (editingFactor === 'alimentation') updates.food_quality = newLog.foodQuality;
       if (editingFactor === 'location') updates.manual_location = newLog.location;
@@ -452,7 +456,8 @@ const Dashboard = () => {
         water_glasses: newLog.waterGlasses,
         alcohol_drinks: newLog.alcoholDrinks,
         food_quality: newLog.foodQuality,
-        did_sport: newLog.didSport,
+        did_sport: newLog.didSport !== "Non",
+        sport_intensity: newLog.didSport,
         makeup_removed: newLog.makeupRemoved,
         cycle_phase: newLog.cyclePhase
       }, { onConflict: "user_id,date" });
@@ -1341,7 +1346,8 @@ const Dashboard = () => {
               water_glasses: updatedLog.waterGlasses,
               food_quality: updatedLog.foodQuality,
               alcohol_drinks: updatedLog.alcoholDrinks,
-              did_sport: updatedLog.didSport,
+              did_sport: updatedLog.didSport !== "Non",
+              sport_intensity: updatedLog.didSport,
               makeup_removed: updatedLog.makeupRemoved,
               cycle_phase: updatedLog.cyclePhase
             }, { onConflict: "user_id,date" });
