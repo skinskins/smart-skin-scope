@@ -28,6 +28,7 @@ import PassportScreen2 from "./features/passport/pages/PassportScreen2";
 import PassportScreen3 from "./features/passport/pages/PassportScreen3";
 import PassportScreen4 from "./features/passport/pages/PassportScreen4";
 import PassportScreen5 from "./features/passport/pages/PassportScreen5";
+import HealthKitPage from "./pages/HealthKitPage";
 
 
 
@@ -150,6 +151,7 @@ const App = () => (
           <Route path="/passport/factors" element={<AuthGuard><PassportScreen3 /></AuthGuard>} />
           <Route path="/passport/visual" element={<AuthGuard><PassportScreen4 /></AuthGuard>} />
           <Route path="/passport/details" element={<AuthGuard><PassportScreen5 /></AuthGuard>} />
+          <Route path="/profile/health" element={<AuthGuard><HealthKitPage /></AuthGuard>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

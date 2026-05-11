@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { LogOut, Pencil, User, Sparkles, Target, Activity } from "lucide-react";
+import { LogOut, Heart, Pencil, User, Sparkles, Target, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -25,13 +25,13 @@ const Profile = () => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // @ts-ignore
-        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        if (data) {
-          if (data.first_name) setFirstName(data.first_name);
-          if (data.skin_type) setSkinType(data.skin_type);
-          if (data.skin_problems) setSkinProblems(data.skin_problems);
-          if (data.skin_goals) setSkinGoals(data.skin_goals);
+        const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
+        const profile = data as any;
+        if (profile) {
+          if (profile.first_name) setFirstName(profile.first_name);
+          if (profile.skin_type) setSkinType(profile.skin_type);
+          if (profile.skin_problems) setSkinProblems(profile.skin_problems);
+          if (profile.skin_goals) setSkinGoals(profile.skin_goals);
         }
       }
       setLoading(false);
@@ -52,13 +52,12 @@ const Profile = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        // @ts-ignore
-        await supabase.from("profiles").update({
+        await (supabase as any).from("profiles").update({
           first_name: firstName,
           skin_type: skinType,
           skin_problems: skinProblems,
           skin_goals: skinGoals
-        }).eq("id", session.user.id);
+        } as any).eq("id", session.user.id);
         
         await supabase.auth.updateUser({ data: { first_name: firstName } });
         toast.success("Profil mis à jour");
@@ -176,6 +175,28 @@ const Profile = () => {
             {skinGoals.length > 0 ? skinGoals.map(g => (
               <span key={g} className="px-3 py-1 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{g}</span>
             )) : <p className="text-sm font-medium text-foreground/30 italic">Définir mes priorités...</p>}
+          </div>
+        </motion.div>
+
+        {/* Health Data - New Card */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          onClick={() => navigate("/profile/health")}
+          className="col-span-2 premium-card p-8 bg-gradient-to-br from-[#FF4B4B]/5 to-transparent border-[#FF4B4B]/10 cursor-pointer group active:scale-[0.98] transition-all"
+        >
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#FF4B4B]/10 flex items-center justify-center text-[#FF4B4B]">
+                <Heart size={24} strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-[#FF4B4B] uppercase tracking-[0.2em]">Apple Health</p>
+                <h3 className="text-xl font-display text-foreground italic group-hover:text-[#FF4B4B] transition-colors">Données Santé</h3>
+              </div>
+            </div>
+            <Activity size={20} className="text-muted-foreground/20 group-hover:text-[#FF4B4B] transition-colors" />
           </div>
         </motion.div>
       </div>
