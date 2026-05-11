@@ -9,8 +9,10 @@ import { useWeatherData } from "@/hooks/useWeatherData";
 import { useDiagnosisResult } from "@/hooks/useDiagnosisStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import DailyCheckinModal from "@/components/DailyCheckinModal";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { getActiveAdvice, Context, SKIN_TYPE_MAP, AdviceItem } from "@/utils/advice";
 import axios from "axios";
@@ -124,61 +126,47 @@ const formatUpdatedAgo = (timestamp: number) => {
 };
 
 const Dashboard = () => {
+  const [userConcerns, setUserConcerns] = useState<string[]>([]);
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [isFetchingCheckin, setIsFetchingCheckin] = useState(true);
+
   const [dailyLog, setDailyLog] = useState(() => {
     const today = new Date().toISOString().split('T')[0];
-    const saved = localStorage.getItem("dailyCheckinData");
-    
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        let log = { ...defaultDailyLog, ...parsed };
-        
-        if (log.checkinDate !== today) {
-          log = {
-            ...log,
-            sleepHours: null,
-            stressLevel: null,
-            waterGlasses: null,
-            alcoholDrinks: null,
-            makeupRemoved: null,
-            didSport: null,
-            cyclePhase: "",
-            checkinDate: "" 
-          };
-        }
-
-        // Recalculate cycle phase if we have the date but no phase or old phase
-        if (log.lastPeriodDate && (!log.cyclePhase || log.checkinDate !== today)) {
-            const calc = calculateCyclePhase(log.lastPeriodDate, log.cycleDuration, log.periodDuration);
-            log.cyclePhase = calc.phase;
-        }
-
-        return log;
-      } catch { }
-    }
-    return defaultDailyLog;
+    return { ...defaultDailyLog, checkinDate: today };
   });
 
   const today = new Date().toISOString().split('T')[0];
+  const relevantSymptoms = SYMPTOMS_CONFIG.filter(s => userConcerns.length === 0 || userConcerns.includes(s.problem));
   const isComplete = 
-    dailyLog.sleepHours !== null && 
-    dailyLog.stressLevel !== null && 
-    dailyLog.makeupRemoved !== null &&
-    dailyLog.alcoholDrinks !== null &&
-    dailyLog.didSport !== null &&
-    dailyLog.didSport !== "" &&
+    relevantSymptoms.every(s => dailyLog.symptoms?.[s.id] !== undefined) &&
     dailyLog.cyclePhase !== "" &&
     dailyLog.cyclePhase !== null;
 
   const hasCheckedInToday = isComplete;
 
   useEffect(() => {
-    if (!hasCheckedInToday) {
+    const hasDismissed = sessionStorage.getItem("dailyCheckinDismissed");
+    const isFirstTime = !localStorage.getItem("hasSeenFirstLogin");
+    
+    if (!isComplete && !hasDismissed && !isFirstTime && !isFetchingCheckin) {
+      // Small delay to let the page load
+      const timer = setTimeout(() => setShowCheckinModal(true), 1500);
+      return () => clearTimeout(timer);
+    }
+
+    // If it is the first time, mark it so the next time the modal can show
+    if (isFirstTime) {
+      localStorage.setItem("hasSeenFirstLogin", "true");
+    }
+  }, [isComplete, isFetchingCheckin]);
+
+  useEffect(() => {
+    if (!hasCheckedInToday && !isFetchingCheckin) {
       setTimeout(() => {
         document.getElementById('suivi-bio')?.scrollIntoView({ behavior: 'smooth' });
       }, 800);
     }
-  }, []);
+  }, [isFetchingCheckin]);
 
   const [manualLocation, setManualLocationState] = useState<string | null>(() => localStorage.getItem("manualLocation"));
 
@@ -219,7 +207,6 @@ const Dashboard = () => {
   const [editSkinType, setEditSkinType] = useState("");
   const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
   const [selectedTip, setSelectedTip] = useState<AdviceItem | null>(null);
-  const [userConcerns, setUserConcerns] = useState<string[]>([]);
   const bioTrackingRef = useRef<HTMLDivElement>(null);
   const bioRef = useRef<any>(null); 
 
@@ -347,12 +334,35 @@ const Dashboard = () => {
                   if (logData) setYesterdayLog(logData);
                 });
 
-              setManualUpdates(prev => ({
-                ...prev, heartStress: Date.now(), sleep: Date.now(), cycle: Date.now(), water: Date.now(), alcohol: Date.now()
-              }));
+              // Fetch today's daily check-in
+              (supabase as any).from("daily_checkins")
+                .select("*")
+                .eq("user_id", session.user.id)
+                .eq("date", today)
+                .single()
+                .then(({ data: checkinData, error: checkinError }: any) => {
+                  if (checkinData && !checkinError) {
+                    setDailyLog(prev => ({
+                      ...prev,
+                      sleepHours: checkinData.sleep_hours ?? prev.sleepHours,
+                      waterGlasses: checkinData.water_glasses ?? prev.waterGlasses,
+                      alcoholDrinks: checkinData.alcohol_drinks ?? prev.alcoholDrinks,
+                      stressLevel: checkinData.stress_level ?? prev.stressLevel,
+                      foodQuality: checkinData.food_quality ?? prev.foodQuality,
+                      didSport: checkinData.did_sport ?? prev.didSport,
+                      makeupRemoved: checkinData.makeup_removed ?? prev.makeupRemoved,
+                      cyclePhase: checkinData.cycle_phase ?? prev.cyclePhase,
+                      checkinDate: today
+                    }));
+                  }
+                  setIsFetchingCheckin(false);
+                });
+            } else {
+              setIsFetchingCheckin(false);
             }
           });
-
+      } else {
+        setIsFetchingCheckin(false);
       }
     });
 
@@ -393,7 +403,7 @@ const Dashboard = () => {
     if (editingFactor === 'location') { syncValue = locationInput; newLog.location = locationInput; setManualLocation(locationInput); }
     else if (editingFactor === 'sleep') newLog.sleepHours = editValue;
     else if (editingFactor === 'stress') newLog.stressLevel = editValue;
-    else if (editingFactor === 'water') newLog.waterGlasses = editValue === "Trop" ? 12 : (editValue === "Suffisamment" ? 8 : 4);
+    else if (editingFactor === 'water') newLog.waterGlasses = editValue;
     else if (editingFactor === 'alcohol') newLog.alcoholDrinks = editValue;
     else if (editingFactor === 'sport') newLog.didSport = editValue;
     else if (editingFactor === 'cycle') {
@@ -441,6 +451,7 @@ const Dashboard = () => {
         stress_level: newLog.stressLevel,
         water_glasses: newLog.waterGlasses,
         alcohol_drinks: newLog.alcoholDrinks,
+        food_quality: newLog.foodQuality,
         did_sport: newLog.didSport,
         makeup_removed: newLog.makeupRemoved,
         cycle_phase: newLog.cyclePhase
@@ -885,10 +896,10 @@ const Dashboard = () => {
                     <p className="text-base font-display text-foreground italic mb-2">Check-in requis</p>
                     <p className="text-[13px] text-foreground/60 leading-relaxed italic mb-6">Veuillez compléter votre suivi biologique pour recevoir vos conseils personnalisés du jour.</p>
                     <button
-                      onClick={() => document.getElementById('suivi-bio')?.scrollIntoView({ behavior: 'smooth' })}
+                      onClick={() => setShowCheckinModal(true)}
                       className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] border-b border-primary/20 pb-1 hover:border-primary transition-all"
                     >
-                      Compléter mon suivi (en bas) ↓
+                      Démarrer le check-in quotidien →
                     </button>
                   </div>
                 </div>
@@ -1090,6 +1101,14 @@ const Dashboard = () => {
                 )}
               </div>
             </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('water'); setEditValue(dailyLog.waterGlasses ?? 4); }}>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><GlassWater size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Eau</p><p className="text-sm font-bold text-foreground">{dailyLog.waterGlasses !== null ? `${dailyLog.waterGlasses} verres` : "N/A"}</p></div>
+            </div>
+            <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('alimentation'); setEditValue(dailyLog.foodQuality || "Équilibrée"); }}>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><FlaskRound size={18} strokeWidth={1.5} /></div><Pencil size={10} strokeWidth={1.5} className="text-muted-foreground/30 group-hover:text-primary transition-colors" /></div>
+              <div><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-50">Alimentation</p><p className="text-sm font-bold text-foreground">{dailyLog.foodQuality || "N/A"}</p></div>
+            </div>
           </div>
         </motion.div>
 
@@ -1114,6 +1133,8 @@ const Dashboard = () => {
               {editingFactor === 'location' && (<div className="space-y-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Ville :</label><Input value={locationInput} onChange={(e) => setLocationInput(e.target.value)} placeholder="Ex: Paris" className="flex-1 rounded-full" /></div>)}
               {editingFactor === 'sleep' && (<div className="space-y-6"><div className="flex justify-between items-end mb-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Durée</label><span className="text-4xl font-display text-foreground">{editValue}h</span></div><div className="px-1"><Slider value={[editValue || 8]} min={0} max={15} step={0.5} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}
               {editingFactor === 'stress' && (<div className="space-y-8"><div className="flex flex-col items-center gap-2 py-4"><span className="text-5xl font-display text-primary">{editValue}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic">{STRESS_LABELS[editValue] || ""}</span></div><div className="flex justify-between gap-1">{[1, 2, 3, 4, 5].map(v => (<button key={v} onClick={() => setEditValue(v)} className={`w-12 h-12 rounded-full border text-sm font-bold transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-background border-border text-muted-foreground'}`}>{v}</button>))}</div></div>)}
+              {editingFactor === 'water' && (<div className="space-y-8"><div className="flex flex-col items-center gap-2 py-4"><span className="text-5xl font-display text-primary">{editValue}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic">Verres d'eau</span></div><div className="px-1"><Slider value={[editValue || 8]} min={0} max={16} step={1} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}
+              {editingFactor === 'alimentation' && (<div className="space-y-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4 block">Qualité des repas</label><div className="grid grid-cols-1 gap-3">{["Équilibrée", "Grasses / Sucrées", "Riches en sel", "Transformés"].map(lvl => (<button key={lvl} onClick={() => setEditValue(lvl)} className={`py-4 px-6 border rounded-2xl transition-all text-xs font-bold ${editValue === lvl ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-muted/10 border-transparent text-foreground/60'}`}>{lvl}</button>))}</div></div>)}
               {editingFactor === 'cycle' && (
                 <div className="space-y-8">
                   <div className="space-y-4">
@@ -1294,6 +1315,50 @@ const Dashboard = () => {
           </DialogContent>
         </Dialog>
       </div>
+      <DailyCheckinModal 
+        open={showCheckinModal}
+        onClose={() => {
+          setShowCheckinModal(false);
+          sessionStorage.setItem("dailyCheckinDismissed", "true");
+        }}
+        initialLog={dailyLog}
+        userConcerns={userConcerns}
+        onSave={async (updatedLog) => {
+          setDailyLog(updatedLog);
+          localStorage.setItem("dailyCheckinData", JSON.stringify(updatedLog));
+          
+          // Force sync
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const today = new Date().toISOString().split("T")[0];
+            
+            // Sync factors
+            await (supabase as any).from("daily_checkins").upsert({
+              user_id: session.user.id,
+              date: today,
+              sleep_hours: updatedLog.sleepHours,
+              stress_level: updatedLog.stressLevel,
+              water_glasses: updatedLog.waterGlasses,
+              food_quality: updatedLog.foodQuality,
+              alcohol_drinks: updatedLog.alcoholDrinks,
+              did_sport: updatedLog.didSport,
+              makeup_removed: updatedLog.makeupRemoved,
+              cycle_phase: updatedLog.cyclePhase
+            }, { onConflict: "user_id,date" });
+
+            // Sync symptoms
+            for (const [symptomId, trend] of Object.entries(updatedLog.symptoms || {})) {
+               await (supabase as any).from("symptom_tracking").upsert({
+                user_id: session.user.id,
+                date: today,
+                symptom: symptomId,
+                trend: trend,
+                zone: null
+              }, { onConflict: "user_id,date,symptom" });
+            }
+          }
+        }}
+      />
     </div>
   );
 };
