@@ -1,0 +1,203 @@
+{
+  "skincare_matrix": {
+    "types_de_peau": [
+      {
+        "type": "Sèche",
+        "signal_prioritaire": "Barrière cutanée affaiblie",
+        "sensibilites_associees": ["Déshydratation", "Rides"],
+        "ingredients_a_privilegier": ["Acide hyaluronique", "Céramides", "Squalane"],
+        "ingredients_a_eviter": ["Alcool dénat.", "Rétinol fort"]
+      },
+      {
+        "type": "Grasse",
+        "signal_prioritaire": "Excès de sébum + comédons",
+        "sensibilites_associees": ["Acné", "Points noirs", "Pores"],
+        "ingredients_a_privilegier": ["Niacinamide", "Acide salicylique (BHA)", "Zinc"],
+        "ingredients_a_eviter": ["Huiles comédogènes", "Beurres lourds"]
+      },
+      {
+        "type": "Mixte",
+        "signal_prioritaire": "Double zone à équilibrer",
+        "sensibilites_associees": ["Brillance", "Tiraillements"],
+        "ingredients_a_privilegier": ["Niacinamide", "Acide azélaïque"],
+        "ingredients_a_eviter": ["Produits trop occlusifs", "Produits trop desséchants"]
+      },
+      {
+        "type": "Sensible",
+        "signal_prioritaire": "Inflammation",
+        "sensibilites_associees": ["Rougeurs", "Eczéma"],
+        "ingredients_a_privilegier": ["Centella asiatica", "Allantoïne", "Avoine"],
+        "ingredients_a_eviter": ["Parfums", "Alcool", "AHA forts"],
+        "regles_specifiques": ["Toujours recommander un patch test"]
+      },
+      {
+        "type": "Acnéique",
+        "signal_prioritaire": "Inflammation + hyperpigmentation post-acné",
+        "sensibilites_associees": ["Acné", "Points noirs", "Taches"],
+        "ingredients_a_privilegier": ["Acide salicylique", "Peroxyde de benzoyle (faible)", "Niacinamide"],
+        "ingredients_a_eviter": ["Huiles comédogènes", "Rétinol sans progressivité"]
+      },
+      {
+        "type": "Normale",
+        "signal_prioritaire": "Maintien + prévention",
+        "sensibilites_associees": [],
+        "ingredients_a_privilegier": ["Antioxydants (vitamine C, E)", "SPF"],
+        "ingredients_a_eviter": []
+      }
+    ],
+    "objectifs": [
+      {
+        "objectif": "Anti-âge",
+        "actifs_cles": ["Rétinol (progressif)", "SPF"],
+        "regles": ["SPF obligatoire", "Introduire le rétinol progressivement"]
+      },
+      {
+        "objectif": "Éclat / Glow",
+        "actifs_cles": ["Vitamine C (matin)", "AHA (nuit)", "SPF"],
+        "regles": ["SPF obligatoire"]
+      },
+      {
+        "objectif": "Anti-imperfections",
+        "actifs_cles": ["BHA", "Niacinamide"],
+        "regles": ["Éviter l'over-cleansing"]
+      },
+      {
+        "objectif": "Hydratation",
+        "actifs_cles": ["Acide hyaluronique", "Céramides", "Glycérine"],
+        "regles": []
+      },
+      {
+        "objectif": "Apaiser",
+        "actifs_cles": ["Centella asiatica", "Allantoïne", "Avoine"],
+        "regles": ["Toujours commencer par renforcer la barrière avant tout actif"]
+      },
+      {
+        "objectif": "Taches",
+        "actifs_cles": ["Vitamine C", "Acide azélaïque", "Niacinamide", "SPF"],
+        "regles": ["SPF obligatoire"]
+      },
+      {
+        "objectif": "Pores",
+        "actifs_cles": ["Niacinamide", "BHA", "Argile"],
+        "regles": []
+      },
+      {
+        "objectif": "Anti-cernes",
+        "actifs_cles": ["Caféine topique", "Rétinol contour yeux"],
+        "regles": ["Conseiller un meilleur sommeil"]
+      }
+    ],
+    "facteurs_internes": {
+      "cycle_hormonal": [
+        {
+          "phase": "Menstruation (J1-J5)",
+          "etat_peau": "Peau sensible, terne, pro-inflammatoire",
+          "ajustements": ["Réduire les actifs irritants", "Favoriser les soins apaisants et nourrissants"]
+        },
+        {
+          "phase": "Folliculaire (J6-J13)",
+          "etat_peau": "Peau lumineuse, renouvellement cellulaire actif",
+          "ajustements": ["Période idéale pour les exfoliants doux", "Introduire les nouveaux actifs"]
+        },
+        {
+          "phase": "Ovulation (J14-J16)",
+          "etat_peau": "Peau au meilleur de son état",
+          "ajustements": ["Maintenir la routine habituelle", "Profiter pour les soins intensifs"]
+        },
+        {
+          "phase": "Lutéale (J17-J28)",
+          "etat_peau": "Sébum augmenté, risque d'imperfections",
+          "ajustements": ["Renforcer les soins anti-imperfections", "Éviter les soins trop riches", "Privilégier BHA et niacinamide"]
+        }
+      ],
+      "alimentation": [
+        {
+          "signal": "Alimentation riche en sucres raffinés",
+          "impact": "Glycation, acné, teint terne",
+          "conseil": "Réduire les sucres rapides, intégrer des antioxydants (baies, thé vert)"
+        },
+        {
+          "signal": "Alimentation pauvre en oméga-3",
+          "impact": "Barrière cutanée fragilisée, peau sèche",
+          "conseil": "Augmenter poissons gras, noix, graines de lin"
+        },
+        {
+          "signal": "Déshydratation",
+          "impact": "Teint terne, rides accentuées",
+          "conseil": "Minimum 1,5L d'eau par jour, aliments riches en eau"
+        },
+        {
+          "signal": "Alimentation équilibrée",
+          "impact": "Peau saine",
+          "conseil": "Maintenir les habitudes, ajouter vitamine C et zinc si besoin"
+        }
+      ],
+      "stress": [
+        {
+          "niveau": "Élevé",
+          "impact": "Cortisol → sébum augmenté, inflammation, eczéma, acné",
+          "ajustements": ["Privilégier soins apaisants", "Éviter les actifs irritants", "Ajouter un rituel gua sha ou massage"]
+        },
+        {
+          "niveau": "Modéré",
+          "impact": "Légère sensibilité accrue",
+          "ajustements": ["Adapter légèrement la routine vers plus de douceur"]
+        },
+        {
+          "niveau": "Faible",
+          "impact": "Routine standard optimale",
+          "ajustements": []
+        }
+      ]
+    },
+    "facteurs_externes": {
+      "meteo": [
+        {
+          "condition": "Froid et sec",
+          "impact": "Barrière cutanée fragilisée, déshydratation",
+          "ajustements": ["Augmenter l'occlusif (squalane, céramides)", "Réduire les exfoliants", "Ajouter une couche d'huile le soir"]
+        },
+        {
+          "condition": "Chaud et humide",
+          "impact": "Sébum augmenté, pores dilatés",
+          "ajustements": ["Alléger la texture des soins", "Privilégier les gels hydratants", "Renforcer le nettoyage le soir"]
+        },
+        {
+          "condition": "Vent fort",
+          "impact": "Déshydratation, rougeurs",
+          "ajustements": ["Renforcer la protection de la barrière", "Soins baumes protecteurs"]
+        },
+        {
+          "condition": "Pollution élevée",
+          "impact": "Stress oxydatif, pores obstrués",
+          "ajustements": ["Double nettoyage le soir obligatoire", "Antioxydants matin (vitamine C)", "SPF minéral"]
+        }
+      ],
+      "uv": [
+        {
+          "indice": "Faible (0-2)",
+          "ajustements": ["SPF 30 minimum recommandé"]
+        },
+        {
+          "indice": "Modéré (3-5)",
+          "ajustements": ["SPF 30-50 obligatoire", "Réappliquer toutes les 2h si exposition directe"]
+        },
+        {
+          "indice": "Élevé (6-7)",
+          "ajustements": ["SPF 50+ obligatoire", "Réappliquer toutes les 2h", "Éviter l'exposition entre 12h et 16h"]
+        },
+        {
+          "indice": "Très élevé (8+)",
+          "ajustements": ["SPF 50+ obligatoire", "Protection physique recommandée (chapeau, vêtements)", "Antioxydants en couche sous le SPF"]
+        }
+      ]
+    },
+    "regles_globales": [
+      "Ne jamais recommander de produit commercial spécifique (marque)",
+      "Toujours mentionner SPF si objectif Éclat, Taches ou Anti-âge",
+      "Si type Sensible ou Eczéma : toujours recommander un patch test avant tout nouvel actif",
+      "Ne jamais combiner rétinol + AHA/BHA dans la même application",
+      "Ne jamais combiner vitamine C + niacinamide en forte concentration (risque de flush)"
+    ]
+  }
+}
