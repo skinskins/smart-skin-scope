@@ -9,9 +9,10 @@ import { useWeatherData } from "@/hooks/useWeatherData";
 
 interface AdviceCardData {
   subtitle: string;
-  text: string;
-  product: string;
+  advice_text: string;
+  advice_title: string;
   number: string;
+  advice_tip?: string;
 }
 
 interface RoutineProduct {
@@ -146,8 +147,8 @@ const AdviceCard = ({ card, isFlipped, isActive, isEmpty }: AdviceCardProps) => 
         <p className="text-[10px] font-mono font-bold text-[#AAAAAA] uppercase tracking-[0.15em] mb-3">
           {card.subtitle}
         </p>
-        <p className="text-sm text-[#111111] leading-relaxed flex-1">{card.text}</p>
-        <p className="text-sm font-bold italic text-[#111111] mt-3 leading-snug">{card.product}</p>
+        <p className="text-sm text-[#111111] leading-relaxed flex-1">{card.advice_text}</p>
+        <p className="text-sm font-bold italic text-[#111111] mt-3 leading-snug">{card.advice_title}</p>
         <ShellIllustration number={card.number} />
       </div>
 
@@ -192,6 +193,10 @@ const HomeScreen = () => {
   const { weather: liveWeather, loading: weatherLoading } = useWeatherData(manualLocation || undefined);
   const [adviceList, setAdviceList] = useState<any[]>([]);
   const [isPersisting, setIsPersisting] = useState({ weather: false, advice: false });
+  const [userProducts, setUserProducts] = useState<any[]>([]);
+  const [dailySymptoms, setDailySymptoms] = useState<any[]>([]);
+  const [skinType, setSkinType] = useState<string>("normal");
+  const [cyclePhase, setCyclePhase] = useState<string | null>(null);
 
   // Initialise check-in state + routine products
   useEffect(() => {
@@ -213,8 +218,37 @@ const HomeScreen = () => {
     setAmProducts(raw.map((name) => ({ name, recommended: !skip.includes(name) })));
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+
       const fn = session?.user?.user_metadata?.first_name;
       if (fn) setUserName(fn);
+
+      const today = new Date().toISOString().split("T")[0];
+
+      // Fetch Profile (skin type)
+      supabase.from('profiles').select('skin_type').eq('id', userId).maybeSingle()
+        .then(({ data }) => {
+          if (data?.skin_type) setSkinType(data.skin_type);
+        });
+
+      // Fetch active products
+      supabase.from('user_products').select('*').eq('user_id', userId).eq('is_active', true)
+        .then(({ data }) => {
+          if (data) setUserProducts(data);
+        });
+
+      // Fetch symptoms
+      supabase.from('symptom_tracking').select('*').eq('user_id', userId).eq('date', today).eq('period', 'daily')
+        .then(({ data }) => {
+          if (data) setDailySymptoms(data);
+        });
+
+      // Fetch checkin (cycle phase)
+      supabase.from('daily_checkins').select('cycle_phase').eq('user_id', userId).eq('date', today).maybeSingle()
+        .then(({ data }) => {
+          if (data?.cycle_phase) setCyclePhase(data.cycle_phase);
+        });
     });
   }, []);
 
@@ -278,55 +312,90 @@ const HomeScreen = () => {
     persistWeather();
   }, [liveWeather, weatherLoading, isPersisting.weather]);
 
-  // --- CALCULATE: Advice List ---
+  // --- CALCULATE: Advice List (3 Slots Overhaul) ---
   useEffect(() => {
-    const factors = JSON.parse(localStorage.getItem("dailyCheckinData") || "{}");
-    const tips: any[] = [];
+    if (weatherLoading) return;
 
-    // Weather tips
-    if (liveWeather.uv >= 6) {
-      tips.push({ 
-        advice_title: "UV élevé", 
-        advice_text: `Indice UV à ${liveWeather.uv}. Réappliquez votre SPF toutes les 2h.`,
-        advice_tip: "Les UVA traversent les nuages et accélèrent le vieillissement.",
-        advice_group: "Météo",
-        priority: "high"
-      });
-    }
-    if (liveWeather.humidity > 0 && liveWeather.humidity < 40) {
-      tips.push({
-        advice_title: "Air sec",
-        advice_text: "L'humidité est basse aujourd'hui. Renforcez l'hydratation.",
-        advice_tip: "Un sérum à l'acide hyaluronique aide à retenir l'eau.",
-        advice_group: "Météo",
-        priority: "medium"
-      });
-    }
+    const calculateAdvice = async () => {
+      const slots: any[] = [];
 
-    // Check-in tips
-    if (factors.sleep && factors.sleep < 7) {
-      tips.push({
-        advice_title: "Manque de sommeil",
-        advice_text: "Votre peau se régénère la nuit. Moins de 7h altère ce processus.",
-        advice_tip: "Une nuit de 8h booste le renouvellement cellulaire.",
-        advice_group: "Mode de vie",
-        priority: "high"
-      });
-    }
-    if (factors.water && factors.water < 6) {
-      tips.push({
-        advice_title: "Déshydratation",
-        advice_text: "L'apport en eau est insuffisant pour la barrière cutanée.",
-        advice_tip: "Visez 8 verres par jour pour un teint éclatant.",
-        advice_group: "Santé",
-        priority: "medium"
-      });
-    }
+      // --- SLOT 1: Symptômes + INCI ---
+      const symptomsPlus = dailySymptoms.filter(s => s.trend === 'plus');
+      if (symptomsPlus.length > 0) {
+        const activeSymptom = symptomsPlus[0]; // Take first one for simplicity/slot limit
+        const acids = ['glycolic acid', 'salicylic acid', 'lactic acid', 'tartaric acid', 'lha'];
+        
+        // Find a product with acids if redness is up
+        const irritantProduct = userProducts.find(p => {
+          const ingredients = (p.ingredients || '').toLowerCase();
+          return (activeSymptom.symptom === 'rougeurs' || activeSymptom.symptom === 'sensibilité') && 
+                 acids.some(a => ingredients.includes(a));
+        });
 
-    if (tips.length > 0) {
-      setAdviceList(tips);
-    }
-  }, [liveWeather]);
+        if (irritantProduct) {
+          slots.push({
+            advice_title: irritantProduct.product_name,
+            advice_text: `Tes ${activeSymptom.symptom} s'aggravent — évite ton *${irritantProduct.product_name}* ce soir.`,
+            advice_tip: "Les actifs exfoliants peuvent irriter une barrière cutanée déjà sollicitée.",
+            advice_group: "slot1",
+            priority: "high",
+            subtitle: "Symptômes + INCI",
+            number: "01"
+          });
+        }
+      }
+
+      // --- SLOT 2: Routine + Ordre ---
+      if (userProducts.length >= 2) {
+        const serum = userProducts.find(p => p.product_name.toLowerCase().includes('sérum'));
+        const cream = userProducts.find(p => p.product_name.toLowerCase().includes('crème') || p.product_name.toLowerCase().includes('hydratant'));
+
+        if (serum && cream) {
+          slots.push({
+            advice_title: "Ordre d'application",
+            advice_text: `Applique ton *${serum.product_name}* avant ta *${cream.product_name}*, pas après.`,
+            advice_tip: "Les textures fluides pénètrent mieux sur peau nue, la crème scelle l'hydratation ensuite.",
+            advice_group: "slot2",
+            priority: "medium",
+            subtitle: "Routine · Ordre",
+            number: "02"
+          });
+        }
+      }
+
+      // --- SLOT 3: Facteur Externe (Cycle/Météo) ---
+      let slot3: any = null;
+      const relevantProduct = userProducts.find(p => p.product_name.toLowerCase().includes('spf') || p.product_name.toLowerCase().includes('solaire'));
+
+      if (cyclePhase) {
+        slot3 = {
+          advice_title: cyclePhase,
+          advice_text: `Phase ${cyclePhase.toLowerCase()}${liveWeather.uv >= 3 ? ` + UV ${liveWeather.uv}` : ''} — ${relevantProduct ? `ton *${relevantProduct.product_name}* est indispensable aujourd'hui.` : 'protège ta peau aujourd\'hui.'}`,
+          advice_tip: "Les hormones influencent la sensibilité de ta peau face aux rayons UV.",
+          advice_group: "slot3",
+          priority: "high",
+          subtitle: "Cycle & Contexte",
+          number: "03"
+        };
+      } else if (liveWeather.uv >= 3) {
+        slot3 = {
+          advice_title: "Indice UV",
+          advice_text: `UV à ${liveWeather.uv} aujourd'hui — ${relevantProduct ? `ton *${relevantProduct.product_name}* est ton meilleur allié.` : 'une protection solaire est nécessaire.'}`,
+          advice_tip: "Le photo-vieillissement est responsable de 80% des signes de l'âge.",
+          advice_group: "slot3",
+          priority: "medium",
+          subtitle: "Météo · Protection",
+          number: "03"
+        };
+      }
+
+      if (slot3) slots.push(slot3);
+
+      setAdviceList(slots.slice(0, 3));
+    };
+
+    calculateAdvice();
+  }, [liveWeather, userProducts, dailySymptoms, cyclePhase, weatherLoading]);
 
   // --- PERSISTENCE: Advice ---
   useEffect(() => {
@@ -483,7 +552,7 @@ const HomeScreen = () => {
             onPanEnd={handlePanEnd}
             style={{ touchAction: "pan-y" }}
           >
-            {ADVICE_CARDS.map((card, index) => {
+            {adviceList.map((card, index) => {
               const anim = cardProps(index);
               const rel = ((index - activeCard) + 3) % 3;
               const adj = rel > 1 ? rel - 3 : rel;
@@ -538,9 +607,8 @@ const HomeScreen = () => {
           </AnimatePresence>
         </div>
 
-        {/* Pagination dots */}
         <div className="flex justify-center gap-2 mt-4">
-          {[0, 1, 2].map((i) => (
+          {adviceList.map((_, i) => (
             <button
               key={i}
               onClick={() => goToCard(i)}
