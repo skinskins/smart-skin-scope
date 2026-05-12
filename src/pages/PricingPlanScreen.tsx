@@ -33,11 +33,11 @@ const PricingPlanScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col p-8 pt-16 max-w-md mx-auto">
-      <h2 className="text-2xl font-display text-center text-foreground mb-12 italic">Choisissez votre abonnement</h2>
+    <div className="min-h-screen bg-background flex flex-col p-6 pt-12 max-w-md mx-auto">
+      <h2 className="text-2xl font-display text-center text-foreground mb-8 italic">Choisissez votre abonnement</h2>
 
       {/* Segmented Control */}
-      <div className="bg-muted/20 p-1.5 rounded-full flex mb-12 relative border border-border/40">
+      <div className="bg-muted/20 p-1.5 rounded-full flex mb-8 relative border border-border/40">
         <motion.div
           className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
           animate={{ x: plan === 'yearly' ? '100%' : '0%' }}
@@ -63,7 +63,7 @@ const PricingPlanScreen = () => {
       {/* Price Display */}
       <motion.div 
         layout
-        className="bg-primary/5 p-10 rounded-[40px] border border-primary/10 text-center mb-12 relative overflow-hidden shadow-sm"
+        className="bg-primary/5 p-8 rounded-[40px] border border-primary/10 text-center mb-8 relative overflow-hidden shadow-sm"
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -82,7 +82,7 @@ const PricingPlanScreen = () => {
               </div>
             )}
             <div className="flex items-baseline justify-center gap-2">
-              <span className="text-7xl font-display text-foreground italic leading-none">{PLANS[plan].price}</span>
+              <span className="text-4xl font-display text-foreground italic leading-none">{PLANS[plan].price}</span>
               <span className="text-xl text-muted-foreground italic">{PLANS[plan].period}</span>
             </div>
             <div className="space-y-2">
@@ -95,11 +95,11 @@ const PricingPlanScreen = () => {
         </AnimatePresence>
       </motion.div>
 
-      <Separator className="bg-border/40 mb-12" />
+      <Separator className="bg-border/40 mb-8" />
 
       {/* Reassurance Rows */}
-      <div className="space-y-6 mb-12">
-        {["Accès illimité à toutes les analyses et conseils", "Sans engagement", "Aucun débit maintenant", "Résiliable à tout moment"].map((text, idx) => (
+      <div className="space-y-4 mb-8">
+        {["Accès illimité", "Sans engagement", "Aucun débit maintenant", "Résiliable à tout moment"].map((text, idx) => (
           <motion.div
             key={idx}
             initial={{ opacity: 0, x: -10 }}
@@ -107,10 +107,10 @@ const PricingPlanScreen = () => {
             transition={{ delay: 0.1 * idx }}
             className="flex items-center gap-4"
           >
-            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <Check size={14} strokeWidth={3} />
+            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Check size={12} strokeWidth={3} />
             </div>
-            <span className="text-[14px] font-medium text-foreground italic">{text}</span>
+            <span className="text-[13px] font-medium text-foreground italic">{text}</span>
           </motion.div>
         ))}
       </div>
@@ -119,7 +119,7 @@ const PricingPlanScreen = () => {
 
         <Button
           onClick={() => onStartTrial(PLANS[plan].id)}
-          className="w-full h-16 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+          className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
         >
           Souscrire à l'offre
         </Button>
@@ -127,7 +127,7 @@ const PricingPlanScreen = () => {
           onClick={() => onStartTrial(PLANS[plan].id)}
           className="w-full text-[11px] font-bold text-muted-foreground uppercase tracking-[0.2em] text-center hover:text-primary transition-colors py-2"
         >
-          Démarrer mon essai gratuit de 14 jours - sans engagement
+          Continuer gratuitement
         </button>
       </div>
     </div>

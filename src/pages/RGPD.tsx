@@ -27,7 +27,7 @@ const RGPD = () => {
                     <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
                         <ShieldCheck size={36} strokeWidth={1.2} />
                     </div>
-                    <h1 className="text-4xl font-display text-foreground leading-tight">Politique de Confidentialité</h1>
+                    <h1 className="text-2xl font-display text-foreground leading-tight">Politique de Confidentialité</h1>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre vie privée est notre priorité absolue</p>
                 </div>
 

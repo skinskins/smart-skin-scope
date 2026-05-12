@@ -84,7 +84,7 @@ const Login = () => {
                 className="flex-1 flex flex-col justify-center z-10 max-w-sm mx-auto w-full"
             >
                 <div className="mb-12 text-center">
-                    <h1 className="text-4xl font-display text-foreground leading-tight mb-4">Connexion</h1>
+                    <h1 className="text-2xl font-display text-foreground leading-tight mb-4">Connexion</h1>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Heureux de vous revoir</p>
                 </div>
 

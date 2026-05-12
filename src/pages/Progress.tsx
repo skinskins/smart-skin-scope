@@ -94,7 +94,7 @@ const Progress = () => {
           <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
             <TrendingUp size={24} strokeWidth={1.5} />
           </div>
-          <h1 className="text-4xl font-display text-foreground leading-tight">Progression</h1>
+          <h1 className="text-2xl font-display text-foreground leading-tight">Progression</h1>
         </div>
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Évolution dermatologique de votre peau</p>
       </motion.div>
@@ -136,7 +136,7 @@ const Progress = () => {
               <div className="flex-1">
                 <div className="relative rounded-3xl border border-border/40 aspect-[3/4] bg-muted/15 flex flex-col items-center justify-center p-6 text-center">
                   <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 opacity-60">{format(new Date(compared.date), "dd/MM/yy")}</p>
-                  <p className="text-4xl font-display text-foreground">{compared.globalScore}</p>
+                  <p className="text-2xl font-display text-foreground">{compared.globalScore}</p>
                 </div>
               </div>
 
@@ -147,7 +147,7 @@ const Progress = () => {
               <div className="flex-1">
                 <div className="relative rounded-3xl border border-primary/20 aspect-[3/4] bg-primary/5 flex flex-col items-center justify-center p-6 text-center premium-shadow">
                   <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-3">{format(new Date(latest.date), "dd/MM/yy")}</p>
-                  <p className="text-4xl font-display text-primary">{latest.globalScore}</p>
+                  <p className="text-2xl font-display text-primary">{latest.globalScore}</p>
                 </div>
               </div>
             </div>
