@@ -69,6 +69,7 @@ const Signup = () => {
     const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
 
     const [step, setStep] = useState(1);
+    const [showPreview, setShowPreview] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const PLANS = {
@@ -101,14 +102,60 @@ const Signup = () => {
         checkSession();
     }, [navigate]);
 
+    const generateAdvice = () => {
+        const advices: { title: string, content: string, iconStr: string }[] = [];
+
+        // 1. Type Advice
+        const typeInfo = matrix.types_de_peau.find((t: any) => t.type === skinType);
+        if (typeInfo) {
+            advices.push({
+                title: `Peau ${skinType}`,
+                content: `Votre priorité est de cibler : ${typeInfo.signal_prioritaire}. Privilégiez des actifs comme ${typeInfo.ingredients_a_privilegier.slice(0, 2).join(' ou ')}.`,
+                iconStr: "🛡️"
+            });
+        }
+
+        // 2. Goals Advice
+        skinGoals.forEach(goal => {
+            const goalInfo = matrix.objectifs.find((o: any) => o.objectif === goal);
+            if (goalInfo) {
+                let content = `Pour votre objectif ${goal}, misez sur ${goalInfo.actifs_cles.slice(0, 2).join(' et ')}.`;
+                if (goalInfo.regles.includes("SPF obligatoire")) {
+                    content += " N'oubliez jamais votre protection SPF le matin pour protéger vos résultats.";
+                }
+                advices.push({
+                    title: goal,
+                    content,
+                    iconStr: "✨"
+                });
+            }
+        });
+
+        // 3. Special Rules
+        if (skinType === "Sensible" || skinProblems.includes("Eczéma")) {
+            advices.push({
+                title: "Précaution",
+                content: "Votre peau étant réactive, effectuez toujours un patch test 24h avant d'introduire un nouvel actif.",
+                iconStr: "🩺"
+            });
+        }
+
+        return advices.slice(0, 4); // Show up to 4 advices
+    };
+
     const BackButton = () => (
         <motion.button
+            type="button"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={(e) => {
                 e.preventDefault();
-                if (step === 6) setStep(5);
+                if (showPreview) setShowPreview(false);
+                else if (step === 6) setStep(5);
                 else if (step === 5) setStep(4);
-                else if (step === 4) setStep(3);
+                else if (step === 4) setShowPreview(true);
                 else if (step > 1) setStep(step - 1);
                 else navigate("/onboarding");
             }}
@@ -144,6 +191,19 @@ const Signup = () => {
 
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (step === 3 && !showPreview) {
+            setShowPreview(true);
+            window.scrollTo(0, 0);
+            return;
+        }
+
+        if (showPreview) {
+            setShowPreview(false);
+            setStep(4);
+            window.scrollTo(0, 0);
+            return;
+        }
 
         if (step < 6) { // Account creation is now step 6
             setStep(step + 1);
@@ -213,13 +273,77 @@ const Signup = () => {
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
             <motion.div
-                key={step}
+                key={showPreview ? "preview" : step}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 className="flex-1 flex flex-col p-6 z-10 max-w-md mx-auto w-full pb-32"
             >
-                <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
+                {showPreview ? (
+                    <div className="space-y-8 h-full flex flex-col">
+                        <div className="mb-6 flex items-start gap-4">
+                            <BackButton />
+                            <div>
+                                <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Analyse Préliminaire</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Basé sur vos réponses</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 flex-1 relative overflow-y-auto custom-scrollbar pr-1">
+                            {generateAdvice().map((advice, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.15 + idx * 0.05 }}
+                                    className="flex flex-col gap-4 p-8 premium-card border-none bg-white/60 group transition-all hover:bg-white/40"
+                                >
+                                    <div className="flex gap-6">
+                                        <span className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</span>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
+                                            </div>
+                                            <p className="text-[13px] text-foreground/80 leading-relaxed italic">{advice.content}</p>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.5 }}
+                                className="mt-8 p-8 rounded-[32px] bg-primary/5 border border-primary/10 relative overflow-hidden backdrop-blur-sm z-20"
+                            >
+                                <div className="absolute top-0 right-0 p-4">
+                                    <Lock size={16} className="text-primary/30" />
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="bg-white rounded-full p-2 text-primary shadow-sm h-fit shrink-0"><Lightbulb size={16} strokeWidth={2.5} /></div>
+                                    <div className="space-y-3">
+                                        <h3 className="text-[10px] font-bold text-primary uppercase tracking-widest">Accédez à une analyse complète</h3>
+                                        <p className="text-[12px] text-foreground/70 leading-relaxed italic">
+                                            Accédez à une <span className="text-primary font-bold">analyse complète</span>. Débloquez des conseils ultra-personnalisés incluant l'impact de votre cycle, la météo et votre routine après l'inscription.
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+
+                        <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-30">
+                            <button
+                                type="button"
+                                onClick={handleNext}
+                                className="w-full h-16 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+                            >
+                                CONTINUER <ArrowRight size={18} strokeWidth={2.5} />
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
                     {step === 1 && (
                         <>
                             <div className="mb-10 flex items-start gap-4">
@@ -700,7 +824,7 @@ const Signup = () => {
                                     (loading) ||
                                     (step === 1 && usedChannels.includes('Autre') && !otherChannel) ||
                                     (step === 2 && (!age || !gender)) ||
-                                    (step === 3 && (!skinType || skinGoals.length === 0)) ||
+                                    (step === 3 && !showPreview && (!skinType || skinGoals.length === 0)) ||
                                     (step === 6 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                 }
                                 className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
@@ -710,8 +834,9 @@ const Signup = () => {
                         </div>
                     )}
                 </form>
-            </motion.div>
-        </div>
+            )}
+        </motion.div>
+    </div>
     );
 };
 
