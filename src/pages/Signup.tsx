@@ -283,7 +283,7 @@ const Signup = () => {
 
             setLoading(false);
             localStorage.removeItem("guestProfile");
-            navigate("/dashboard", { state: { isOnboarding: true, firstName } });
+            navigate("/pricing-value", { state: { isOnboarding: true, firstName } });
         } catch (error) {
             console.error("Signup error:", error);
             toast.error("Une erreur est survenue lors de l'inscription.");
