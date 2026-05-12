@@ -685,7 +685,7 @@ const Signup = () => {
                                                             { label: "Mémoire 30 jours", desc: "Historique limité de vos check-ins.", included: true },
                                                             { label: "Suivi & Scoring Avancé", desc: "Analyses d'évolution précises.", included: false },
                                                             { label: "Base de données étendue", desc: "Accès à tous les produits du marché.", included: false },
-                                                            { label: "Vos produits recommandés", desc: "Savoir quels produits utiliser chaque jour en fonction de vos facteurs.", included: true },
+                                                            { label: "Vos produits recommandés", desc: "Savoir quels produits utiliser chaque jour en fonction de vos facteurs.", included: false },
                                                             { label: "Mémoire illimitée", desc: "Gardez tout votre historique à vie.", included: false },
                                                         ].map((item, i) => (
                                                             <div key={i} className={`flex gap-3 items-start ${!item.included ? 'opacity-60' : ''}`}>
