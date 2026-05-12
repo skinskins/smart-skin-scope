@@ -43,7 +43,7 @@ const StravaConnect: React.FC<StravaConnectProps> = ({ compact }) => {
     return (
       <button
         onClick={disconnectStrava}
-        className={`${compact ? 'w-full py-4' : 'px-6 py-3'} border border-[#FC4C02] text-[#FC4C02] text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-muted/10 transition-colors`}
+        className={`${compact ? 'w-full py-4' : 'px-6 py-3'} border border-[#FC4C02] text-[#FC4C02] text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-muted/20 transition-colors`}
       >
         Déconnecter Strava
       </button>

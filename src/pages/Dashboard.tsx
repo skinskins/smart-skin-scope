@@ -814,7 +814,7 @@ const Dashboard = () => {
                     className="flex items-center justify-between group cursor-pointer hover:bg-white/40 p-4 -mx-4 rounded-[24px] transition-all active:scale-[0.98] border border-transparent hover:border-border/20"
                   >
                     <div className="flex items-center gap-6">
-                      <div className="w-12 h-12 rounded-full border border-border/40 bg-muted/5 flex items-center justify-center text-primary/60 group-hover:bg-white transition-all">
+                      <div className="w-12 h-12 rounded-full border border-border/40 bg-muted/15 flex items-center justify-center text-primary/60 group-hover:bg-white transition-all">
                         {config.icon}
                       </div>
                       <div>
@@ -842,27 +842,27 @@ const Dashboard = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('cycle'); setEditValue(dailyLog.cyclePhase || ""); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Calendar size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Calendar size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Cycle</p><p className="text-sm font-bold text-foreground">{dailyLog.cyclePhase || "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('stress'); setEditValue(dailyLog.stressLevel ?? 3); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Heart size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Heart size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Stress</p><p className="text-sm font-bold text-foreground">{dailyLog.stressLevel !== null ? `${dailyLog.stressLevel}/5` : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('makeup'); setEditValue(dailyLog.makeupRemoved ?? false); setMakeupStep(1); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Sparkles size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Sparkles size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Peau</p><p className="text-sm font-bold text-foreground">{dailyLog.makeupRemoved !== null ? (dailyLog.makeupRemoved ? "Nette" : "Maquillée") : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('alcohol'); setEditValue(dailyLog.alcoholDrinks ?? 0); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Wine size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Wine size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Alcool</p><p className="text-sm font-bold text-foreground">{dailyLog.alcoholDrinks !== undefined && dailyLog.alcoholDrinks !== null ? (dailyLog.alcoholDrinks > 0 ? `${dailyLog.alcoholDrinks} u.` : "Aucun") : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('sleep'); setEditValue(dailyLog.sleepHours ?? 8); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Moon size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Moon size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Sommeil</p><p className="text-sm font-bold text-foreground">{dailyLog.sleepHours !== null ? `${dailyLog.sleepHours}h` : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('sport'); setEditValue(dailyLog.didSport || "Non"); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Dumbbell size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><Dumbbell size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div>
                 <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Activité</p>
                 <p className="text-sm font-bold text-foreground">{dailyLog.didSport !== null && dailyLog.didSport !== "" ? dailyLog.didSport : "N/A"}</p>
@@ -875,11 +875,11 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('water'); setEditValue(dailyLog.waterGlasses ?? 4); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><GlassWater size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><GlassWater size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Eau</p><p className="text-sm font-bold text-foreground">{dailyLog.waterGlasses !== null ? `${dailyLog.waterGlasses} verres` : "N/A"}</p></div>
             </div>
             <div className="premium-card p-6 flex flex-col gap-5 group cursor-pointer relative" onClick={() => { setEditingFactor('alimentation'); setEditValue(dailyLog.foodQuality || "Équilibrée"); }}>
-              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/10 flex items-center justify-center text-primary group-hover:bg-white transition-all"><FlaskRound size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
+              <div className="flex justify-between items-start"><div className="w-10 h-10 rounded-2xl bg-muted/20 flex items-center justify-center text-primary group-hover:bg-white transition-all"><FlaskRound size={18} strokeWidth={1.5} /></div><Pencil size={14} strokeWidth={1.5} className="text-muted-foreground/50 group-hover:text-primary transition-colors" /></div>
               <div><p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Alimentation</p><p className="text-sm font-bold text-foreground">{dailyLog.foodQuality || "N/A"}</p></div>
             </div>
           </div>
@@ -907,7 +907,7 @@ const Dashboard = () => {
               {editingFactor === 'sleep' && (<div className="space-y-6"><div className="flex justify-between items-end mb-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Durée</label><span className="text-4xl font-display text-foreground">{editValue}h</span></div><div className="px-1"><Slider value={[editValue || 8]} min={0} max={15} step={0.5} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}
               {editingFactor === 'stress' && (<div className="space-y-8"><div className="flex flex-col items-center gap-2 py-4"><span className="text-5xl font-display text-primary">{editValue}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic">{STRESS_LABELS[editValue] || ""}</span></div><div className="flex justify-between gap-1">{[1, 2, 3, 4, 5].map(v => (<button key={v} onClick={() => setEditValue(v)} className={`w-12 h-12 rounded-full border text-sm font-bold transition-all ${editValue === v ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-background border-border text-muted-foreground'}`}>{v}</button>))}</div></div>)}
               {editingFactor === 'water' && (<div className="space-y-8"><div className="flex flex-col items-center gap-2 py-4"><span className="text-5xl font-display text-primary">{editValue}</span><span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 italic">Verres d'eau</span></div><div className="px-1"><Slider value={[editValue || 8]} min={0} max={16} step={1} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}
-              {editingFactor === 'alimentation' && (<div className="space-y-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4 block">Qualité des repas</label><div className="grid grid-cols-1 gap-3">{["Équilibrée", "Grasses / Sucrées", "Riches en sel", "Transformés"].map(lvl => (<button key={lvl} onClick={() => setEditValue(lvl)} className={`py-4 px-6 border rounded-2xl transition-all text-xs font-bold ${editValue === lvl ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-muted/10 border-transparent text-foreground/60'}`}>{lvl}</button>))}</div></div>)}
+              {editingFactor === 'alimentation' && (<div className="space-y-4"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4 block">Qualité des repas</label><div className="grid grid-cols-1 gap-3">{["Équilibrée", "Grasses / Sucrées", "Riches en sel", "Transformés"].map(lvl => (<button key={lvl} onClick={() => setEditValue(lvl)} className={`py-4 px-6 border rounded-2xl transition-all text-xs font-bold ${editValue === lvl ? 'bg-primary text-primary-foreground border-primary shadow-lg' : 'bg-muted/20 border-transparent text-foreground/60'}`}>{lvl}</button>))}</div></div>)}
               {editingFactor === 'cycle' && (
                 <div className="space-y-8">
                   <div className="space-y-4">
@@ -928,7 +928,7 @@ const Dashboard = () => {
                           }));
                           setEditValue({ phase: calc.phase, cycleDuration: dailyLog.cycleDuration, periodDuration: dailyLog.periodDuration, date: date });
                         }}
-                        className="rounded-2xl h-14 bg-muted/10 border-transparent focus:border-primary/20 transition-all font-mono"
+                        className="rounded-2xl h-14 bg-muted/20 border-transparent focus:border-primary/20 transition-all font-mono"
                       />
                     </div>
 
@@ -983,7 +983,7 @@ const Dashboard = () => {
                             }));
                             setEditValue(opt);
                           }}
-                          className={`flex-1 py-3 h-12 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${dailyLog.cyclePhase === opt ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                          className={`flex-1 py-3 h-12 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${dailyLog.cyclePhase === opt ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}
                         >
                           {opt}
                         </button>
@@ -1008,7 +1008,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               )}
-              {editingFactor === 'alcohol' && (<div className="space-y-8"><div className="grid grid-cols-2 gap-4"><button onClick={() => setEditValue(editValue > 0 ? editValue : 1)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue > 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Oui</button><button onClick={() => setEditValue(0)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}>Non</button></div>{editValue > 0 && (<div className="space-y-6"><div className="flex justify-between items-end"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">Quantité</label><span className="text-3xl font-display text-foreground">{editValue}</span></div><div className="px-1"><Slider value={[editValue]} min={1} max={10} step={1} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}</div>)}
+              {editingFactor === 'alcohol' && (<div className="space-y-8"><div className="grid grid-cols-2 gap-4"><button onClick={() => setEditValue(editValue > 0 ? editValue : 1)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue > 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}>Oui</button><button onClick={() => setEditValue(0)} className={`py-4 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === 0 ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}>Non</button></div>{editValue > 0 && (<div className="space-y-6"><div className="flex justify-between items-end"><label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5 opacity-60">Quantité</label><span className="text-3xl font-display text-foreground">{editValue}</span></div><div className="px-1"><Slider value={[editValue]} min={1} max={10} step={1} onValueChange={(v) => setEditValue(v[0])} /></div></div>)}</div>)}
               {editingFactor === 'sport' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-3">
@@ -1016,7 +1016,7 @@ const Dashboard = () => {
                       <button
                         key={i}
                         onClick={() => setEditValue(i)}
-                        className={`py-4 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === i ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                        className={`py-4 border rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === i ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}
                       >
                         {i}
                       </button>
@@ -1048,13 +1048,13 @@ const Dashboard = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <button 
                           onClick={() => { setWearingMakeup(true); setMakeupStep(2); }} 
-                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${wearingMakeup === true ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${wearingMakeup === true ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}
                         >
                           Oui
                         </button>
                         <button 
                           onClick={() => { setWearingMakeup(false); setEditValue(true); }} 
-                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${wearingMakeup === false ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${wearingMakeup === false ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}
                         >
                           Non
                         </button>
@@ -1067,13 +1067,13 @@ const Dashboard = () => {
                       <div className="flex flex-col gap-3">
                         <button 
                           onClick={() => setEditValue(true)} 
-                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === true ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}
                         >
                           Oui, peau propre
                         </button>
                         <button 
                           onClick={() => setEditValue(false)} 
-                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60'}`}
+                          className={`py-5 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all ${editValue === false ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60'}`}
                         >
                           Non, pas encore
                         </button>

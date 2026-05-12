@@ -365,7 +365,7 @@ const Diagnosis = () => {
             <h2 className="text-3xl font-display text-foreground leading-tight mb-3 text-center">Analyse en cours</h2>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mb-12 italic opacity-60">{analysisSteps[currentAnalysisStep]}</p>
 
-            <div className="w-full max-w-xs h-1.5 bg-muted/10 rounded-full overflow-hidden mb-4">
+            <div className="w-full max-w-xs h-1.5 bg-muted/20 rounded-full overflow-hidden mb-4">
               <motion.div
                 className="h-full bg-primary"
                 initial={{ width: "0%" }}
@@ -469,7 +469,7 @@ const Diagnosis = () => {
                             <p className="text-[13px] font-bold text-foreground uppercase tracking-widest">{zone.label}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="p-1.5 rounded-lg bg-muted/5 group-hover:bg-primary/5 transition-colors">
+                            <div className="p-1.5 rounded-lg bg-muted/15 group-hover:bg-primary/5 transition-colors">
                             {trendIcon(zone.trend)}
                             </div>
                             <ScoreBadge score={zone.score} />

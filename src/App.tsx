@@ -16,6 +16,8 @@ import Profile from "./pages/Profile";
 import Routine from "./pages/Routine";
 import Signup from "./pages/Signup";
 import BottomNav from "./components/BottomNav";
+import PricingValueScreen from "./pages/PricingValueScreen";
+import PricingPlanScreen from "./pages/PricingPlanScreen";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 import ResetPassword from "./pages/ResetPassword";
 

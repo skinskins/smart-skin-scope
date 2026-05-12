@@ -87,14 +87,14 @@ export default function DailyCheckinModal({ open, onClose, initialLog, userConce
           <p className="text-sm text-muted-foreground text-center italic">Comment évolue ce symptôme aujourd'hui ?</p>
           <div className="grid grid-cols-1 gap-3">
             {[
-              { id: "moins", label: "Amélioration", icon: "↓", color: "text-primary bg-primary/5 border-primary/20" },
-              { id: "pareil", label: "Stable / Normal", icon: "→", color: "text-muted-foreground bg-muted/5 border-border/40" },
-              { id: "plus", label: "Poussée / Aggravation", icon: "↑", color: "text-[#C08484] bg-[#C08484]/5 border-[#C08484]/20" }
+              { id: "moins", label: "Amélioration", icon: "↓", color: "text-primary bg-primary/10 border-primary/20" },
+              { id: "pareil", label: "Stable / Normal", icon: "→", color: "text-muted-foreground bg-muted/20 border-border/40" },
+              { id: "plus", label: "Poussée / Aggravation", icon: "↑", color: "text-[#C08484] bg-[#C08484]/10 border-[#C08484]/20" }
             ].map(opt => (
               <button
                 key={opt.id}
                 onClick={() => { updateSymptom(symptom.id, opt.id); handleNext(); }}
-                className={`flex items-center justify-between p-5 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${currentTrend === opt.id ? opt.color + ' border-primary' : 'bg-white border-border/40'}`}
+                className={`flex items-center justify-between p-5 rounded-2xl border transition-all hover:scale-[1.02] active:scale-[0.98] ${currentTrend === opt.id ? opt.color + ' border-primary' : 'bg-muted/15 border-border/40'}`}
               >
                 <span className="text-sm font-bold">{opt.label}</span>
                 <span className={`text-xl font-display italic ${currentTrend === opt.id ? '' : 'opacity-40'}`}>{opt.icon}</span>

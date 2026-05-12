@@ -199,7 +199,7 @@ const Profile = () => {
           <div className="py-2">
             {editingField === "name" && (
               <div className="space-y-4">
-                <Input type="text" placeholder="Votre prénom" className="h-16 rounded-[24px] bg-muted/10 border-none text-lg font-display italic px-6 focus:ring-1 ring-primary/20" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
+                <Input type="text" placeholder="Votre prénom" className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display italic px-6 focus:ring-1 ring-primary/20" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus />
               </div>
             )}
 
@@ -207,7 +207,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3">
                 {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
                   <button key={type} onClick={() => setSkinType(type)}
-                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinType === type ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinType === type ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                     {type}
                   </button>
                 ))}
@@ -218,7 +218,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3 max-h-[45vh] overflow-y-auto pr-1">
                 {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
                   <button key={prob} onClick={() => toggleProblem(prob)}
-                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                     {prob}
                   </button>
                 ))}
@@ -229,7 +229,7 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3 max-h-[45vh] overflow-y-auto pr-1">
                 {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
                   <button key={goal} onClick={() => toggleGoal(goal)}
-                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                     {goal}
                   </button>
                 ))}
