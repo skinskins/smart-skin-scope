@@ -74,7 +74,7 @@ const Tips = () => {
                     <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                         <Sparkles size={24} strokeWidth={1.5} />
                     </div>
-                    <h1 className="text-4xl font-display text-foreground leading-tight">Conseils du jour</h1>
+                    <h1 className="text-2xl font-display text-foreground leading-tight">Conseils du jour</h1>
                 </div>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Bio-Analyse Personnalisée</p>
             </motion.div>
@@ -99,7 +99,7 @@ const Tips = () => {
                                 className="premium-card p-8 bg-white/60 hover:bg-white transition-all group overflow-hidden cursor-pointer active:scale-[0.98]"
                             >
                                 <div className="flex gap-6">
-                                    <div className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</div>
+                                    <div className="text-2xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-3">
                                             <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>

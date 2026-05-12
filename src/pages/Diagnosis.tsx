@@ -225,7 +225,7 @@ const Diagnosis = () => {
           <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary">
             <FlaskRound size={24} strokeWidth={1.5} />
           </div>
-          <h1 className="text-4xl font-display text-foreground leading-tight">Analyse IA</h1>
+          <h1 className="text-2xl font-display text-foreground leading-tight">Analyse IA</h1>
         </div>
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Diagnostic dermatologique de précision</p>
       </motion.div>
@@ -496,7 +496,7 @@ const Diagnosis = () => {
           <div className="p-8 space-y-8">
             <DialogHeader className="space-y-6">
                 <div className="flex items-center justify-between">
-                    <DialogTitle className="text-4xl font-display text-foreground leading-none">
+                    <DialogTitle className="text-2xl font-display text-foreground leading-none">
                         {selectedZone?.label}
                     </DialogTitle>
                     {selectedZone && <ScoreBadge score={selectedZone.score} />}

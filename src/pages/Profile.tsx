@@ -86,7 +86,7 @@ const Profile = () => {
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 flex justify-between items-start">
         <div className="space-y-1">
           <p className="text-[11px] font-bold text-primary uppercase tracking-[0.3em]">Espace Personnel</p>
-          <h1 className="text-4xl font-display text-foreground">Mon Profil</h1>
+          <h1 className="text-2xl font-display text-foreground">Mon Profil</h1>
         </div>
         <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-destructive/5 flex items-center justify-center text-destructive hover:bg-destructive/10 transition-all active:scale-90">
             <LogOut size={18} strokeWidth={2} />
