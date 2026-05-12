@@ -43,7 +43,7 @@ const ScoreChange = ({ diff }: { diff: number }) => {
 };
 
 const ScoreBar = ({ score, color }: { score: number; color: string }) => (
-  <div className="h-1.5 w-full bg-muted/10 rounded-full overflow-hidden">
+  <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
     <motion.div
       className="h-full bg-primary"
       initial={{ width: 0 }}
@@ -134,13 +134,13 @@ const Progress = () => {
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-8 text-center">Sessions comparées</h3>
             <div className="flex gap-4 items-center mb-6">
               <div className="flex-1">
-                <div className="relative rounded-3xl border border-border/40 aspect-[3/4] bg-muted/5 flex flex-col items-center justify-center p-6 text-center">
+                <div className="relative rounded-3xl border border-border/40 aspect-[3/4] bg-muted/15 flex flex-col items-center justify-center p-6 text-center">
                   <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-3 opacity-60">{format(new Date(compared.date), "dd/MM/yy")}</p>
                   <p className="text-4xl font-display text-foreground">{compared.globalScore}</p>
                 </div>
               </div>
 
-              <div className="w-10 h-10 rounded-full bg-muted/10 flex items-center justify-center text-muted-foreground">
+              <div className="w-10 h-10 rounded-full bg-muted/20 flex items-center justify-center text-muted-foreground">
                 <ArrowRight size={18} strokeWidth={1.5} />
               </div>
 
@@ -195,7 +195,7 @@ const Progress = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="h-1.5 w-full bg-muted/10 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden">
                         <motion.div
                         className="h-full bg-primary"
                         initial={{ width: 0 }}

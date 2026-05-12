@@ -142,8 +142,6 @@ const App = () => (
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />
           <Route path="/signup" element={<PublicOnlyGuard><Signup /></PublicOnlyGuard>} />
-          <Route path="/pricing-value" element={<AuthGuard><PricingValueScreen /></AuthGuard>} />
-          <Route path="/pricing-plan" element={<AuthGuard><PricingPlanScreen /></AuthGuard>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/strava-connect" element={<StravaConnect />} />
           <Route path="/callback" element={<Callback />} />

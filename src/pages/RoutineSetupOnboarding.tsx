@@ -147,7 +147,7 @@ const RoutineSetupOnboarding = () => {
                                 <div className="grid gap-3">
                                     {dbProducts.map((p) => (
                                         <div key={p.id} className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl group transition-all hover:border-primary/40 shadow-sm">
-                                            <div className="w-16 h-16 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
+                                            <div className="w-16 h-16 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
                                                 {p.photo_url ? (
                                                     <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain transition-transform group-hover:scale-105" />
                                                 ) : (
@@ -207,7 +207,7 @@ const RoutineSetupOnboarding = () => {
                         </button>
                         <button
                             onClick={handleSkip}
-                            className="w-full text-muted-foreground py-3 rounded-2xl font-medium text-sm hover:bg-muted/50 transition-colors"
+                            className="w-full text-muted-foreground py-3 rounded-2xl font-medium text-sm hover:bg-muted/150 transition-colors"
                         >
                             Je ferai ça plus tard
                         </button>

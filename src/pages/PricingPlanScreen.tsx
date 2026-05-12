@@ -37,7 +37,7 @@ const PricingPlanScreen = () => {
       <h2 className="text-2xl font-display text-center text-foreground mb-12 italic">Choisissez votre abonnement</h2>
 
       {/* Segmented Control */}
-      <div className="bg-muted/10 p-1.5 rounded-full flex mb-12 relative border border-border/40">
+      <div className="bg-muted/20 p-1.5 rounded-full flex mb-12 relative border border-border/40">
         <motion.div
           className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
           animate={{ x: plan === 'yearly' ? '100%' : '0%' }}

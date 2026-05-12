@@ -168,7 +168,7 @@ const Routine = () => {
                 <div className="grid gap-3">
                   {dbProducts.map((p) => (
                     <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl group transition-all hover:border-primary/30 shadow-sm">
-                      <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
+                      <div className="w-14 h-14 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
                         {p.photo_url ? (
                           <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
                         ) : (

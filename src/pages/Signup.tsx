@@ -1,8 +1,11 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame } from "lucide-react";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import matrixData from "@/data/skincare_matrix.json";
@@ -62,10 +65,17 @@ const Signup = () => {
     const [rednessBaseline, setRednessBaseline] = useState("");
     const [drynessBaseline, setDrynessBaseline] = useState("");
 
+    // Pricing Step State
+    const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
+
     const [step, setStep] = useState(1);
     const [showSkinState, setShowSkinState] = useState(false);
-    const [showPreview, setShowPreview] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    const PLANS = {
+        monthly: { id: "monthly_plan", price: "4,99€", period: "/mois", subtext: "Facturé mensuellement" },
+        yearly: { id: "yearly_plan", price: "2,99€", period: "/mois", subtext: "35,99€ facturés une fois par an • Offre de lancement", badge: "-40%" }
+    };
 
     useEffect(() => {
         const checkSession = async () => {
@@ -92,6 +102,34 @@ const Signup = () => {
         checkSession();
     }, [navigate]);
 
+    const BackButton = () => (
+        <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => {
+                e.preventDefault();
+                if (showSkinState) setShowSkinState(false);
+                else if (step === 6) setStep(5);
+                else if (step === 5) setStep(4);
+                else if (step === 4) {
+                    const hasAcne = skinProblems.includes("Acné") || skinProblems.includes("Points noirs") || skinType === "Acnéique";
+                    const hasRedness = skinProblems.includes("Rougeurs") || skinProblems.includes("Eczéma");
+                    const hasDryness = skinProblems.includes("Déshydratation") || skinType === "Sèche";
+                    if (hasAcne || hasRedness || hasDryness) {
+                        setStep(3);
+                        setShowSkinState(true);
+                    } else {
+                        setStep(3);
+                    }
+                }
+                else if (step > 1) setStep(step - 1);
+                else navigate("/onboarding");
+            }}
+            className="w-10 h-10 flex items-center justify-center rounded-full border border-border/40 bg-white/50 hover:bg-white transition-all shadow-sm shrink-0 mt-1"
+        >
+            <ArrowLeft size={16} strokeWidth={1.5} className="text-foreground" />
+        </motion.button>
+    );
+
     const toggleChannel = (ch: string) => {
         if (usedChannels.includes(ch)) {
             setUsedChannels(usedChannels.filter(c => c !== ch));
@@ -116,82 +154,11 @@ const Signup = () => {
         }
     };
 
-    const generateAdvice = () => {
-        const advices: { title: string, content: string, iconStr: string }[] = [];
-
-        // 1. Type Advice
-        const typeInfo = matrix.types_de_peau.find((t: any) => t.type === skinType);
-        if (typeInfo) {
-            advices.push({
-                title: `Peau ${skinType}`,
-                content: `Votre priorité est de cibler : ${typeInfo.signal_prioritaire}. Privilégiez des actifs comme ${typeInfo.ingredients_a_privilegier.slice(0, 2).join(' ou ')}.`,
-                iconStr: "🛡️"
-            });
-        }
-
-        // 2. Intensity-based advice (The new matrix section)
-        if (acneBaseline) {
-            const acneInfo = matrix.intensite_sensibilites.acne.find((a: any) => a.niveau === acneBaseline);
-            if (acneInfo) {
-                let content = `${acneInfo.description}. Misez sur ${acneInfo.actifs_recommandes.slice(0, 2).join(' et ')}.`;
-                if (acneInfo.regles_coherence?.si_type_peau_seche && skinType === "Sèche") {
-                    content += ` Note : ${acneInfo.regles_coherence.si_type_peau_seche}`;
-                }
-                if (acneInfo.alerte) content += ` Important : ${acneInfo.alerte}`;
-                advices.push({ title: `Acné ${acneBaseline}`, content, iconStr: "🩹" });
-            }
-        }
-
-        if (rednessBaseline) {
-            const rednessInfo = matrix.intensite_sensibilites.rougeurs.find((r: any) => r.niveau === rednessBaseline);
-            if (rednessInfo) {
-                let content = `${rednessInfo.description}. Incorporez ${rednessInfo.actifs_recommandes.slice(0, 2).join(' ou ')}.`;
-                if (rednessInfo.alerte) content += ` Important : ${rednessInfo.alerte}`;
-                advices.push({ title: `Rougeurs ${rednessBaseline}`, content, iconStr: "🌿" });
-            }
-        }
-
-        if (drynessBaseline) {
-            const drynessInfo = matrix.intensite_sensibilites.deshydratation.find((d: any) => d.niveau === drynessBaseline);
-            if (drynessInfo) {
-                let content = `${drynessInfo.description}. ${drynessInfo.routine_cle}.`;
-                advices.push({ title: `Sécheresse ${drynessBaseline}`, content, iconStr: "💧" });
-            }
-        }
-
-        // 3. Goals Advice
-        skinGoals.forEach(goal => {
-            const goalInfo = matrix.objectifs.find((o: any) => o.objectif === goal);
-            if (goalInfo) {
-                let content = `Pour votre objectif ${goal}, misez sur ${goalInfo.actifs_cles.slice(0, 2).join(' et ')}.`;
-                if (goalInfo.regles.includes("SPF obligatoire")) {
-                    content += " N'oubliez jamais votre protection SPF le matin pour protéger vos résultats.";
-                }
-                advices.push({
-                    title: goal,
-                    content,
-                    iconStr: "✨"
-                });
-            }
-        });
-
-        // 4. Special Rules
-        if (skinType === "Sensible" || skinProblems.includes("Eczéma")) {
-            advices.push({
-                title: "Précaution",
-                content: "Votre peau étant réactive, effectuez toujours un patch test 24h avant d'introduire un nouvel actif.",
-                iconStr: "🩺"
-            });
-        }
-
-        return advices.slice(0, 4); // Show up to 4 advices
-    };
-
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // New logic: Step 3 -> Step 3.1 (Skin State)
-        if (step === 3 && !showSkinState && !showPreview) {
+        if (step === 3 && !showSkinState) {
             const hasAcne = skinProblems.includes("Acné") || skinProblems.includes("Points noirs") || skinType === "Acnéique";
             const hasRedness = skinProblems.includes("Rougeurs") || skinProblems.includes("Eczéma");
             const hasDryness = skinProblems.includes("Déshydratation") || skinType === "Sèche";
@@ -201,7 +168,7 @@ const Signup = () => {
                 window.scrollTo(0, 0);
                 return;
             } else {
-                setShowPreview(true);
+                setStep(4); // Now Pricing Value
                 window.scrollTo(0, 0);
                 return;
             }
@@ -209,21 +176,13 @@ const Signup = () => {
 
         if (showSkinState) {
             setShowSkinState(false);
-            setShowPreview(true);
+            setStep(4); // Now Pricing Value
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step === 3 && showPreview) {
-            setStep(4);
-            setShowPreview(false);
-            window.scrollTo(0, 0);
-            return;
-        }
-
-        if (step < 4) {
+        if (step < 6) { // Account creation is now step 6
             setStep(step + 1);
-            setShowPreview(false);
             setShowSkinState(false);
             window.scrollTo(0, 0);
             return;
@@ -283,7 +242,7 @@ const Signup = () => {
 
             setLoading(false);
             localStorage.removeItem("guestProfile");
-            navigate("/pricing-value", { state: { isOnboarding: true, firstName } });
+            navigate("/dashboard");
         } catch (error) {
             console.error("Signup error:", error);
             toast.error("Une erreur est survenue lors de l'inscription.");
@@ -295,101 +254,21 @@ const Signup = () => {
         <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
-            <div className="p-6 relative z-10 flex items-center justify-between">
-                <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    onClick={() => {
-                        if (showPreview) {
-                            if (acneBaseline || rednessBaseline || drynessBaseline) setShowSkinState(true);
-                            else setShowPreview(false);
-                        }
-                        else if (showSkinState) setShowSkinState(false);
-                        else if (step > 1) setStep(step - 1);
-                        else navigate("/onboarding");
-                    }}
-                    className="w-12 h-12 flex items-center justify-center rounded-full border border-border/60 bg-white/50 hover:bg-white transition-all shadow-sm"
-                >
-                    <ArrowLeft size={18} strokeWidth={1.5} className="text-foreground" />
-                </motion.button>
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em] bg-white/40 px-5 py-2.5 rounded-full border border-border/40 backdrop-blur-sm">
-                    {showPreview ? "Aperçu Lab" : showSkinState ? "État Actuel" : `Étape ${step} / 4`}
-                </div>
-            </div>
-
             <motion.div
-                key={showPreview ? "preview" : showSkinState ? "skin-state" : step}
+                key={showSkinState ? "skin-state" : step}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 className="flex-1 flex flex-col p-6 z-10 max-w-md mx-auto w-full pb-32"
             >
-                {showPreview ? (
+                {showSkinState ? (
                     <div className="space-y-8 h-full flex flex-col">
-                        <div className="mb-6">
-                            <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Analyse Préliminaire</h1>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Basé sur vos réponses</p>
-                        </div>
-
-                        <div className="space-y-4 flex-1 relative">
-                            {generateAdvice().map((advice, idx) => (
-                                <motion.div
-                                    key={idx}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.15 + idx * 0.05 }}
-                                    className="flex flex-col gap-4 p-8 premium-card border-none bg-white/60 group transition-all hover:bg-white/40"
-                                >
-                                    <div className="flex gap-6">
-                                        <span className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</span>
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
-                                            </div>
-                                            <p className="text-[13px] text-foreground/80 leading-relaxed italic">{advice.content}</p>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}
-
-                            <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-10 pointer-events-none" />
-                            
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5 }}
-                                className="mt-8 p-8 rounded-[32px] bg-primary/5 border border-primary/10 relative overflow-hidden backdrop-blur-sm z-20"
-                            >
-                                <div className="absolute top-0 right-0 p-4">
-                                    <Lock size={16} className="text-primary/30" />
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="bg-white rounded-full p-2 text-primary shadow-sm h-fit shrink-0"><Lightbulb size={16} strokeWidth={2.5} /></div>
-                                    <div className="space-y-3">
-                                        <h3 className="text-[10px] font-bold text-primary uppercase tracking-widest">Optimisation Lab</h3>
-                                        <p className="text-[12px] text-foreground/70 leading-relaxed italic">
-                                            Débloquez <span className="text-primary font-bold">12 analyses supplémentaires</span> incluant votre cycle hormonal et l'impact de la météo en temps réel après l'inscription.
-                                        </p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        </div>
-
-                        <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-30">
-                            <button
-                                onClick={handleNext}
-                                className="w-full h-16 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
-                            >
-                                CONTINUER <ArrowRight size={18} strokeWidth={2.5} />
-                            </button>
-                        </div>
-                    </div>
-                ) : showSkinState ? (
-                    <div className="space-y-8 h-full flex flex-col">
-                        <div className="mb-6">
-                            <h1 className="text-4xl font-display text-foreground leading-tight mb-3">État actuel</h1>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre point de départ aujourd'hui</p>
+                        <div className="mb-6 flex items-start gap-4">
+                            <BackButton />
+                            <div>
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">État actuel</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre point de départ aujourd'hui</p>
+                            </div>
                         </div>
 
                         <div className="space-y-10 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
@@ -402,7 +281,7 @@ const Signup = () => {
                                     <div className="grid grid-cols-3 gap-3">
                                         {["Légère", "Modérée", "Forte"].map(lvl => (
                                             <button key={lvl} onClick={() => setAcneBaseline(lvl)}
-                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${acneBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${acneBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {lvl}
                                             </button>
                                         ))}
@@ -419,7 +298,7 @@ const Signup = () => {
                                     <div className="grid grid-cols-3 gap-3">
                                         {["Légères", "Modérées", "Fortes"].map(lvl => (
                                             <button key={lvl} onClick={() => setRednessBaseline(lvl)}
-                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${rednessBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${rednessBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {lvl}
                                             </button>
                                         ))}
@@ -436,7 +315,7 @@ const Signup = () => {
                                     <div className="grid grid-cols-3 gap-3">
                                         {["Légère", "Modérée", "Forte"].map(lvl => (
                                             <button key={lvl} onClick={() => setDrynessBaseline(lvl)}
-                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${drynessBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${drynessBaseline === lvl ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                 {lvl}
                                             </button>
                                         ))}
@@ -458,9 +337,12 @@ const Signup = () => {
                     <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
                         {step === 1 && (
                             <>
-                                <div className="mb-10">
-                                    <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Socio-professsionnel</h1>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">(Optionnel) Données statistiques</p>
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Socio-professsionnel</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">(Optionnel) Données statistiques</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-8 flex-1">
                                     <div className="space-y-4 relative">
@@ -484,7 +366,7 @@ const Signup = () => {
                                         <div className="grid grid-cols-2 gap-3 mt-2">
                                             {channels.map(ch => (
                                                 <button type="button" key={ch} onClick={() => toggleChannel(ch)}
-                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${usedChannels.includes(ch) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${usedChannels.includes(ch) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                     {ch}
                                                 </button>
                                             ))}
@@ -509,9 +391,12 @@ const Signup = () => {
 
                         {step === 2 && (
                             <>
-                                <div className="mb-10">
-                                    <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Profil physique</h1>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation de l'analyse</p>
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Profil physique</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation de l'analyse</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-8 flex-1">
                                     <div className="space-y-4 relative">
@@ -528,7 +413,7 @@ const Signup = () => {
                                         <div className="grid grid-cols-3 gap-3">
                                             {["Femme", "Homme", "Autre"].map(g => (
                                                 <button type="button" key={g} onClick={() => setGender(g)}
-                                                    className={`py-4 px-2 border rounded-full transition-all text-[10px] font-bold uppercase tracking-widest ${gender === g ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                    className={`py-4 px-2 border rounded-full transition-all text-[10px] font-bold uppercase tracking-widest ${gender === g ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                     {g}
                                                 </button>
                                             ))}
@@ -540,9 +425,12 @@ const Signup = () => {
 
                         {step === 3 && (
                             <>
-                                <div className="mb-10">
-                                    <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Diagnostic & Objectifs</h1>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Identification et priorités</p>
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Diagnostic & Objectifs</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Identification et priorités</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
                                     <div className="space-y-6">
@@ -550,7 +438,7 @@ const Signup = () => {
                                         <div className="grid grid-cols-2 gap-3 mb-4">
                                             {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
                                                 <button type="button" key={type} onClick={() => { setSkinType(type); setQuizStarted(false); }}
-                                                    className={`py-5 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                    className={`py-5 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                     {type}
                                                 </button>
                                             ))}
@@ -709,7 +597,7 @@ const Signup = () => {
                                         <div className="grid grid-cols-2 gap-3 mt-2">
                                             {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
                                                 <button type="button" key={prob} onClick={() => toggleProblem(prob)}
-                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                     {prob}
                                                 </button>
                                             ))}
@@ -721,7 +609,7 @@ const Signup = () => {
                                         <div className="grid grid-cols-2 gap-3 mt-2">
                                             {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
                                                 <button type="button" key={goal} onClick={() => toggleGoal(goal)}
-                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/10 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
                                                     {goal}
                                                 </button>
                                             ))}
@@ -732,66 +620,185 @@ const Signup = () => {
                         )}
 
                         {step === 4 && (
-                            <>
-                                <div className="mb-10">
-                                    <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Identifiants</h1>
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Dernière étape : créer votre compte</p>
-                                </div>
-                                <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Prénom</label>
-                                            <div className="relative">
-                                                <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                                <Input placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="pl-12" />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Nom</label>
-                                            <div className="relative">
-                                                <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                                <Input placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="pl-12" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4 pt-4">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Email</label>
-                                        <div className="relative">
-                                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <Input type="email" placeholder="email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-12" />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4 pt-4">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Mot de passe</label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-12" />
-                                        </div>
-                                        <div className="px-4 space-y-2">
-                                            <p className={`text-[9px] flex items-center gap-2 ${password.length >= 8 ? 'text-primary' : 'text-muted-foreground/40'}`}>
-                                                <CheckCircle2 size={10} /> 8 caractères minimum
-                                            </p>
-                                            <p className={`text-[9px] flex items-center gap-2 ${/[A-Z]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>
-                                                <CheckCircle2 size={10} /> Une majuscule
-                                            </p>
-                                            <p className={`text-[9px] flex items-center gap-2 ${/[0-9]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>
-                                                <CheckCircle2 size={10} /> Un chiffre
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-10 flex items-start gap-4 px-4 bg-muted/5 rounded-[32px] p-6 border border-border/20">
-                                        <Shield className="text-primary shrink-0" size={20} />
-                                        <p className="text-[10px] text-muted-foreground leading-relaxed italic">
-                                            Vos données sont sécurisées et conformes au RGPD. Nous ne partageons jamais vos informations personnelles.
-                                        </p>
+                            <div className="space-y-8 h-full flex flex-col">
+                                <div className="mb-6 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em] mb-4">VOTRE ACCÈS PREMIUM ✦</p>
+                                        <h1 className="text-4xl font-display text-foreground leading-tight italic">Prenez soin de vous, sans limites</h1>
                                     </div>
                                 </div>
-                            </>
+
+                                <div className="flex-1 space-y-12 overflow-y-auto pb-4 custom-scrollbar pr-1">
+                                    <Card className="premium-card aspect-square flex items-center justify-center bg-card/20 border-none shadow-none mt-4">
+                                        <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                            <Sparkles size={64} strokeWidth={1} />
+                                        </div>
+                                    </Card>
+
+                                    <div className="space-y-8">
+                                        {[
+                                            { icon: <Shield size={20} strokeWidth={1.5} />, label: "Analyse illimitée", desc: "Diagnostics complets et personnalisés chaque jour." },
+                                            { icon: <Clock size={20} strokeWidth={1.5} />, label: "Suivi historique", desc: "Visualisez l'évolution de votre peau sur le long terme." },
+                                            { icon: <Sparkles size={20} strokeWidth={1.5} />, label: "Conseils exclusifs", desc: "Accès à l'intégralité de la matrice scientifique." },
+                                        ].map((benefit, idx) => (
+                                            <motion.div key={idx} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 * idx }} className="flex gap-5 items-start">
+                                                <div className="text-primary mt-1 p-2 bg-primary/5 rounded-full">{benefit.icon}</div>
+                                                <div>
+                                                    <p className="text-[14px] font-bold text-foreground uppercase tracking-tight">{benefit.label}</p>
+                                                    <p className="text-[13px] text-muted-foreground italic leading-relaxed">{benefit.desc}</p>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+
+                                    <div className="pt-8">
+                                        <button
+                                            type="submit"
+                                            className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+                                        >
+                                            CONTINUER <ChevronRight size={18} strokeWidth={2.5} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         )}
 
+                        {step === 5 && (
+                            <div className="space-y-8 h-full flex flex-col">
+                                <div className="mb-4 flex items-center gap-4">
+                                    <BackButton />
+                                    <h2 className="text-2xl font-display text-foreground italic">Choisissez votre abonnement</h2>
+                                </div>
+
+                                {/* Segmented Control */}
+                                <div className="bg-muted/20 p-1.5 rounded-full flex mb-8 relative border border-border/40">
+                                    <motion.div 
+                                        className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
+                                        animate={{ x: selectedPlan === 'yearly' ? '100%' : '0%' }}
+                                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    />
+                                    <button type="button" onClick={() => setSelectedPlan("monthly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 ${selectedPlan === 'monthly' ? 'text-primary' : 'text-muted-foreground'}`}>Mensuel</button>
+                                    <button type="button" onClick={() => setSelectedPlan("yearly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 relative ${selectedPlan === 'yearly' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        Annuel
+                                        <Badge className="absolute -top-3 -right-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
+                                    </button>
+                                </div>
+
+                                {/* Price Display */}
+                                <motion.div layout className="bg-primary/5 p-10 rounded-[40px] border border-primary/10 text-center mb-8 relative overflow-hidden shadow-sm">
+                                    <AnimatePresence mode="wait">
+                                        <motion.div key={selectedPlan} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="space-y-5">
+                                            {selectedPlan === 'yearly' && (
+                                                <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full mb-2 shadow-sm">
+                                                    <span>-40%</span>
+                                                    <span className="w-1 h-1 bg-white/40 rounded-full" />
+                                                    <span>Offre de lancement</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-baseline justify-center gap-2">
+                                                <span className="text-7xl font-display text-foreground italic leading-none">{PLANS[selectedPlan].price}</span>
+                                                <span className="text-xl text-muted-foreground italic">{PLANS[selectedPlan].period}</span>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
+                                                <p className="text-[15px] text-foreground font-semibold italic">14 jours d'essai gratuit inclus</p>
+                                            </div>
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </motion.div>
+
+                                <div className="space-y-5 mb-10">
+                                    {["Accès illimité à toutes les analyses et conseils", "Sans engagement", "Aucun débit maintenant"].map((text, idx) => (
+                                        <div key={idx} className="flex items-center gap-4">
+                                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><Check size={14} strokeWidth={3} /></div>
+                                            <span className="text-[14px] font-medium text-foreground italic">{text}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-4 pt-4">
+                                    <Button
+                                        type="submit"
+                                        className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+                                    >
+                                        SOUSCRIRE À L'OFFRE
+                                    </Button>
+                                    <button
+                                        type="submit"
+                                        className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] text-center hover:text-primary transition-colors py-2"
+                                    >
+                                        Démarrer mon essai gratuit de 14 jours - sans engagement
+                                    </button>
+                                </div>
+                            </div>
+                )}
+
+                {step === 6 && (
+                    <>
+                        <div className="mb-10 flex items-start gap-4">
+                            <BackButton />
+                            <div>
+                                <h1 className="text-4xl font-display text-foreground leading-tight mb-3">Identifiants</h1>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Dernière étape : créer votre compte</p>
+                            </div>
+                        </div>
+                        <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Prénom</label>
+                                    <div className="relative">
+                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                        <Input placeholder="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="pl-12" />
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Nom</label>
+                                    <div className="relative">
+                                        <User className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                        <Input placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} className="pl-12" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 pt-4">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Email</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                    <Input type="email" placeholder="email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-12" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 pt-4">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Mot de passe</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
+                                    <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-12" />
+                                </div>
+                                <div className="px-4 space-y-2">
+                                    <p className={`text-[9px] flex items-center gap-2 ${password.length >= 8 ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                                        <CheckCircle2 size={10} /> 8 caractères minimum
+                                    </p>
+                                    <p className={`text-[9px] flex items-center gap-2 ${/[A-Z]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                                        <CheckCircle2 size={10} /> Une majuscule
+                                    </p>
+                                    <p className={`text-[9px] flex items-center gap-2 ${/[0-9]/.test(password) ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                                        <CheckCircle2 size={10} /> Un chiffre
+                                    </p>
+                                </div>
+                            </div>
+
+                                <div className="pt-10 flex items-start gap-4 px-4 bg-muted/15 rounded-[32px] p-6 border border-border/20">
+                                    <Shield className="text-primary shrink-0" size={20} />
+                                    <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                                        Vos données sont sécurisées et conformes au RGPD. Nous ne partageons jamais vos informations personnelles.
+                                    </p>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {step !== 4 && step !== 5 && (
                         <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-20 flex flex-col gap-4">
                             {step === 1 && (
                                 <button
@@ -802,24 +809,26 @@ const Signup = () => {
                                     Passer cette étape
                                 </button>
                             )}
+
                             <button
                                 type="submit"
                                 disabled={
                                     (loading) ||
                                     (step === 1 && usedChannels.includes('Autre') && !otherChannel) ||
                                     (step === 2 && (!age || !gender)) ||
-                                    (step === 3 && (!skinType || skinGoals.length === 0)) ||
-                                    (step === 4 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
+                                    (step === 3 && !showSkinState && (!skinType || skinGoals.length === 0)) ||
+                                    (step === 6 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                 }
                                 className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                             >
-                                {loading ? "ENREGISTREMENT..." : step === 4 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
+                                {loading ? "ENREGISTREMENT..." : step === 6 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
                             </button>
                         </div>
-                    </form>
-                )}
-            </motion.div>
-        </div>
+                    )}
+                </form>
+            )}
+        </motion.div>
+    </div>
     );
 };
 
