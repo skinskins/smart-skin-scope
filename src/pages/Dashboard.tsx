@@ -263,105 +263,114 @@ const Dashboard = () => {
     fetchStravaActivities();
   }, []);
 
-  // Check auth state and fetch remote daily checkin profile
+  // Consolidated data fetch
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setIsFetchingCheckin(false);
+        return;
+      }
+
+      if (session.user.user_metadata?.first_name) {
+        setUserName(session.user.user_metadata.first_name);
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+
+      try {
+        // Parallel fetch for better performance
+        const [profileRes, checkinRes, symptomsRes] = await Promise.all([
+          (supabase as any).from('profiles').select('*').eq('id', session.user.id).single(),
+          (supabase as any).from("daily_checkins").select("*").eq("user_id", session.user.id).eq("date", today).maybeSingle(),
+          (supabase as any).from("symptom_tracking").select("symptom, zone, trend").eq("user_id", session.user.id).eq("date", today)
+        ]);
+
+        let mergedLog = { ...dailyLog };
+
+        // 1. Process Profile (Long-term data)
+        if (profileRes.data) {
+          const profile = profileRes.data;
+          setSkinType(profile.skin_type || null);
+          if (profile.skin_problems) setUserConcerns(profile.skin_problems);
+          
+          mergedLog = {
+            ...mergedLog,
+            location: profile.manual_location || mergedLog.location,
+            cycleDuration: profile.cycle_duration || mergedLog.cycleDuration,
+            periodDuration: profile.period_duration || mergedLog.periodDuration,
+            lastPeriodDate: profile.last_period_date || mergedLog.lastPeriodDate,
+          };
+          if (profile.manual_location) setManualLocationState(profile.manual_location);
+        }
+
+        // 2. Process Daily Check-in
+        if (checkinRes.data) {
+          const checkin = checkinRes.data;
+          mergedLog = {
+            ...mergedLog,
+            sleepHours: checkin.sleep_hours ?? mergedLog.sleepHours,
+            waterGlasses: checkin.water_glasses ?? mergedLog.waterGlasses,
+            alcoholDrinks: checkin.alcohol_drinks ?? mergedLog.alcoholDrinks,
+            stressLevel: checkin.stress_level ?? mergedLog.stressLevel,
+            foodQuality: checkin.food_quality ?? mergedLog.foodQuality,
+            didSport: checkin.sport_intensity ?? (checkin.did_sport ? "Modéré" : "Non"),
+            makeupRemoved: checkin.makeup_removed ?? mergedLog.makeupRemoved,
+            cyclePhase: checkin.cycle_phase ?? mergedLog.cyclePhase,
+            checkinDate: today
+          };
+        }
+
+        // 3. Process Symptoms
+        if (symptomsRes.data) {
+          const zonesMap: Record<string, string> = {};
+          const trendsMap: Record<string, string> = {};
+          symptomsRes.data.forEach((z: any) => {
+            if (z.zone) zonesMap[z.symptom] = z.zone;
+            if (z.trend) trendsMap[z.symptom] = z.trend;
+          });
+          mergedLog = {
+            ...mergedLog,
+            symptomZones: zonesMap,
+            symptoms: { ...(mergedLog.symptoms || {}), ...trendsMap }
+          };
+        }
+
+        setDailyLog(mergedLog);
+        localStorage.setItem("dailyCheckinData", JSON.stringify(mergedLog));
+
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+      } finally {
+        setIsFetchingCheckin(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Fetch yesterday's routine logs for G8 triggers (separate as it's for logic, not main UI state)
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        if (session.user.user_metadata?.first_name) {
-          setUserName(session.user.user_metadata.first_name);
-        }
-
-        // Fetch remote data to ensure persistence across devices
-        // @ts-ignore
-        (supabase as any).from('profiles').select('*').eq('id', session.user.id).single()
-          .then(({ data, error }: any) => {
-            if (data && !error) {
-              const profile = data as any;
-              setSkinType(profile.skin_type || null);
-              setDailyLog(prev => ({
-                ...prev,
-                heartRate: profile.heart_rate ?? prev.heartRate,
-                sleepHours: profile.sleep_hours ?? prev.sleepHours,
-                waterGlasses: profile.water_glasses ?? prev.waterGlasses,
-                alcoholDrinks: profile.alcohol_drinks ?? prev.alcoholDrinks,
-                lastPeriodDate: profile.last_period_date ?? prev.lastPeriodDate,
-                cyclePhase: profile.cycle_phase ?? prev.cyclePhase,
-                cycleDuration: profile.cycle_duration ?? prev.cycleDuration,
-                periodDuration: profile.period_duration ?? prev.periodDuration,
-                stressLevel: profile.stress_level ?? prev.stressLevel,
-                foodQuality: profile.food_quality ?? prev.foodQuality
-              }));
-
-              if (profile.skin_problems) setUserConcerns(profile.skin_problems);
-
-
-
-              // Fetch latest symptom zones
-              const today = new Date().toISOString().split("T")[0];
-              (supabase as any).from("symptom_tracking")
-                .select("symptom, zone, trend")
-                .eq("user_id", session.user.id)
-                .eq("date", today)
-                .then(({ data: zonesData }: any) => {
-                  if (zonesData) {
-                    const zonesMap: Record<string, string> = {};
-                    const trendsMap: Record<string, string> = {};
-                    zonesData.forEach((z: any) => { 
-                      if (z.zone) zonesMap[z.symptom] = z.zone; 
-                      if (z.trend) trendsMap[z.symptom] = z.trend;
-                    });
-                    setDailyLog(prev => ({ ...prev, symptomZones: zonesMap, symptoms: { ...(prev.symptoms || {}), ...trendsMap } }));
-                  }
-                });
-
-              // Fetch yesterday's routine logs for G8 triggers
-              const yesterday = new Date();
-              yesterday.setDate(yesterday.getDate() - 1);
-              const yesterdayStr = yesterday.toISOString().split("T")[0];
-              (supabase as any).from("routine_logs")
-                .select("*")
-                .eq("user_id", session.user.id)
-                .eq("date", yesterdayStr)
-                .single()
-                .then(({ data: logData }: any) => {
-                  if (logData) setYesterdayLog(logData);
-                });
-
-              // Fetch today's daily check-in
-              (supabase as any).from("daily_checkins")
-                .select("*")
-                .eq("user_id", session.user.id)
-                .eq("date", today)
-                .single()
-                .then(({ data: checkinData, error: checkinError }: any) => {
-                  if (checkinData && !checkinError) {
-                    setDailyLog(prev => ({
-                      ...prev,
-                      sleepHours: checkinData.sleep_hours ?? prev.sleepHours,
-                      waterGlasses: checkinData.water_glasses ?? prev.waterGlasses,
-                      alcoholDrinks: checkinData.alcohol_drinks ?? prev.alcoholDrinks,
-                      stressLevel: checkinData.stress_level ?? prev.stressLevel,
-                      foodQuality: checkinData.food_quality ?? prev.foodQuality,
-                      didSport: checkinData.sport_intensity ?? (checkinData.did_sport ? "Modéré" : "Non"),
-                      makeupRemoved: checkinData.makeup_removed ?? prev.makeupRemoved,
-                      cyclePhase: checkinData.cycle_phase ?? prev.cyclePhase,
-                      checkinDate: today
-                    }));
-                  }
-                });
-              
-              // Only set loading to false after all initial fetches are started
-              // (Note: individual functional updates handle the data merging)
-              setIsFetchingCheckin(false);
-            } else {
-              setIsFetchingCheckin(false);
-            }
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split("T")[0];
+        (supabase as any).from("routine_logs")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .eq("date", yesterdayStr)
+          .maybeSingle()
+          .then(({ data }: any) => {
+            if (data) setYesterdayLog(data);
           });
-      } else {
-        setIsFetchingCheckin(false);
       }
     });
+  }, []);
 
+  const [yesterdayLog, setYesterdayLog] = useState<any>(null);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.user_metadata?.first_name) {
         setUserName(session.user.user_metadata.first_name);
@@ -373,17 +382,14 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const [yesterdayLog, setYesterdayLog] = useState<any>(null);
-
 
   // Track last update timestamps for manual factors (default: 18h ago)
   const [manualUpdates, setManualUpdates] = useState<Record<string, number>>(() => {
     const defaultTime = Date.now() - DEFAULT_UPDATED_AGO;
-    return { heartStress: defaultTime, sleep: defaultTime, cycle: defaultTime, water: defaultTime, alcohol: defaultTime, workout: defaultTime };
+    return { stress: defaultTime, sleep: defaultTime, cycle: defaultTime, water: defaultTime, alcohol: defaultTime, sport: defaultTime };
   });
 
-  // Temp edit values
-  const [editValues, setEditValues] = useState({ heartRate: 72, stressLevel: 3, sleepHours: 7.5, location: defaultDailyLog.location });
+
 
   const [editValue, setEditValue] = useState<any>(null);
   const [locationInput, setLocationInput] = useState("");
@@ -420,39 +426,46 @@ const Dashboard = () => {
 
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      const updates: any = {};
-      if (editingFactor === 'sleep') updates.sleep_hours = newLog.sleepHours;
-      if (editingFactor === 'stress') updates.stress_level = newLog.stressLevel;
-      if (editingFactor === 'water') updates.water_glasses = newLog.waterGlasses;
-      if (editingFactor === 'alcohol') updates.alcohol_drinks = newLog.alcoholDrinks;
-      if (editingFactor === 'sport') updates.did_sport = newLog.didSport !== "Non";
-      if (editingFactor === 'makeup') updates.makeup_removed = newLog.makeupRemoved;
-      if (editingFactor === 'alimentation') updates.food_quality = newLog.foodQuality;
-      if (editingFactor === 'location') updates.manual_location = newLog.location;
-      if (editingFactor === 'cycle') {
-        updates.cycle_phase = newLog.cyclePhase;
-        updates.last_period_date = newLog.lastPeriodDate;
-        updates.cycle_duration = newLog.cycleDuration;
-        updates.period_duration = newLog.periodDuration;
-      }
-      // @ts-ignore
-      await (supabase as any).from("profiles").update(updates).eq("id", session.user.id);
-
-      // Log to history for Passport
       const today = new Date().toISOString().split("T")[0];
-      await (supabase as any).from("daily_checkins").upsert({
+      
+      // Update profile only for relevant long-term fields
+      const profileUpdates: any = {};
+      if (editingFactor === 'location') profileUpdates.manual_location = newLog.location;
+      if (editingFactor === 'cycle') {
+        profileUpdates.cycle_phase = newLog.cyclePhase;
+        profileUpdates.last_period_date = newLog.lastPeriodDate;
+        profileUpdates.cycle_duration = newLog.cycleDuration;
+        profileUpdates.period_duration = newLog.periodDuration;
+      }
+      
+      if (Object.keys(profileUpdates).length > 0) {
+        // @ts-ignore
+        await (supabase as any).from("profiles").update(profileUpdates).eq("id", session.user.id);
+      }
+
+      // Selective update for daily check-ins to prevent overwriting other fields
+      const checkinUpdates: any = {
         user_id: session.user.id,
-        date: today,
-        sleep_hours: newLog.sleepHours,
-        stress_level: newLog.stressLevel,
-        water_glasses: newLog.waterGlasses,
-        alcohol_drinks: newLog.alcoholDrinks,
-        food_quality: newLog.foodQuality,
-        did_sport: newLog.didSport !== "Non",
-        sport_intensity: newLog.didSport,
-        makeup_removed: newLog.makeupRemoved,
-        cycle_phase: newLog.cyclePhase
-      }, { onConflict: "user_id,date" });
+        date: today
+      };
+
+      if (editingFactor === 'sleep') checkinUpdates.sleep_hours = newLog.sleepHours;
+      if (editingFactor === 'stress') checkinUpdates.stress_level = newLog.stressLevel;
+      if (editingFactor === 'water') checkinUpdates.water_glasses = newLog.waterGlasses;
+      if (editingFactor === 'alcohol') checkinUpdates.alcohol_drinks = newLog.alcoholDrinks;
+      if (editingFactor === 'alimentation') checkinUpdates.food_quality = newLog.foodQuality;
+      if (editingFactor === 'makeup') checkinUpdates.makeup_removed = newLog.makeupRemoved;
+      if (editingFactor === 'sport') {
+        checkinUpdates.did_sport = newLog.didSport !== "Non";
+        checkinUpdates.sport_intensity = newLog.didSport;
+      }
+      if (editingFactor === 'cycle') checkinUpdates.cycle_phase = newLog.cyclePhase;
+
+      // Use upsert but only with the fields we want to change
+      // Note: In Supabase, if you provide only some columns in upsert, 
+      // you must be careful about defaults. However, we already fetched everything.
+      // To be ultra safe, we use upsert with ONLY what's needed.
+      await (supabase as any).from("daily_checkins").upsert(checkinUpdates, { onConflict: "user_id,date" });
     }
 
     setEditingFactor(null);
