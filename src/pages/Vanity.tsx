@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Search, Plus, Minus, ImageOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type CatalogProduct = {
   id: string;
@@ -25,6 +26,8 @@ type RoutineProduct = {
 
 const Vanity = () => {
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
+  const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
+  const [removeReason, setRemoveReason] = useState<string | null>(null);
   const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
   const [routineProducts, setRoutineProducts] = useState<RoutineProduct[]>([]);
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
@@ -181,14 +184,17 @@ const Vanity = () => {
     }
   };
 
-  const removeProductFromRoutine = async (productId: string) => {
-    if (!userId) return;
+  const confirmRemove = async () => {
+    if (!removeModalProduct || !removeReason || !userId) return;
+    const today = new Date().toISOString().split("T")[0];
     await (supabase as any)
       .from("user_products")
-      .delete()
-      .eq("id", productId)
+      .update({ is_active: false, removed_reason: removeReason, removed_at: today })
+      .eq("id", removeModalProduct.id)
       .eq("user_id", userId);
-    setUserProducts((prev) => prev.filter((p) => p.id !== productId));
+    setUserProducts(prev => prev.filter(p => p.id !== removeModalProduct.id));
+    setRemoveModalProduct(null);
+    setRemoveReason(null);
   };
 
   return (
@@ -355,7 +361,7 @@ const Vanity = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => removeProductFromRoutine(p.id)}
+                      onClick={() => { setRemoveModalProduct(p); setRemoveReason(null); }}
                       className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm shrink-0"
                     >
                       <Minus size={16} />
@@ -434,6 +440,69 @@ const Vanity = () => {
           )}
         </div>
       )}
+      {/* Modale suppression */}
+      <Dialog
+        open={!!removeModalProduct}
+        onOpenChange={(open) => { if (!open) { setRemoveModalProduct(null); setRemoveReason(null); } }}
+      >
+        <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
+          <DialogHeader className="mb-6">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              {removeModalProduct?.brand}
+            </p>
+            <DialogTitle className="text-xl font-display text-foreground">
+              {removeModalProduct?.product_name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-sm font-bold text-foreground mb-4">Pourquoi retirer ce produit ?</p>
+
+          <div className="space-y-3 mb-8">
+            {[
+              { value: "terminé",           label: "Mon produit est terminé",       sub: "Je pourrai le rajouter plus tard" },
+              { value: "mauvaise_réaction",  label: "J'ai eu une mauvaise réaction", sub: "On notera les ingrédients à éviter" },
+              { value: "plus_utilisé",       label: "Je ne l'utilise plus",          sub: "Il restera dans votre historique" },
+            ].map(({ value, label, sub }) => (
+              <button
+                key={value}
+                onClick={() => setRemoveReason(value)}
+                className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                  removeReason === value
+                    ? "border-primary bg-primary/5"
+                    : "border-border/40 bg-background/40"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all ${
+                    removeReason === value ? "border-primary bg-primary" : "border-border"
+                  }`} />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-[11px] text-muted-foreground">{sub}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={confirmRemove}
+              disabled={!removeReason}
+              className="w-full h-12 bg-destructive text-white rounded-full font-bold uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              Retirer le produit
+            </button>
+            <button
+              onClick={() => { setRemoveModalProduct(null); setRemoveReason(null); }}
+              className="w-full h-12 text-muted-foreground text-sm font-medium"
+            >
+              Annuler
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
