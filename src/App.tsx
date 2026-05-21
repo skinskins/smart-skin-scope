@@ -13,7 +13,7 @@ import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
-import Routine from "./pages/Routine";
+import Vanity from "./pages/Vanity";
 import Signup from "./pages/Signup";
 import BottomNav from "./components/BottomNav";
 import PricingValueScreen from "./pages/PricingValueScreen";
@@ -136,7 +136,7 @@ const App = () => (
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
           <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
-          <Route path="/routine" element={<AuthGuard><Routine /></AuthGuard>} />
+          <Route path="/vanity" element={<AuthGuard><Vanity /></AuthGuard>} />
           <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
 
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
