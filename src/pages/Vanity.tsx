@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Minus, ImageOff } from "lucide-react";
+import { Check, X, Search, Plus, Minus, ImageOff, Scan } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,6 +26,9 @@ type RoutineProduct = {
 
 const Vanity = () => {
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const scannerRef = useRef<any>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
   const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
@@ -81,7 +84,7 @@ const Vanity = () => {
       });
   }, [userId]);
 
-  const dailyProducts   = routineProducts.filter(p => !p.frequency || p.frequency === "daily");
+  const dailyProducts   = routineProducts.filter(p => p.frequency === "daily");
   const weeklyProducts  = routineProducts.filter(p => p.frequency === "weekly");
   const monthlyProducts = routineProducts.filter(p => p.frequency === "monthly");
   const morningProducts = dailyProducts.filter(p => p.morning_use);
@@ -184,6 +187,68 @@ const Vanity = () => {
     }
   };
 
+  const processBarcode = async (barcode: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const uid = session.user.id;
+
+    const { data: catalogProduct } = await (supabase as any)
+      .from("user_products")
+      .select("*")
+      .is("user_id", null)
+      .eq("barcode", barcode)
+      .maybeSingle();
+
+    let inserted: any;
+    if (catalogProduct) {
+      const { data } = await (supabase as any).from("user_products").insert({
+        product_name: catalogProduct.product_name,
+        brand: catalogProduct.brand,
+        photo_url: catalogProduct.photo_url,
+        product_type: catalogProduct.product_type,
+        user_id: uid,
+        barcode,
+        status: "pending",
+      }).select().single();
+      inserted = data;
+      setScanMessage("Produit ajouté — en attente de validation ✓");
+    } else {
+      const { data } = await (supabase as any).from("user_products").insert({
+        product_name: "En attente de validation",
+        user_id: uid,
+        barcode,
+        status: "pending",
+      }).select().single();
+      inserted = data;
+      setScanMessage("Produit non reconnu — il sera vérifié avant d'être ajouté");
+    }
+    if (inserted) setUserProducts(prev => [...prev, inserted]);
+    setTimeout(() => setScanMessage(null), 4000);
+  };
+
+  useEffect(() => {
+    if (!scannerOpen) return;
+    let scanner: any;
+    const init = async () => {
+      const { Html5Qrcode } = await import("html5-qrcode");
+      scanner = new Html5Qrcode("qr-reader");
+      scannerRef.current = scanner;
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 120 } },
+        async (code: string) => {
+          await scanner.stop().catch(() => {});
+          scannerRef.current = null;
+          setScannerOpen(false);
+          await processBarcode(code);
+        },
+        undefined
+      );
+    };
+    init().catch(() => setScannerOpen(false));
+    return () => { scannerRef.current?.stop().catch(() => {}); };
+  }, [scannerOpen]);
+
   const confirmRemove = async () => {
     if (!removeModalProduct || !removeReason || !userId) return;
     const today = new Date().toISOString().split("T")[0];
@@ -226,19 +291,27 @@ const Vanity = () => {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="premium-card p-0 overflow-hidden order-1">
           <div className="p-6 bg-background/50 border-b border-border/50">
             <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Ajouter des produits</h2>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Chercher un produit ou marque..."
-                className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
-              />
-              {isSearching && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                </div>
-              )}
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Chercher un produit ou marque..."
+                  className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setScannerOpen(true)}
+                className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
+              >
+                <Scan size={18} strokeWidth={1.5} />
+              </button>
             </div>
           </div>
 
@@ -502,6 +575,27 @@ const Vanity = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Scanner overlay */}
+      {scannerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center gap-6">
+          <p className="text-white text-sm font-medium tracking-wide">Scannez un code-barres</p>
+          <div id="qr-reader" className="w-72 rounded-2xl overflow-hidden" />
+          <button
+            onClick={() => setScannerOpen(false)}
+            className="text-white/60 text-sm hover:text-white transition-colors"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {/* Toast scan */}
+      {scanMessage && (
+        <div className="fixed bottom-28 left-4 right-4 max-w-sm mx-auto bg-foreground text-background text-sm rounded-2xl px-4 py-3 text-center z-40">
+          {scanMessage}
+        </div>
+      )}
 
     </div>
   );
