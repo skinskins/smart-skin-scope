@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Check } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
@@ -22,7 +23,55 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [skinGoal, setSkinGoal] = useState<string | null>(null);
   const [streakLoaded, setStreakLoaded] = useState(false);
+  const [weekPearls, setWeekPearls] = useState<(string | null)[]>(Array(7).fill(null));
+
+  const PEARL_COLORS: Record<string, string> = {
+    "Perle lumineuse": "#A8D5A2",
+    "Perle douce":     "#F9A8C9",
+    "Perle terne":     "#B8A8D5",
+    "Perle fragile":   "#D5A8A8",
+  };
+
+  const PHASE_TO_PEARL: Record<string, string> = {
+    "Folliculaire": "Perle douce",
+    "Ovulatoire":   "Perle lumineuse",
+    "Lutéal":       "Perle terne",
+    "Menstruation": "Perle fragile",
+  };
   const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
+  const [showFactorsModal, setShowFactorsModal] = useState(false);
+  const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
+  const [factorsSaved, setFactorsSaved] = useState(false);
+
+  const FACTORS = [
+    { category: "Alimentation",          pills: ["Sucré/gras", "Alcool", "Peu d'eau"] },
+    { category: "Stress & sommeil",      pills: ["Stress élevé", "Mauvaise nuit"] },
+    { category: "Corps & environnement", pills: ["Sport intense", "Médicament", "Voyage", "Exposition solaire"] },
+  ];
+
+  const toggleFactor = (pill: string) => {
+    setSelectedFactors(prev => {
+      const next = new Set(prev);
+      if (next.has(pill)) next.delete(pill); else next.add(pill);
+      return next;
+    });
+  };
+
+  const saveFactors = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setShowFactorsModal(false); return; }
+    const today = new Date().toISOString().split("T")[0];
+    const updates: Record<string, any> = { user_id: session.user.id, date: today };
+    if (selectedFactors.has("Sucré/gras"))       updates.food_quality     = "Grasses / Sucrées";
+    if (selectedFactors.has("Alcool"))            updates.alcohol_drinks   = 1;
+    if (selectedFactors.has("Peu d'eau"))         updates.water_glasses    = 2;
+    if (selectedFactors.has("Stress élevé"))      updates.stress_level     = 4;
+    if (selectedFactors.has("Mauvaise nuit"))     updates.sleep_hours      = 5;
+    if (selectedFactors.has("Sport intense"))     { updates.did_sport = true; updates.sport_intensity = "Intense"; }
+    await (supabase as any).from("daily_checkins").upsert(updates, { onConflict: "user_id,date" });
+    setFactorsSaved(true);
+    setTimeout(() => { setShowFactorsModal(false); setFactorsSaved(false); setSelectedFactors(new Set()); }, 800);
+  };
   const [morningProducts, setMorningProducts] = useState<{ id: string; product_name: string; brand: string }[]>([]);
   const [eveningProducts, setEveningProducts] = useState<{ id: string; product_name: string; brand: string }[]>([]);
   const [activeTab, setActiveTab] = useState<"matin" | "soir">("matin");
@@ -194,6 +243,26 @@ const Dashboard = () => {
     Menstruelle:  { name: "Perle fragile",   subtitle: "Votre peau est plus sensible",   img: pearlFragile   },
   };
 
+  useEffect(() => {
+    if (!lastPeriodDate) { setWeekPearls(Array(7).fill(null)); return; }
+    const periodDate = new Date(lastPeriodDate);
+    periodDate.setHours(0, 0, 0, 0);
+    const pearls: (string | null)[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const target = new Date(); target.setHours(0, 0, 0, 0); target.setDate(target.getDate() - i);
+      if (target < periodDate) { pearls.push(null); continue; }
+      const diffDays = Math.floor((target.getTime() - periodDate.getTime()) / 86400000);
+      const day = (diffDays % cycleDuration) + 1;
+      let phase: string;
+      if (day <= 5)                                      phase = "Menstruation";
+      else if (day <= Math.floor(cycleDuration / 2) - 1) phase = "Folliculaire";
+      else if (day <= Math.floor(cycleDuration / 2) + 2) phase = "Ovulatoire";
+      else                                               phase = "Lutéal";
+      pearls.push(PHASE_TO_PEARL[phase] ?? null);
+    }
+    setWeekPearls(pearls);
+  }, [lastPeriodDate, cycleDuration]);
+
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
     : null;
@@ -223,26 +292,26 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="grid grid-cols-2 gap-4 mb-8"
+        className="grid grid-cols-2 gap-3 mb-6"
       >
         {/* Carte Cycle */}
-        <div className="premium-card p-6 flex flex-col gap-3">
-          <span className="text-2xl">{cycleUp ? "↗" : "↘"}</span>
-          <p className="text-base font-display font-bold text-foreground">
+        <div className="premium-card p-4 flex flex-col gap-1.5">
+          <span className="text-lg">{cycleUp ? "↗" : "↘"}</span>
+          <p className="text-sm font-display font-bold text-foreground">
             {cyclePhase ?? "–"}
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             {cycleDay ? `Jour ${cycleDay} sur ${cycleDuration}` : "Données insuffisantes"}
           </p>
         </div>
 
         {/* Carte Météo */}
-        <div className="premium-card p-6 flex flex-col gap-3">
-          <span className="text-2xl">{airUp ? "↗" : "↘"}</span>
-          <p className="text-base font-display font-bold text-foreground">
+        <div className="premium-card p-4 flex flex-col gap-1.5">
+          <span className="text-lg">{airUp ? "↗" : "↘"}</span>
+          <p className="text-sm font-display font-bold text-foreground">
             {liveWeather.pollution ?? "–"}
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground">
             Indice UV à {liveWeather.uv ?? 0}
           </p>
         </div>
@@ -253,7 +322,8 @@ const Dashboard = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="mb-8 text-center"
+        className="mb-6 text-center rounded-[24px] py-8"
+        style={{ backgroundColor: "#F8F6F2" }}
       >
         <div className="flex flex-col items-center gap-3">
           <img
@@ -270,38 +340,35 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
-      {/* Streak */}
+      {/* Mini calendrier 7 jours */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="mb-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.12 }}
+        className="flex justify-between px-2 mb-8"
       >
-        {streakLoaded && streakCount === 0 && weekCount === 0 ? (
-          <div className="bg-white rounded-[24px] px-4 py-3 flex items-center justify-center border border-border/40">
-            <p className="text-sm text-muted-foreground">Commence ta première routine 🌸</p>
-          </div>
-        ) : (
-          <button className="w-full bg-white rounded-[24px] px-4 py-3 flex items-center gap-3 border border-border/40 text-left">
-            <span className="text-xl">🔥</span>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-foreground">
-                {streakCount} jours · {skinGoal ?? "Objectif"}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {weekCount}/7 cette semaine · Record : {bestStreak} jours
-              </p>
+        {weekPearls.map((pearlName, i) => {
+          const isToday = i === 6;
+          const d = new Date(); d.setDate(d.getDate() - (6 - i));
+          const dayLabel = d.toLocaleDateString("fr-FR", { weekday: "short" }).slice(0, 2);
+          const color = pearlName ? (PEARL_COLORS[pearlName] ?? "#E5E0D8") : "#E5E0D8";
+          return (
+            <div key={i} className="flex flex-col items-center gap-1.5">
+              <p className="text-[10px] text-muted-foreground font-medium capitalize">{dayLabel}</p>
+              <div
+                className={`w-7 h-7 rounded-full transition-all ${isToday ? "ring-2 ring-offset-1 ring-foreground/30" : ""}`}
+                style={{ backgroundColor: color }}
+              />
             </div>
-            <span className="text-muted-foreground/60">→</span>
-          </button>
-        )}
+          );
+        })}
       </motion.div>
 
       {/* Conseil du jour */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.15 }}
         className="mb-4"
       >
         <div className="bg-white rounded-2xl p-4 flex items-start gap-3 border border-border/40">
@@ -323,9 +390,39 @@ const Dashboard = () => {
         </div>
       </motion.div>
 
+      {/* Streak */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-8"
+      >
+        {streakLoaded && streakCount === 0 && weekCount === 0 ? (
+          <div className="bg-white rounded-[24px] px-4 py-3 flex items-center justify-center border border-border/40">
+            <p className="text-sm text-muted-foreground">Commence ta première routine 🌸</p>
+          </div>
+        ) : (
+          <button className="w-full bg-white rounded-[24px] px-4 py-3 flex items-center gap-3 border border-border/40 text-left">
+            <span className="text-xl">🔥</span>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">
+                {streakCount} {streakCount === 1 ? "jour" : "jours"} · {skinGoal ?? "Objectif"}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {weekCount}/7 cette semaine · Record : {bestStreak} {bestStreak === 1 ? "jour" : "jours"}
+              </p>
+            </div>
+            <span className="text-muted-foreground/60">→</span>
+          </button>
+        )}
+      </motion.div>
+
       {/* Lien facteurs */}
       <div className="mb-8 text-center">
-        <button className="text-[12px] text-muted-foreground/70 hover:text-primary transition-colors">
+        <button
+          onClick={() => setShowFactorsModal(true)}
+          className="text-[12px] text-muted-foreground/70 hover:text-primary transition-colors"
+        >
           Ta journée influence ta peau demain →
         </button>
       </div>
@@ -395,6 +492,68 @@ const Dashboard = () => {
           Découvrez ce qui a changé →
         </button>
       </div>
+
+      {/* Modale facteurs du jour */}
+      <Dialog open={showFactorsModal} onOpenChange={(open) => { if (!open) { setShowFactorsModal(false); setSelectedFactors(new Set()); setFactorsSaved(false); } }}>
+        <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-xl font-display text-foreground">Ta journée</DialogTitle>
+            <p className="text-[11px] text-muted-foreground mt-1">Quelque chose à noter ?</p>
+          </DialogHeader>
+
+          <div className="space-y-6 mb-8">
+            {FACTORS.map(({ category, pills }) => (
+              <div key={category}>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{category}</p>
+                <div className="flex flex-wrap gap-2">
+                  {pills.map(pill => {
+                    const active = selectedFactors.has(pill);
+                    return (
+                      <button
+                        key={pill}
+                        onClick={() => toggleFactor(pill)}
+                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
+                          active
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-white border-border/40 text-muted-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        {pill}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <AnimatePresence mode="wait">
+              {factorsSaved ? (
+                <motion.div key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="w-full h-12 flex items-center justify-center gap-2 bg-primary/10 rounded-full">
+                  <Check size={16} className="text-primary" />
+                  <span className="text-sm font-bold text-primary">Noté !</span>
+                </motion.div>
+              ) : (
+                <motion.button key="save" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  onClick={saveFactors}
+                  disabled={selectedFactors.size === 0}
+                  className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  Enregistrer
+                </motion.button>
+              )}
+            </AnimatePresence>
+            <button
+              onClick={() => { setShowFactorsModal(false); setSelectedFactors(new Set()); }}
+              className="w-full h-10 text-[12px] text-muted-foreground/70 hover:text-foreground transition-colors"
+            >
+              Rien à noter aujourd'hui
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
