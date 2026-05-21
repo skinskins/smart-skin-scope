@@ -71,11 +71,14 @@ const Dashboard = () => {
       if (session.user.user_metadata?.first_name) {
         setUserName(session.user.user_metadata.first_name);
       }
-      const { data } = await (supabase as any)
+      console.log("[CycleDebug] user.id used in WHERE:", session.user.id);
+      const { data, error } = await (supabase as any)
         .from("profiles")
         .select("manual_location, last_period_date, cycle_duration, skin_goals")
         .eq("id", session.user.id)
         .single();
+      console.log("[CycleDebug] profiles data:", JSON.stringify(data));
+      console.log("[CycleDebug] profiles error:", JSON.stringify(error));
       if (data?.manual_location) setManualLocationState(data.manual_location);
       if (data?.last_period_date) setLastPeriodDate(data.last_period_date);
       if (data?.cycle_duration) setCycleDuration(data.cycle_duration);
@@ -154,12 +157,15 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
-      const { data } = await (supabase as any)
+      console.log("[AdviceDebug] querying for user_id:", session.user.id, "date:", today);
+      const { data, error } = await (supabase as any)
         .from("daily_advice_log")
         .select("advice_title, advice_text")
         .eq("user_id", session.user.id)
         .eq("date", today)
         .maybeSingle();
+      console.log("[AdviceDebug] data:", JSON.stringify(data));
+      console.log("[AdviceDebug] error:", JSON.stringify(error));
       if (data) setAdvice(data);
     };
     fetchAdvice();
@@ -234,6 +240,7 @@ const Dashboard = () => {
   const cyclePhase = cycleCalc?.phase ?? null;
   const cycleDay   = cycleCalc?.day   ?? null;
   const pearl = cyclePhase ? (PEARL_CONFIG[cyclePhase] ?? null) : null;
+  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay, "| pearl:", pearl?.name ?? "null");
 
   const cycleUp = ["Folliculaire", "Ovulatoire"].includes(cyclePhase ?? "");
   const airUp   = ["Bon", "Faible"].includes(liveWeather.pollution ?? "");
