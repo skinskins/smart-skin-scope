@@ -1,10 +1,10 @@
-import { Home, Stethoscope, Sparkles, User } from "lucide-react";
+import { Home, CalendarDays, Sparkles, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
   { path: "/dashboard", icon: Home, label: "Accueil" },
   { path: "/vanity", icon: Sparkles, label: "Vanity" },
-  { path: "/diagnosis", icon: Stethoscope, label: "Diagnostic" },
+  { path: "/suivi", icon: CalendarDays, label: "Suivi" },
   { path: "/profile", icon: User, label: "Profil" },
 ];
 

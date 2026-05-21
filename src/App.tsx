@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "./pages/Dashboard";
 import Diagnosis from "./pages/Diagnosis";
+import Suivi from "./pages/Suivi";
+import SuiviJour from "./pages/SuiviJour";
 import Tips from "./pages/Tips";
 import Progress from "./pages/Progress";
 import NotFound from "./pages/NotFound";
@@ -133,6 +135,8 @@ const App = () => (
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
+          <Route path="/suivi" element={<AuthGuard><Suivi /></AuthGuard>} />
+          <Route path="/suivi/:date" element={<AuthGuard><SuiviJour /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
           <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
