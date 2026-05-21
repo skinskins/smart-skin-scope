@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Check } from "lucide-react";
+import { Sparkles, Check, Bell, BookOpen } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -23,21 +23,6 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [skinGoal, setSkinGoal] = useState<string | null>(null);
   const [streakLoaded, setStreakLoaded] = useState(false);
-  const [weekPearls, setWeekPearls] = useState<(string | null)[]>(Array(7).fill(null));
-
-  const PEARL_COLORS: Record<string, string> = {
-    "Perle lumineuse": "#A8D5A2",
-    "Perle douce":     "#F9A8C9",
-    "Perle terne":     "#B8A8D5",
-    "Perle fragile":   "#D5A8A8",
-  };
-
-  const PHASE_TO_PEARL: Record<string, string> = {
-    "Folliculaire": "Perle douce",
-    "Ovulatoire":   "Perle lumineuse",
-    "Lutéal":       "Perle terne",
-    "Menstruation": "Perle fragile",
-  };
   const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
@@ -72,8 +57,8 @@ const Dashboard = () => {
     setFactorsSaved(true);
     setTimeout(() => { setShowFactorsModal(false); setFactorsSaved(false); setSelectedFactors(new Set()); }, 800);
   };
-  const [morningProducts, setMorningProducts] = useState<{ id: string; product_name: string; brand: string }[]>([]);
-  const [eveningProducts, setEveningProducts] = useState<{ id: string; product_name: string; brand: string }[]>([]);
+  const [morningProducts, setMorningProducts] = useState<{ id: string; product_name: string; brand: string; frequency?: string | null }[]>([]);
+  const [eveningProducts, setEveningProducts] = useState<{ id: string; product_name: string; brand: string; frequency?: string | null }[]>([]);
   const [activeTab, setActiveTab] = useState<"matin" | "soir">("matin");
   const [checkedProducts, setCheckedProducts] = useState<Set<string>>(new Set());
 
@@ -189,7 +174,7 @@ const Dashboard = () => {
       const [productsRes, routineRes] = await Promise.all([
         (supabase as any)
           .from("user_products")
-          .select("id, product_name, brand, morning_use, evening_use")
+          .select("id, product_name, brand, morning_use, evening_use, frequency")
           .eq("user_id", session.user.id)
           .eq("is_active", true),
         (supabase as any)
@@ -243,26 +228,6 @@ const Dashboard = () => {
     Menstruelle:  { name: "Perle fragile",   subtitle: "Votre peau est plus sensible",   img: pearlFragile   },
   };
 
-  useEffect(() => {
-    if (!lastPeriodDate) { setWeekPearls(Array(7).fill(null)); return; }
-    const periodDate = new Date(lastPeriodDate);
-    periodDate.setHours(0, 0, 0, 0);
-    const pearls: (string | null)[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const target = new Date(); target.setHours(0, 0, 0, 0); target.setDate(target.getDate() - i);
-      if (target < periodDate) { pearls.push(null); continue; }
-      const diffDays = Math.floor((target.getTime() - periodDate.getTime()) / 86400000);
-      const day = (diffDays % cycleDuration) + 1;
-      let phase: string;
-      if (day <= 5)                                      phase = "Menstruation";
-      else if (day <= Math.floor(cycleDuration / 2) - 1) phase = "Folliculaire";
-      else if (day <= Math.floor(cycleDuration / 2) + 2) phase = "Ovulatoire";
-      else                                               phase = "Lutéal";
-      pearls.push(PHASE_TO_PEARL[phase] ?? null);
-    }
-    setWeekPearls(pearls);
-  }, [lastPeriodDate, cycleDuration]);
-
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
     : null;
@@ -274,175 +239,114 @@ const Dashboard = () => {
   const airUp   = ["Bon", "Faible"].includes(liveWeather.pollution ?? "");
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
+    <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white">
 
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6 text-center"
-      >
-        <h1 className="text-4xl font-display text-foreground">
+      {/* Header — fond blanc */}
+      <div className="bg-white px-5 pt-8 pb-4">
+        <div className="flex items-center justify-between mb-5">
+          <div className="w-10 h-10 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center">
+            <img src={pearlDouce} alt="avatar" className="w-7 h-7 object-contain" />
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="w-9 h-9 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors">
+              <Bell size={20} strokeWidth={1.5} />
+            </button>
+            <button className="w-9 h-9 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors">
+              <BookOpen size={20} strokeWidth={1.5} />
+            </button>
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-foreground">
           Bonjour {userName ?? ""}
         </h1>
-      </motion.div>
+      </div>
 
-      {/* Cartes contextuelles */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="grid grid-cols-2 gap-3 mb-6"
-      >
-        {/* Carte Cycle */}
-        <div className="premium-card p-4 flex flex-col gap-1.5">
-          <span className="text-lg">{cycleUp ? "↗" : "↘"}</span>
-          <p className="text-sm font-display font-bold text-foreground">
-            {cyclePhase ?? "–"}
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            {cycleDay ? `Jour ${cycleDay} sur ${cycleDuration}` : "Données insuffisantes"}
-          </p>
+      {/* Hero — fond #F8F6F2 */}
+      <div className="px-5 pt-6 pb-6" style={{ backgroundColor: "#F8F6F2" }}>
+
+        {/* Cartes contextuelles */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-white rounded-2xl p-3 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className={`text-sm font-bold ${cycleUp ? "text-green-500" : "text-muted-foreground"}`}>
+                {cycleUp ? "↗" : "↘"}
+              </span>
+              <p className="text-sm font-bold text-foreground">{cyclePhase ?? "–"}</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {cycleDay ? `Jour ${cycleDay} sur ${cycleDuration}` : "–"}
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-3 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className={`text-sm font-bold ${airUp ? "text-green-500" : "text-muted-foreground"}`}>
+                {airUp ? "↗" : "↘"}
+              </span>
+              <p className="text-sm font-bold text-foreground">Qualité d'air</p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Indice UV à {liveWeather.uv ?? 0}
+            </p>
+          </div>
         </div>
 
-        {/* Carte Météo */}
-        <div className="premium-card p-4 flex flex-col gap-1.5">
-          <span className="text-lg">{airUp ? "↗" : "↘"}</span>
-          <p className="text-sm font-display font-bold text-foreground">
-            {liveWeather.pollution ?? "–"}
+        {/* Perle */}
+        <div className="text-center mb-6">
+          <p className="text-xl font-bold text-foreground mb-1">
+            {pearl?.name ?? "Perle absente"}
           </p>
-          <p className="text-[10px] text-muted-foreground">
-            Indice UV à {liveWeather.uv ?? 0}
+          <p className="text-sm text-muted-foreground mb-4">
+            {pearl?.subtitle ?? ""}
           </p>
-        </div>
-      </motion.div>
-
-      {/* Hero perle */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="mb-6 text-center rounded-[24px] py-8"
-        style={{ backgroundColor: "#F8F6F2" }}
-      >
-        <div className="flex flex-col items-center gap-3">
           <img
             src={pearl?.img ?? pearlAbsente}
             alt={pearl?.name ?? "Perle absente"}
-            className="w-[120px] h-[120px] object-contain"
+            className="w-40 h-40 object-contain mx-auto"
           />
-          <p className="text-xl font-display font-bold text-foreground">
-            {pearl?.name ?? "Perle absente"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {pearl?.subtitle ?? "Données insuffisantes"}
-          </p>
         </div>
-      </motion.div>
 
-      {/* Mini calendrier 7 jours */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.12 }}
-        className="flex justify-between px-2 mb-8"
-      >
-        {weekPearls.map((pearlName, i) => {
-          const isToday = i === 6;
-          const d = new Date(); d.setDate(d.getDate() - (6 - i));
-          const dayLabel = d.toLocaleDateString("fr-FR", { weekday: "short" }).slice(0, 2);
-          const color = pearlName ? (PEARL_COLORS[pearlName] ?? "#E5E0D8") : "#E5E0D8";
-          return (
-            <div key={i} className="flex flex-col items-center gap-1.5">
-              <p className="text-[10px] text-muted-foreground font-medium capitalize">{dayLabel}</p>
-              <div
-                className={`w-7 h-7 rounded-full transition-all ${isToday ? "ring-2 ring-offset-1 ring-foreground/30" : ""}`}
-                style={{ backgroundColor: color }}
-              />
-            </div>
-          );
-        })}
-      </motion.div>
-
-      {/* Conseil du jour */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="mb-4"
-      >
-        <div className="bg-white rounded-2xl p-4 flex items-start gap-3 border border-border/40">
-          <Sparkles size={18} strokeWidth={1.5} className="text-primary mt-0.5 flex-shrink-0" />
+        {/* Conseil du jour */}
+        <div className="bg-white rounded-2xl p-4 flex items-start gap-3 mb-3">
+          <Sparkles size={16} strokeWidth={1.5} className="text-primary mt-0.5 flex-shrink-0" />
           <div>
             {advice ? (
               <>
                 <p className="text-sm font-bold text-foreground mb-1">{advice.advice_title}</p>
-                <p className="text-[12px] text-muted-foreground leading-relaxed">
-                  {advice.advice_text.length > 80
-                    ? advice.advice_text.slice(0, 80) + "…"
-                    : advice.advice_text}
-                </p>
+                <p className="text-[12px] text-muted-foreground leading-relaxed">{advice.advice_text}</p>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">Votre conseil arrive bientôt</p>
             )}
           </div>
         </div>
-      </motion.div>
 
-      {/* Streak */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="mb-8"
-      >
-        {streakLoaded && streakCount === 0 && weekCount === 0 ? (
-          <div className="bg-white rounded-[24px] px-4 py-3 flex items-center justify-center border border-border/40">
-            <p className="text-sm text-muted-foreground">Commence ta première routine 🌸</p>
-          </div>
-        ) : (
-          <button className="w-full bg-white rounded-[24px] px-4 py-3 flex items-center gap-3 border border-border/40 text-left">
-            <span className="text-xl">🔥</span>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-foreground">
-                {streakCount} {streakCount === 1 ? "jour" : "jours"} · {skinGoal ?? "Objectif"}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {weekCount}/7 cette semaine · Record : {bestStreak} {bestStreak === 1 ? "jour" : "jours"}
-              </p>
-            </div>
-            <span className="text-muted-foreground/60">→</span>
+        {/* Lien facteurs */}
+        <div className="text-center pt-1">
+          <button
+            onClick={() => setShowFactorsModal(true)}
+            className="text-[12px] text-muted-foreground/60 hover:text-primary transition-colors"
+          >
+            Quelque chose à noter aujourd'hui ?
           </button>
-        )}
-      </motion.div>
-
-      {/* Lien facteurs */}
-      <div className="mb-8 text-center">
-        <button
-          onClick={() => setShowFactorsModal(true)}
-          className="text-[12px] text-muted-foreground/70 hover:text-primary transition-colors"
-        >
-          Ta journée influence ta peau demain →
-        </button>
+        </div>
       </div>
 
-      {/* Onglets Matin / Soir */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
-        className="mb-4"
-      >
-        <div className="flex gap-2 mb-4">
+      {/* Content — fond blanc */}
+      <div className="bg-white px-5 pt-6">
+
+        {/* Mes routines */}
+        <h2 className="text-xl font-bold text-foreground mb-4">Mes routines</h2>
+
+        {/* Tabs */}
+        <div className="flex bg-[#F8F6F2] rounded-full p-1 mb-3">
           {(["matin", "soir"] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all ${
+              className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all ${
                 activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-white border border-border/40 text-muted-foreground"
+                  ? "bg-[#1a1a1a] text-white"
+                  : "text-muted-foreground"
               }`}
             >
               {tab === "matin" ? "Matin" : "Soir"}
@@ -450,26 +354,39 @@ const Dashboard = () => {
           ))}
         </div>
 
-        <div className="premium-card p-4 space-y-1">
+        {/* Compteur produits */}
+        {(() => {
+          const count = (activeTab === "matin" ? morningProducts : eveningProducts).length;
+          return count > 0 ? (
+            <p className="text-[12px] text-muted-foreground mb-3">
+              {count} produit{count > 1 ? "s" : ""}
+            </p>
+          ) : null;
+        })()}
+
+        {/* Liste produits */}
+        <div className="rounded-2xl overflow-hidden border border-border/15 mb-8">
           {(activeTab === "matin" ? morningProducts : eveningProducts).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-2">
+            <p className="text-sm text-muted-foreground text-center py-6">
               Aucun produit dans cette routine
             </p>
           ) : (
-            (activeTab === "matin" ? morningProducts : eveningProducts).map(product => {
+            (activeTab === "matin" ? morningProducts : eveningProducts).map((product, i, arr) => {
               const isChecked = checkedProducts.has(product.id);
               return (
                 <button
                   key={product.id}
                   onClick={() => toggleProduct(product.id)}
-                  className="w-full flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-muted/10 transition-all text-left"
+                  className={`w-full flex items-center gap-3 py-3.5 px-4 text-left hover:bg-muted/5 transition-colors ${
+                    i < arr.length - 1 ? "border-b border-border/15" : ""
+                  }`}
                 >
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                    isChecked ? "bg-primary border-primary" : "border-border/60"
+                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                    isChecked ? "bg-[#1a1a1a] border-[#1a1a1a]" : "border-border/40"
                   }`}>
-                    {isChecked && <Check size={12} strokeWidth={3} className="text-white" />}
+                    {isChecked && <Check size={10} strokeWidth={3} className="text-white" />}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium transition-all ${
                       isChecked ? "line-through text-muted-foreground/50" : "text-foreground"
                     }`}>
@@ -479,18 +396,21 @@ const Dashboard = () => {
                       <p className="text-[11px] text-muted-foreground">{product.brand}</p>
                     )}
                   </div>
+                  {product.frequency === "weekly" && (
+                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                      → Cette semaine
+                    </span>
+                  )}
+                  {product.frequency === "monthly" && (
+                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                      → Ce mois
+                    </span>
+                  )}
                 </button>
               );
             })
           )}
         </div>
-      </motion.div>
-
-      {/* Lien progrès */}
-      <div className="mb-8 text-center">
-        <button className="text-[12px] text-muted-foreground/70 hover:text-primary transition-colors">
-          Découvrez ce qui a changé →
-        </button>
       </div>
 
       {/* Modale facteurs du jour */}
