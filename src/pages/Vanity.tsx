@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Minus, ImageOff, Scan } from "lucide-react";
+import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 type CatalogProduct = {
   id: string;
@@ -12,7 +12,14 @@ type CatalogProduct = {
   photo_url: string | null;
   product_type: string | null;
   user_id: string | null;
+  frequency?: string | null;
 };
+
+const FREQ_OPTIONS = [
+  { value: "daily",   label: "Quotidienne",   sub: "Utilisé chaque jour" },
+  { value: "weekly",  label: "Hebdomadaire",  sub: "Quelques fois par semaine" },
+  { value: "monthly", label: "Mensuelle",     sub: "Traitement ponctuel" },
+] as const;
 
 type RoutineProduct = {
   id: string;
@@ -31,6 +38,9 @@ const Vanity = () => {
   const scannerRef = useRef<any>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
+  const [frequencyModal, setFrequencyModal] = useState<{ product: CatalogProduct; mode: "add" | "edit" } | null>(null);
+  const [selectedFrequency, setSelectedFrequency] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [deleteMode, setDeleteMode] = useState(false);
   const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
   const [routineProducts, setRoutineProducts] = useState<RoutineProduct[]>([]);
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
@@ -163,30 +173,40 @@ const Vanity = () => {
     return () => clearTimeout(timer);
   }, [searchQuery, typeFilter]);
 
-  const addProductToRoutine = async (product: CatalogProduct) => {
-    if (!userId) return;
-    const alreadyAdded = userProducts.some(
-      (p) => p.product_name === product.product_name && p.brand === product.brand
-    );
-    if (alreadyAdded) return;
+  const confirmFrequency = async () => {
+    if (!frequencyModal || !userId) return;
+    const { product, mode } = frequencyModal;
 
-    const { data, error } = await (supabase as any)
-      .from("user_products")
-      .insert({
-        product_name: product.product_name,
-        brand: product.brand,
-        photo_url: product.photo_url,
-        product_type: product.product_type,
-        user_id: userId,
-        morning_use: true,
-        evening_use: true,
-      })
-      .select()
-      .single();
-
-    if (!error && data) {
-      setUserProducts((prev) => [...prev, data]);
+    if (mode === "add") {
+      const { data, error } = await (supabase as any)
+        .from("user_products")
+        .insert({
+          product_name: product.product_name,
+          brand: product.brand,
+          photo_url: product.photo_url,
+          product_type: product.product_type,
+          user_id: userId,
+          morning_use: true,
+          evening_use: true,
+          frequency: selectedFrequency,
+        })
+        .select()
+        .single();
+      if (!error && data) setUserProducts(prev => [...prev, data]);
+    } else {
+      await (supabase as any)
+        .from("user_products")
+        .update({ frequency: selectedFrequency })
+        .eq("id", product.id)
+        .eq("user_id", userId);
+      setUserProducts(prev =>
+        prev.map(p => p.id === product.id ? { ...p, frequency: selectedFrequency } : p)
+      );
+      setRoutineProducts(prev =>
+        prev.map(p => p.id === product.id ? { ...p, frequency: selectedFrequency } : p)
+      );
     }
+    setFrequencyModal(null);
   };
 
   const processBarcode = async (barcode: string) => {
@@ -384,7 +404,11 @@ const Vanity = () => {
                           )}
                         </div>
                         <button
-                          onClick={() => addProductToRoutine(p)}
+                          onClick={() => {
+                            if (alreadyAdded) return;
+                            setFrequencyModal({ product: p, mode: "add" });
+                            setSelectedFrequency("daily");
+                          }}
                           disabled={alreadyAdded}
                           className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${
                             alreadyAdded
@@ -410,46 +434,108 @@ const Vanity = () => {
           transition={{ delay: 0.1 }}
           className="premium-card p-8 order-2"
         >
-          <p className="text-[10px] font-bold text-foreground/80 tracking-widest mb-6 uppercase">Mes Produits enregistrés</p>
-          <div className="flex flex-col gap-3">
-            <AnimatePresence mode="popLayout">
-              {userProducts.length > 0 ? (
-                userProducts.map((p) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-border bg-background/40 hover:border-primary/30 transition-all shadow-sm"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                        {p.photo_url ? (
-                          <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                        ) : (
-                          <ImageOff size={14} className="text-muted-foreground/40" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setRemoveModalProduct(p); setRemoveReason(null); }}
-                      className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm shrink-0"
-                    >
-                      <Minus size={16} />
-                    </button>
-                  </motion.div>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground italic py-6 text-center">
-                  Aucun produit dans votre inventaire pour le moment.
-                </p>
-              )}
-            </AnimatePresence>
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase">Mes Produits enregistrés</p>
+            <button
+              onClick={() => setDeleteMode(d => !d)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                deleteMode
+                  ? "bg-destructive text-white shadow-sm"
+                  : "bg-muted/30 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              }`}
+            >
+              <Trash2 size={15} strokeWidth={1.8} />
+            </button>
           </div>
+          {userProducts.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic py-6 text-center">
+              Aucun produit dans votre inventaire pour le moment.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {(() => {
+                const groups: Record<string, CatalogProduct[]> = {};
+                userProducts.forEach(p => {
+                  const key = (p as any).product_type || "Autres";
+                  if (!groups[key]) groups[key] = [];
+                  groups[key].push(p);
+                });
+                const sorted = Object.entries(groups).sort(([a], [b]) =>
+                  a === "Autres" ? 1 : b === "Autres" ? -1 : a.localeCompare(b)
+                );
+                return sorted.map(([type, products]) => (
+                  <div key={type}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{type}</p>
+                      <span className="text-[10px] font-bold text-primary/60 bg-primary/8 px-2 py-0.5 rounded-full">
+                        {products.length}
+                      </span>
+                    </div>
+                    <AnimatePresence mode="popLayout">
+                      <div className="flex flex-col gap-2">
+                        {products.map(p => (
+                          <motion.div
+                            key={p.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10 }}
+                            onClick={() => {
+                              if (deleteMode) return;
+                              setFrequencyModal({ product: p, mode: "edit" });
+                              setSelectedFrequency((p.frequency as "daily" | "weekly" | "monthly") || "daily");
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all shadow-sm ${
+                              deleteMode
+                                ? "border-destructive/20 bg-destructive/5"
+                                : "border-border bg-background/40 hover:border-primary/30 cursor-pointer"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                {p.photo_url ? (
+                                  <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                                ) : (
+                                  <ImageOff size={14} className="text-muted-foreground/40" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                {p.frequency && (
+                                  <p className="text-[10px] text-primary/70 font-bold uppercase tracking-widest mt-0.5">
+                                    {p.frequency === "daily" ? "Quotidien" : p.frequency === "weekly" ? "Hebdo" : "Mensuel"}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {deleteMode ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setRemoveModalProduct(p); setRemoveReason(null); }}
+                                className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shrink-0"
+                              >
+                                <Trash2 size={15} strokeWidth={1.8} />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFrequencyModal({ product: p, mode: "edit" });
+                                  setSelectedFrequency((p.frequency as "daily" | "weekly" | "monthly") || "daily");
+                                }}
+                                className="w-8 h-8 rounded-full bg-muted/30 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-all shrink-0"
+                              >
+                                <SlidersHorizontal size={14} strokeWidth={1.8} />
+                              </button>
+                            )}
+                          </motion.div>
+                        ))}
+                      </div>
+                    </AnimatePresence>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
         </motion.div>
       </div>
       ) : (
@@ -515,20 +601,78 @@ const Vanity = () => {
           )}
         </div>
       )}
-      {/* Modale suppression */}
-      <Dialog
+      {/* Bottom sheet fréquence */}
+      <Drawer
+        open={!!frequencyModal}
+        onOpenChange={(open) => { if (!open) setFrequencyModal(null); }}
+      >
+        <DrawerContent className="px-6 pb-10">
+          <DrawerHeader className="text-left px-0 pt-2 pb-4">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              {frequencyModal?.product.brand}
+            </p>
+            <DrawerTitle className="text-xl font-display text-foreground">
+              {frequencyModal?.mode === "add" ? "Fréquence d'utilisation" : frequencyModal?.product.product_name}
+            </DrawerTitle>
+          </DrawerHeader>
+
+          <p className="text-sm font-bold text-foreground mb-4">À quelle fréquence utilisez-vous ce produit ?</p>
+
+          <div className="space-y-3 mb-8">
+            {FREQ_OPTIONS.map(({ value, label, sub }) => (
+              <button
+                key={value}
+                onClick={() => setSelectedFrequency(value)}
+                className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                  selectedFrequency === value
+                    ? "border-primary bg-primary/5"
+                    : "border-border/40 bg-background/40"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all ${
+                    selectedFrequency === value ? "border-primary bg-primary" : "border-border"
+                  }`} />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-[11px] text-muted-foreground">{sub}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={confirmFrequency}
+              className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest transition-all active:scale-95"
+            >
+              {frequencyModal?.mode === "add" ? "Ajouter le produit" : "Enregistrer"}
+            </button>
+            <button
+              onClick={() => setFrequencyModal(null)}
+              className="w-full h-12 text-muted-foreground text-sm font-medium"
+            >
+              Annuler
+            </button>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Bottom sheet suppression */}
+      <Drawer
         open={!!removeModalProduct}
         onOpenChange={(open) => { if (!open) { setRemoveModalProduct(null); setRemoveReason(null); } }}
       >
-        <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
-          <DialogHeader className="mb-6">
+        <DrawerContent className="px-6 pb-10">
+          <DrawerHeader className="text-left px-0 pt-2 pb-4">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
               {removeModalProduct?.brand}
             </p>
-            <DialogTitle className="text-xl font-display text-foreground">
+            <DrawerTitle className="text-xl font-display text-foreground">
               {removeModalProduct?.product_name}
-            </DialogTitle>
-          </DialogHeader>
+            </DrawerTitle>
+          </DrawerHeader>
 
           <p className="text-sm font-bold text-foreground mb-4">Pourquoi retirer ce produit ?</p>
 
@@ -575,8 +719,8 @@ const Vanity = () => {
               Annuler
             </button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
 
       {/* Scanner overlay */}
       {scannerOpen && (
