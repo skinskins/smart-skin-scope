@@ -88,6 +88,31 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
+    console.log("[WeatherSave] liveWeather changed:", liveWeather);
+    if (liveWeather.locationName === "...") return;
+    const save = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { console.log("[WeatherSave] no session, abort"); return; }
+      const today = new Date().toISOString().split("T")[0];
+      console.log("[WeatherSave] inserting for", session.user.id, today, liveWeather);
+      const { data, error } = await (supabase as any)
+        .from("daily_weather")
+        .upsert(
+          {
+            user_id: session.user.id,
+            date: today,
+            temp: liveWeather.temp,
+            uv: liveWeather.uv,
+            pollution: liveWeather.pollution,
+          },
+          { onConflict: "user_id,date", ignoreDuplicates: true }
+        );
+      console.log("[WeatherSave] result →", { data, error });
+    };
+    save();
+  }, [liveWeather]);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserName(session?.user?.user_metadata?.first_name ?? null);
     });

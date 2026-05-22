@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, ImageOff, Camera } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useWeatherData } from "@/hooks/useWeatherData";
 import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
 import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
 import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
@@ -55,6 +56,7 @@ type Product = { id: string; product_name: string; brand: string; photo_url: str
 const SuiviJour = () => {
   const { date } = useParams<{ date: string }>();
   const navigate = useNavigate();
+  const { weather: liveWeather } = useWeatherData();
 
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -123,6 +125,13 @@ const SuiviJour = () => {
     }
     setUploading(false);
   };
+
+  const today = new Date().toISOString().split("T")[0];
+  const isToday = date === today;
+  const displayWeather = weather
+    ?? (isToday && liveWeather.pollution !== "..."
+        ? { temp: liveWeather.temp, uv: liveWeather.uv, pollution: liveWeather.pollution }
+        : null);
 
   const dateLabel = date
     ? new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
@@ -214,9 +223,9 @@ const SuiviJour = () => {
               </div>
               <div className="premium-card p-4 flex flex-col gap-1.5">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Qualité d'air</p>
-                <p className="text-sm font-bold text-foreground">{weather?.pollution ?? "–"}</p>
-                {weather && (
-                  <p className="text-[10px] text-muted-foreground">Indice UV à {weather.uv}</p>
+                <p className="text-sm font-bold text-foreground">{displayWeather?.pollution ?? "–"}</p>
+                {displayWeather && (
+                  <p className="text-[10px] text-muted-foreground">Indice UV à {displayWeather.uv}</p>
                 )}
               </div>
             </div>
