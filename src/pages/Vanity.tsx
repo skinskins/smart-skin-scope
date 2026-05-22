@@ -33,9 +33,8 @@ type RoutineProduct = {
 
 const Vanity = () => {
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
-  const [scannerOpen, setScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
-  const scannerRef = useRef<any>(null);
+  const scanFileRef = useRef<HTMLInputElement>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
   const [frequencyModal, setFrequencyModal] = useState<{ product: CatalogProduct; mode: "add" | "edit" } | null>(null);
@@ -209,67 +208,53 @@ const Vanity = () => {
     setFrequencyModal(null);
   };
 
-  const processBarcode = async (barcode: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    const uid = session.user.id;
-
-    const { data: catalogProduct } = await (supabase as any)
-      .from("user_products")
-      .select("*")
-      .is("user_id", null)
-      .eq("barcode", barcode)
-      .maybeSingle();
-
-    let inserted: any;
-    if (catalogProduct) {
-      const { data } = await (supabase as any).from("user_products").insert({
-        product_name: catalogProduct.product_name,
-        brand: catalogProduct.brand,
-        photo_url: catalogProduct.photo_url,
-        product_type: catalogProduct.product_type,
-        user_id: uid,
-        barcode,
-        status: "pending",
-      }).select().single();
-      inserted = data;
-      setScanMessage("Produit ajouté — en attente de validation ✓");
-    } else {
-      const { data } = await (supabase as any).from("user_products").insert({
-        product_name: "En attente de validation",
-        user_id: uid,
-        barcode,
-        status: "pending",
-      }).select().single();
-      inserted = data;
-      setScanMessage("Produit non reconnu — il sera vérifié avant d'être ajouté");
+  const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setScanMessage("Analyse du produit en cours…");
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data, error } = await supabase.functions.invoke("product-scan", {
+        body: { imageBase64: base64 },
+      });
+      if (error) {
+        const errorText = error.context
+          ? await (error.context as Response).text().catch(() => error.message)
+          : error.message;
+        throw new Error(errorText);
+      }
+      if (!data?.product_name) throw new Error(`Réponse invalide : ${JSON.stringify(data)}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Non connecté");
+      const { data: inserted, error: dbError } = await (supabase as any)
+        .from("user_products")
+        .insert({
+          product_name: data.product_name,
+          brand:        data.brand        ?? null,
+          product_type: data.product_type ?? null,
+          user_id:      session.user.id,
+          morning_use:  true,
+          evening_use:  true,
+          status:       "pending",
+          is_active:    false,
+        })
+        .select()
+        .single();
+      if (dbError) throw dbError;
+      if (inserted) setUserProducts(prev => [...prev, inserted]);
+      setScanMessage(`${data.product_name} ajouté — en attente de validation ✓`);
+      setTimeout(() => setScanMessage(null), 4000);
+    } catch (err: any) {
+      setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
+      setTimeout(() => setScanMessage(null), 4000);
     }
-    if (inserted) setUserProducts(prev => [...prev, inserted]);
-    setTimeout(() => setScanMessage(null), 4000);
   };
-
-  useEffect(() => {
-    if (!scannerOpen) return;
-    let scanner: any;
-    const init = async () => {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      scanner = new Html5Qrcode("qr-reader");
-      scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 120 } },
-        async (code: string) => {
-          await scanner.stop().catch(() => {});
-          scannerRef.current = null;
-          setScannerOpen(false);
-          await processBarcode(code);
-        },
-        undefined
-      );
-    };
-    init().catch(() => setScannerOpen(false));
-    return () => { scannerRef.current?.stop().catch(() => {}); };
-  }, [scannerOpen]);
 
   const confirmRemove = async () => {
     if (!removeModalProduct || !removeReason || !userId) return;
@@ -329,11 +314,19 @@ const Vanity = () => {
                 )}
               </div>
               <button
-                onClick={() => setScannerOpen(true)}
+                onClick={() => scanFileRef.current?.click()}
                 className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
               >
                 <Scan size={18} strokeWidth={1.5} />
               </button>
+              <input
+                ref={scanFileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleScanFile}
+              />
             </div>
           </div>
 
@@ -721,20 +714,6 @@ const Vanity = () => {
           </div>
         </DrawerContent>
       </Drawer>
-
-      {/* Scanner overlay */}
-      {scannerOpen && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center gap-6">
-          <p className="text-white text-sm font-medium tracking-wide">Scannez un code-barres</p>
-          <div id="qr-reader" className="w-72 rounded-2xl overflow-hidden" />
-          <button
-            onClick={() => setScannerOpen(false)}
-            className="text-white/60 text-sm hover:text-white transition-colors"
-          >
-            Annuler
-          </button>
-        </div>
-      )}
 
       {/* Toast scan */}
       {scanMessage && (
