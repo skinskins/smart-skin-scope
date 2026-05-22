@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, Search, ImageOff, Scan } from "lucide-react";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
@@ -709,74 +709,103 @@ const Signup = () => {
                                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre routine actuelle</p>
                                     </div>
                                 </div>
-                                <div className="space-y-6 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
-                                    <div className="flex gap-2">
-                                        <div className="relative flex-1">
-                                            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                            <Input
-                                                value={productSearchQuery}
-                                                onChange={(e) => setProductSearchQuery(e.target.value)}
-                                                placeholder="Chercher un produit ou marque..."
-                                                className="pl-12 h-12 rounded-full bg-muted/20 border-none"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setOnboardingScannerOpen(true)}
-                                            className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0"
-                                        >
-                                            <Scan size={18} strokeWidth={1.5} />
-                                        </button>
-                                    </div>
-                                    {selectedOnboardingProducts.length > 0 && (
-                                        <div>
-                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 px-1">
-                                                {selectedOnboardingProducts.length} produit{selectedOnboardingProducts.length > 1 ? "s" : ""} sélectionné{selectedOnboardingProducts.length > 1 ? "s" : ""}
-                                            </p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {selectedOnboardingProducts.map(p => (
-                                                    <span key={p.id} className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-full">
-                                                        {p.product_name}
-                                                    </span>
-                                                ))}
+
+                                <div className="flex-1 overflow-y-auto pb-4 custom-scrollbar space-y-4 pr-1">
+                                    {/* Search card — même layout que Vanity */}
+                                    <div className="premium-card p-0 overflow-hidden">
+                                        <div className="p-5 bg-background/50 border-b border-border/50">
+                                            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Rechercher un produit</h2>
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                                    <Input
+                                                        value={productSearchQuery}
+                                                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                                                        onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                                                        placeholder="Chercher un produit ou marque..."
+                                                        className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOnboardingScannerOpen(true)}
+                                                    className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
+                                                >
+                                                    <Scan size={18} strokeWidth={1.5} />
+                                                </button>
                                             </div>
                                         </div>
-                                    )}
-                                    {productCatalogResults.length > 0 && (
-                                        <div className="space-y-2">
-                                            {productCatalogResults.map(p => {
-                                                const isAdded = selectedOnboardingProducts.some(s => s.id === p.id);
-                                                return (
-                                                    <div key={p.id} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-border/40 shadow-sm">
-                                                        <div className="w-10 h-10 bg-muted/30 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                                        <div className="p-5 space-y-4">
+                                            {productCatalogResults.length > 0 ? (
+                                                <div className="grid gap-3">
+                                                    {productCatalogResults.map(p => {
+                                                        const isAdded = selectedOnboardingProducts.some(s => s.id === p.id);
+                                                        return (
+                                                            <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm">
+                                                                <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                                    {p.photo_url
+                                                                        ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                                                                        : <ImageOff size={18} className="text-muted-foreground/40" />}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
+                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                                                    {p.product_type && (
+                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleOnboardingProduct(p)}
+                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                                                                        isAdded
+                                                                            ? "bg-primary/10 text-primary cursor-default"
+                                                                            : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                                                                    }`}
+                                                                >
+                                                                    {isAdded ? <Check size={16} /> : <Plus size={16} />}
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="text-center text-[11px] text-muted-foreground italic py-2">
+                                                    Tapez le nom d'un produit ou d'une marque pour rechercher
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Selected products card */}
+                                    {selectedOnboardingProducts.length > 0 && (
+                                        <div className="premium-card p-5">
+                                            <p className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
+                                                {selectedOnboardingProducts.length} produit{selectedOnboardingProducts.length > 1 ? "s" : ""} sélectionné{selectedOnboardingProducts.length > 1 ? "s" : ""}
+                                            </p>
+                                            <div className="grid gap-2">
+                                                {selectedOnboardingProducts.map(p => (
+                                                    <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl shadow-sm">
+                                                        <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
                                                             {p.photo_url
                                                                 ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
                                                                 : <ImageOff size={14} className="text-muted-foreground/40" />}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                                                            <p className="text-[10px] text-muted-foreground truncate">{p.brand}</p>
+                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
                                                         </div>
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleOnboardingProduct(p)}
-                                                            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                                                                isAdded
-                                                                    ? "bg-primary text-primary-foreground"
-                                                                    : "bg-primary/10 text-primary hover:bg-primary hover:text-white"
-                                                            }`}
+                                                            className="w-7 h-7 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shrink-0"
                                                         >
-                                                            {isAdded ? <Check size={14} /> : <Plus size={14} />}
+                                                            <X size={13} />
                                                         </button>
                                                     </div>
-                                                );
-                                            })}
+                                                ))}
+                                            </div>
                                         </div>
-                                    )}
-                                    {productSearchQuery.length < 2 && productCatalogResults.length === 0 && (
-                                        <p className="text-center text-[11px] text-muted-foreground italic py-4">
-                                            Tapez le nom d'un produit ou d'une marque pour rechercher
-                                        </p>
                                     )}
                                 </div>
 
