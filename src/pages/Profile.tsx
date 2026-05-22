@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { LogOut, Pencil, User, Sparkles, Target, Activity } from "lucide-react";
+import { LogOut, Pencil, User, Sparkles, Target, Activity, Calendar, Hash } from "lucide-react";
+import { calculateCyclePhase } from "@/utils/cycle";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -18,6 +19,10 @@ const Profile = () => {
   const [skinType, setSkinType] = useState("");
   const [skinProblems, setSkinProblems] = useState<string[]>([]);
   const [skinGoals, setSkinGoals] = useState<string[]>([]);
+  const [carnation, setCarnation] = useState<string | null>(null);
+  const [lastPeriodDate, setLastPeriodDate] = useState<string | null>(null);
+  const [cycleDuration, setCycleDuration] = useState<number>(28);
+  const [age, setAge] = useState<number | null>(null);
 
   const [editingField, setEditingField] = useState<"name" | "type" | "problems" | "goals" | null>(null);
 
@@ -32,6 +37,10 @@ const Profile = () => {
           if (data.skin_type) setSkinType(data.skin_type);
           if (data.skin_problems) setSkinProblems(data.skin_problems);
           if (data.skin_goals) setSkinGoals(data.skin_goals);
+          if (data.carnation) setCarnation(data.carnation);
+          if (data.last_period_date) setLastPeriodDate(data.last_period_date);
+          if (data.cycle_duration) setCycleDuration(data.cycle_duration);
+          if (data.age) setAge(data.age);
         }
       }
       setLoading(false);
@@ -76,6 +85,8 @@ const Profile = () => {
     localStorage.removeItem("guestProfile");
     navigate("/onboarding");
   };
+
+  const cycleCalc = lastPeriodDate ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5) : null;
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
@@ -158,8 +169,8 @@ const Profile = () => {
         </motion.div>
 
         {/* Objectifs - Wide Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
           onClick={() => setEditingField("goals")}
@@ -177,6 +188,52 @@ const Profile = () => {
               <span key={g} className="px-3 py-1 bg-primary/5 text-primary text-[11px] font-bold uppercase tracking-widest rounded-full border border-primary/10 italic">{g}</span>
             )) : <p className="text-sm font-medium text-foreground/60 italic">Définir mes priorités...</p>}
           </div>
+        </motion.div>
+
+        {/* Carnation */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+          className="premium-card p-6 flex flex-col justify-between"
+        >
+          <Calendar size={16} className="text-primary/60 mb-4" />
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Carnation</p>
+          <p className="text-xl font-display text-foreground italic">{carnation || "–"}</p>
+        </motion.div>
+
+        {/* Âge */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+          className="premium-card p-6 flex flex-col justify-between"
+        >
+          <Hash size={16} className="text-primary/60 mb-4" />
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Âge</p>
+          <p className="text-xl font-display text-foreground italic">{age != null ? `${age} ans` : "–"}</p>
+        </motion.div>
+
+        {/* Cycle */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="col-span-2 premium-card p-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={16} className="text-primary/60" />
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</p>
+          </div>
+          <p className="text-xl font-display text-foreground italic mb-1">{cycleCalc?.phase || "–"}</p>
+          {cycleCalc?.day != null && (
+            <p className="text-[11px] text-muted-foreground">Jour {cycleCalc.day} · Durée {cycleDuration} j</p>
+          )}
+          {lastPeriodDate && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Dernières règles : {new Date(lastPeriodDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+            </p>
+          )}
         </motion.div>
       </div>
 
