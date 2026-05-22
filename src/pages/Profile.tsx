@@ -8,7 +8,14 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PassportPromptCard from "@/features/passport/components/PassportPromptCard";
-
+const CARNATION_LABELS: Record<string, string> = {
+  très_claire: "Très claire",
+  claire: "Claire",
+  beige_doré: "Beige dorée",
+  olive_caramel: "Olive-Caramel",
+  foncée: "Foncée",
+  ébène: "Ébène",
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -24,7 +31,7 @@ const Profile = () => {
   const [cycleDuration, setCycleDuration] = useState<number>(28);
   const [age, setAge] = useState<number | null>(null);
 
-  const [editingField, setEditingField] = useState<"name" | "type" | "problems" | "goals" | null>(null);
+  const [editingField, setEditingField] = useState<"name" | "type" | "problems" | "goals" | "cycle" | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -66,9 +73,11 @@ const Profile = () => {
           first_name: firstName,
           skin_type: skinType,
           skin_problems: skinProblems,
-          skin_goals: skinGoals
+          skin_goals: skinGoals,
+          last_period_date: lastPeriodDate,
+          cycle_duration: cycleDuration
         }).eq("id", session.user.id);
-        
+
         await supabase.auth.updateUser({ data: { first_name: firstName } });
         toast.success("Profil mis à jour");
         setEditingField(null);
@@ -100,14 +109,14 @@ const Profile = () => {
           <h1 className="text-2xl font-display text-foreground">Mon Profil</h1>
         </div>
         <button onClick={handleLogout} className="w-12 h-12 rounded-2xl bg-destructive/5 flex items-center justify-center text-destructive hover:bg-destructive/10 transition-all active:scale-90">
-            <LogOut size={18} strokeWidth={2} />
+          <LogOut size={18} strokeWidth={2} />
         </button>
       </motion.div>
 
       <div className="grid grid-cols-2 gap-4">
         {/* Prénom - Large Card */}
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }} 
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
           onClick={() => setEditingField("name")}
@@ -122,8 +131,8 @@ const Profile = () => {
         </motion.div>
 
         {/* Type de Peau - Square Card */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }} 
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.2 }}
           onClick={() => setEditingField("type")}
@@ -140,8 +149,8 @@ const Profile = () => {
         </motion.div>
 
         {/* Sensibilités - Square Card */}
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }} 
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
           onClick={() => setEditingField("problems")}
@@ -199,7 +208,9 @@ const Profile = () => {
         >
           <Calendar size={16} className="text-primary/60 mb-4" />
           <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Carnation</p>
-          <p className="text-xl font-display text-foreground italic">{carnation || "–"}</p>
+          <p className="text-xl font-display text-foreground italic">
+            {carnation ? (CARNATION_LABELS[carnation] || carnation) : "–"}
+          </p>
         </motion.div>
 
         {/* Âge */}
@@ -219,11 +230,15 @@ const Profile = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
-          className="col-span-2 premium-card p-6"
+          onClick={() => setEditingField("cycle")}
+          className="col-span-2 premium-card p-6 cursor-pointer group active:scale-[0.98] transition-all"
         >
-          <div className="flex items-center gap-2 mb-4">
-            <Activity size={16} className="text-primary/60" />
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</p>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className="text-primary/60" />
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</p>
+            </div>
+            <Pencil size={14} className="text-muted-foreground/50 group-hover:text-primary transition-colors" />
           </div>
           <p className="text-xl font-display text-foreground italic mb-1">{cycleCalc?.phase || "–"}</p>
           {cycleCalc?.day != null && (
@@ -250,6 +265,7 @@ const Profile = () => {
               {editingField === "type" && "Nature de peau"}
               {editingField === "problems" && "Sensibilités"}
               {editingField === "goals" && "Mes priorités"}
+              {editingField === "cycle" && "Mon cycle"}
             </DialogTitle>
           </DialogHeader>
 
@@ -290,6 +306,31 @@ const Profile = () => {
                     {goal}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {editingField === "cycle" && (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.2em] px-1">Date des dernières règles</label>
+                  <Input
+                    type="date"
+                    className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display px-6 focus:ring-1 ring-primary/20 w-full"
+                    value={lastPeriodDate || ""}
+                    onChange={(e) => setLastPeriodDate(e.target.value || null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.2em] px-1">Durée du cycle (jours)</label>
+                  <Input
+                    type="number"
+                    min={15}
+                    max={45}
+                    className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display px-6 focus:ring-1 ring-primary/20 w-full"
+                    value={cycleDuration}
+                    onChange={(e) => setCycleDuration(parseInt(e.target.value) || 28)}
+                  />
+                </div>
               </div>
             )}
           </div>
