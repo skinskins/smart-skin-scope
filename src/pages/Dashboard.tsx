@@ -46,14 +46,20 @@ const Dashboard = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setShowFactorsModal(false); return; }
     const today = new Date().toISOString().split("T")[0];
-    const updates: Record<string, any> = { user_id: session.user.id, date: today };
-    if (selectedFactors.has("Sucré/gras"))       updates.food_quality     = "Grasses / Sucrées";
-    if (selectedFactors.has("Alcool"))            updates.alcohol_drinks   = 1;
-    if (selectedFactors.has("Peu d'eau"))         updates.water_glasses    = 2;
-    if (selectedFactors.has("Stress élevé"))      updates.stress_level     = 4;
-    if (selectedFactors.has("Mauvaise nuit"))     updates.sleep_hours      = 5;
-    if (selectedFactors.has("Sport intense"))     { updates.did_sport = true; updates.sport_intensity = "Intense"; }
-    await (supabase as any).from("daily_checkins").upsert(updates, { onConflict: "user_id,date" });
+    await (supabase as any).from("daily_checkins").upsert(
+      {
+        user_id:         session.user.id,
+        date:            today,
+        food_quality:    selectedFactors.has("Sucré/gras")   ? "Grasses / Sucrées" : null,
+        alcohol_drinks:  selectedFactors.has("Alcool")        ? 1                   : null,
+        water_glasses:   selectedFactors.has("Peu d'eau")     ? 2                   : null,
+        stress_level:    selectedFactors.has("Stress élevé")  ? 4                   : null,
+        sleep_hours:     selectedFactors.has("Mauvaise nuit") ? 5                   : null,
+        did_sport:       selectedFactors.has("Sport intense"),
+        sport_intensity: selectedFactors.has("Sport intense") ? "Intense"           : null,
+      },
+      { onConflict: "user_id,date" }
+    );
     setFactorsSaved(true);
     setTimeout(() => { setShowFactorsModal(false); setFactorsSaved(false); setSelectedFactors(new Set()); }, 800);
   };
