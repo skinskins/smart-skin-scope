@@ -178,6 +178,8 @@ const Vanity = () => {
         photo_url: product.photo_url,
         product_type: product.product_type,
         user_id: userId,
+        morning_use: true,
+        evening_use: true,
       })
       .select()
       .single();
