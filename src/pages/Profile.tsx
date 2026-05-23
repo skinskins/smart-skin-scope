@@ -38,7 +38,7 @@ const Profile = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         // @ts-ignore
-        const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
+        const { data } = await (supabase as any).from('profiles').select('first_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age').eq('id', session.user.id).single();
         if (data) {
           if (data.first_name) setFirstName(data.first_name);
           if (data.skin_type) setSkinType(data.skin_type);

@@ -102,7 +102,7 @@ const Signup = () => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
+                const { data } = await (supabase as any).from('profiles').select('first_name, last_name, profession, used_channels, age, gender, skin_type, skin_problems, skin_goals').eq('id', session.user.id).single();
                 if (data) {
                     if (data.first_name) setFirstName(data.first_name);
                     if (data.last_name) setLastName(data.last_name);
