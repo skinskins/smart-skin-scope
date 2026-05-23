@@ -57,6 +57,13 @@ const Dashboard = () => {
         sleep_hours:     selectedFactors.has("Mauvaise nuit") ? 5                   : null,
         did_sport:       selectedFactors.has("Sport intense"),
         sport_intensity: selectedFactors.has("Sport intense") ? "Intense"           : null,
+        product_change:  selectedFactors.has("Nouveau produit"),
+        extra_factors: {
+          medication:    selectedFactors.has("Médicament"),
+          travel:        selectedFactors.has("Voyage"),
+          sun_exposure:  selectedFactors.has("Exposition solaire"),
+          new_product:   selectedFactors.has("Nouveau produit"),
+        },
       },
       { onConflict: "user_id,date" }
     );
