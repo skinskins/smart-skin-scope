@@ -10,6 +10,7 @@ export type RoutineProduct = {
   morning_use?: boolean | null;
   evening_use?: boolean | null;
   frequency: string | null;
+  ingredients: string | null;
 };
 
 export const useRoutineProducts = () => {
@@ -22,7 +23,7 @@ export const useRoutineProducts = () => {
     if (!session) { setLoading(false); return; }
     const { data } = await (supabase as any)
       .from("user_products")
-      .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency")
+      .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, ingredients")
       .eq("user_id", session.user.id)
       .eq("is_active", true);
     setProducts(data ?? []);
