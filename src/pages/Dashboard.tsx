@@ -1,5 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Check } from "lucide-react";
+import { useRoutineProducts } from "@/hooks/useRoutineProducts";
+import { RoutineCard } from "@/components/RoutineCard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -67,10 +70,12 @@ const Dashboard = () => {
     setFactorsSaved(true);
     setTimeout(() => { setShowFactorsModal(false); setFactorsSaved(false); setSelectedFactors(new Set()); }, 800);
   };
-  const [morningProducts, setMorningProducts] = useState<{ id: string; product_name: string; brand: string; frequency?: string | null }[]>([]);
-  const [eveningProducts, setEveningProducts] = useState<{ id: string; product_name: string; brand: string; frequency?: string | null }[]>([]);
   const [activeTab, setActiveTab] = useState<"matin" | "soir">("matin");
   const [checkedProducts, setCheckedProducts] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
+  const { products, loading: productsLoading } = useRoutineProducts();
+  const morningProducts = products.filter(p => p.morning_use && p.frequency === "daily");
+  const eveningProducts = products.filter(p => p.evening_use && p.frequency === "daily");
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
@@ -207,41 +212,20 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    const fetchProductsAndRoutine = async () => {
+    if (productsLoading) return;
+    const fetchCheckedProducts = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
-
-      const [productsRes, routineRes] = await Promise.all([
-        (supabase as any)
-          .from("user_products")
-          .select("id, product_name, brand, morning_use, evening_use, frequency")
-          .eq("user_id", session.user.id)
-          .eq("is_active", true),
-        (supabase as any)
-          .from("routine_logs")
-          .select("morning_routine_done, evening_routine_done")
-          .eq("user_id", session.user.id)
-          .eq("date", today)
-          .maybeSingle(),
-      ]);
-
-      const products = productsRes.data ?? [];
-      const morning = products.filter((p: any) => p.morning_use);
-      const evening = products.filter((p: any) => p.evening_use);
-      setMorningProducts(morning);
-      setEveningProducts(evening);
-
-      const log = routineRes.data;
-      if (log) {
-        const preChecked = new Set<string>();
-        if (log.morning_routine_done) morning.forEach((p: any) => preChecked.add(p.id));
-        if (log.evening_routine_done) evening.forEach((p: any) => preChecked.add(p.id));
-        setCheckedProducts(preChecked);
-      }
+      const { data } = await (supabase as any)
+        .from("routine_product_logs")
+        .select("product_id")
+        .eq("user_id", session.user.id)
+        .eq("date", today);
+      if (data) setCheckedProducts(new Set(data.map((r: any) => r.product_id as string)));
     };
-    fetchProductsAndRoutine();
-  }, []);
+    fetchCheckedProducts();
+  }, [productsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleProduct = async (productId: string) => {
     const isChecking = !checkedProducts.has(productId);
@@ -251,15 +235,32 @@ const Dashboard = () => {
       else next.add(productId);
       return next;
     });
-    if (!isChecking) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     const today = new Date().toISOString().split("T")[0];
-    const field = activeTab === "matin" ? "morning_routine_done" : "evening_routine_done";
-    await (supabase as any).from("routine_logs").upsert(
-      { user_id: session.user.id, date: today, [field]: true },
-      { onConflict: "user_id,date" }
-    );
+    const period = activeTab === "matin" ? "morning" : "evening";
+    if (isChecking) {
+      await (supabase as any)
+        .from("routine_product_logs")
+        .upsert(
+          { user_id: session.user.id, product_id: productId, date: today, period },
+          { onConflict: "user_id,product_id,date,period" }
+        );
+      // Maintenu pour le calcul du streak
+      const field = activeTab === "matin" ? "morning_routine_done" : "evening_routine_done";
+      await (supabase as any).from("routine_logs").upsert(
+        { user_id: session.user.id, date: today, [field]: true },
+        { onConflict: "user_id,date" }
+      );
+    } else {
+      await (supabase as any)
+        .from("routine_product_logs")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("product_id", productId)
+        .eq("date", today)
+        .eq("period", period);
+    }
   };
 
   const cycleCalc = lastPeriodDate
@@ -351,52 +352,23 @@ const Dashboard = () => {
         })()}
 
         {/* Liste produits */}
-        <div className="rounded-2xl overflow-hidden border border-border/15 mb-8">
-          {(activeTab === "matin" ? morningProducts : eveningProducts).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              Aucun produit dans cette routine
-            </p>
-          ) : (
-            (activeTab === "matin" ? morningProducts : eveningProducts).map((product, i, arr) => {
-              const isChecked = checkedProducts.has(product.id);
-              return (
-                <button
-                  key={product.id}
-                  onClick={() => toggleProduct(product.id)}
-                  className={`w-full flex items-center gap-3 py-3.5 px-4 text-left hover:bg-muted/5 transition-colors ${
-                    i < arr.length - 1 ? "border-b border-border/15" : ""
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-                    isChecked ? "bg-[#1a1a1a] border-[#1a1a1a]" : "border-border/40"
-                  }`}>
-                    {isChecked && <Check size={10} strokeWidth={3} className="text-white" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium transition-all ${
-                      isChecked ? "line-through text-muted-foreground/50" : "text-foreground"
-                    }`}>
-                      {product.product_name}
-                    </p>
-                    {product.brand && (
-                      <p className="text-[11px] text-muted-foreground">{product.brand}</p>
-                    )}
-                  </div>
-                  {product.frequency === "weekly" && (
-                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                      → Cette semaine
-                    </span>
-                  )}
-                  {product.frequency === "monthly" && (
-                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                      → Ce mois
-                    </span>
-                  )}
-                </button>
-              );
-            })
-          )}
+        <div className="mb-8">
+          <RoutineCard
+            products={activeTab === "matin" ? morningProducts : eveningProducts}
+            checkedIds={checkedProducts}
+            onToggle={toggleProduct}
+          />
         </div>
+
+        {activeTab === "soir" && eveningProducts.length > 0 && (
+          <button
+            onClick={() => navigate("/routine-player")}
+            className="w-full h-12 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide -mt-4 mb-8 flex items-center justify-center gap-2"
+          >
+            Commencer ma routine <span>→</span>
+          </button>
+        )}
+
       </div>
 
       {/* Modale facteurs du jour */}

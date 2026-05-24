@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ImageOff, Camera } from "lucide-react";
+import { Camera } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
+import { RoutineCard } from "@/components/RoutineCard";
+import type { RoutineProduct } from "@/hooks/useRoutineProducts";
 
 const PHASE_TO_PEARL: Record<string, string> = {
   "Folliculaire": "Perle douce",
@@ -47,8 +49,6 @@ const getPearlForDate = (
   return { pearlName: PHASE_TO_PEARL[phase] ?? null, phase, cycleDay: day };
 };
 
-type Product = { id: string; product_name: string; brand: string; photo_url: string | null; product_type: string | null };
-
 const SuiviJour = () => {
   const { date } = useParams<{ date: string }>();
   const navigate = useNavigate();
@@ -60,8 +60,8 @@ const SuiviJour = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [skinPhotoUrl, setSkinPhotoUrl] = useState<string | null>(null);
   const [weather, setWeather] = useState<{ temp: number; uv: number; pollution: string } | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggedProducts, setLoggedProducts] = useState<RoutineProduct[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,7 +72,7 @@ const SuiviJour = () => {
       const uid = session.user.id;
       setUserId(uid);
 
-      const [profileRes, photoRes, weatherRes, productsRes] = await Promise.all([
+      const [profileRes, photoRes, weatherRes, logsRes] = await Promise.all([
         (supabase as any).from("profiles")
           .select("last_period_date, cycle_duration, period_duration")
           .eq("id", uid).single(),
@@ -80,9 +80,9 @@ const SuiviJour = () => {
           .select("storage_path").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("daily_weather")
           .select("temp, uv, pollution").eq("user_id", uid).eq("date", date).maybeSingle(),
-        (supabase as any).from("user_products")
-          .select("id, product_name, brand, photo_url, product_type")
-          .eq("user_id", uid).eq("is_active", true),
+        (supabase as any).from("routine_product_logs")
+          .select("product_id, period, user_products(id, product_name, brand, product_type, photo_url)")
+          .eq("user_id", uid).eq("date", date),
       ]);
 
       if (profileRes.data) {
@@ -99,7 +99,16 @@ const SuiviJour = () => {
       }
 
       if (weatherRes.data) setWeather(weatherRes.data);
-      if (productsRes.data) setProducts(productsRes.data);
+      if (logsRes.data) {
+        setLoggedProducts(logsRes.data.map((r: any) => ({
+          id: r.product_id,
+          product_name: r.user_products?.product_name ?? "",
+          brand: r.user_products?.brand ?? "",
+          product_type: r.user_products?.product_type ?? null,
+          photo_url: r.user_products?.photo_url ?? null,
+          frequency: null,
+        })));
+      }
       setLoading(false);
     };
     fetchAll();
@@ -140,7 +149,7 @@ const SuiviJour = () => {
   const pearlGradient = phase ? (PEARL_GRADIENT[phase] ?? null) : null;
   const uvCritical = (displayWeather?.uv ?? 0) >= 6;
 
-  const productsByType = products.reduce<Record<string, Product[]>>((acc, p) => {
+  const productsByType = loggedProducts.reduce<Record<string, RoutineProduct[]>>((acc, p) => {
     const key = p.product_type ?? "Autre";
     if (!acc[key]) acc[key] = [];
     acc[key].push(p);
@@ -248,10 +257,10 @@ const SuiviJour = () => {
             </div>
 
             {/* Produits utilisés */}
-            {products.length > 0 && (
+            {loggedProducts.length > 0 && (
               <div>
                 <p className="text-base font-display font-bold text-foreground mb-4">
-                  {products.length} produit{products.length > 1 ? "s" : ""} utilisé{products.length > 1 ? "s" : ""}
+                  {loggedProducts.length} produit{loggedProducts.length > 1 ? "s" : ""} utilisé{loggedProducts.length > 1 ? "s" : ""}
                 </p>
                 <div className="space-y-5">
                   {Object.entries(productsByType).map(([type, items]) => (
@@ -259,29 +268,14 @@ const SuiviJour = () => {
                       <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                         {type}
                       </p>
-                      <div className="space-y-2">
-                        {items.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-border/40">
-                            <div className="w-12 h-12 bg-muted/30 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0">
-                              {p.photo_url
-                                ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                                : <ImageOff size={16} className="text-muted-foreground/40" />
-                              }
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{p.product_name}</p>
-                              <p className="text-[11px] text-muted-foreground truncate">{p.brand}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <RoutineCard products={items} showPhotos />
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {products.length === 0 && !skinPhotoUrl && !weather && (
+            {loggedProducts.length === 0 && !skinPhotoUrl && !weather && (
               <p className="text-center text-sm text-muted-foreground italic py-8">
                 Pas de données pour ce jour
               </p>
