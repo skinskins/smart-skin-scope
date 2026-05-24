@@ -432,35 +432,37 @@ const RoutinePlayer = () => {
 
   if (completed && completionStep === 1) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="min-h-screen bg-[#F0EBE3] flex flex-col items-center justify-center px-6 text-center"
-      >
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-          className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-8"
+      <>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="min-h-screen bg-[#F0EBE3] flex flex-col items-center justify-center px-6 text-center"
         >
-          <Check size={44} strokeWidth={2} className="text-primary" />
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+            className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center mb-8"
+          >
+            <Check size={44} strokeWidth={2} className="text-primary" />
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+            <h2 className="text-3xl font-display text-foreground mb-3">Routine terminée</h2>
+            <p className="text-base text-muted-foreground mb-12 leading-relaxed">
+              Bonne nuit — ta perle de demain se prépare.
+            </p>
+          </motion.div>
+          <motion.button
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+            onClick={() => { if (!checkinAlreadyFilled) setShowFactorsModal(true); else setCompletionStep(3); }}
+            className="w-full max-w-xs h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
+          >
+            Continuer
+          </motion.button>
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <h2 className="text-3xl font-display text-foreground mb-3">Routine terminée</h2>
-          <p className="text-base text-muted-foreground mb-12 leading-relaxed">
-            Bonne nuit — ta perle de demain se prépare.
-          </p>
-        </motion.div>
-        <motion.button
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-          onClick={() => { if (!checkinAlreadyFilled) setShowFactorsModal(true); else setCompletionStep(3); }}
-          className="w-full max-w-xs h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
-        >
-          Continuer
-        </motion.button>
-      </motion.div>
-      <FactorsModal
-        open={showFactorsModal}
-        onClose={() => { setShowFactorsModal(false); setCompletionStep(3); }}
-        onSaved={() => { setShowFactorsModal(false); setCompletionStep(3); }}
-      />
+        <FactorsModal
+          open={showFactorsModal}
+          onClose={() => { setShowFactorsModal(false); setCompletionStep(3); }}
+          onSaved={() => { setShowFactorsModal(false); setCompletionStep(3); }}
+        />
+      </>
     );
   }
 
