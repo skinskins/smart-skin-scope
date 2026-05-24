@@ -183,7 +183,7 @@ const RoutinePlayer = () => {
       // UV index from daily_weather
       const { data: weather } = await (supabase as any)
         .from("daily_weather")
-        .select("uv_index")
+        .select("uv")
         .eq("user_id", session.user.id)
         .eq("date", today)
         .maybeSingle();
@@ -200,7 +200,7 @@ const RoutinePlayer = () => {
           eveningProducts,
           morningProducts,
           cyclePhase,
-          uvIndex: weather?.uv_index ?? null,
+          uvIndex: weather?.uv ?? null,
         },
       });
 

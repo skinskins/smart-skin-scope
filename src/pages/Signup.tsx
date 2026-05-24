@@ -356,6 +356,7 @@ const Signup = () => {
                         product_type: p.product_type,
                         user_id: userId,
                         morning_use: true,
+                        evening_use: true,
                         frequency: "daily",
                         is_active: true,
                     }))

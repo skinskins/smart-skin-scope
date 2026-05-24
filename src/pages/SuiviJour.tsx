@@ -11,15 +11,15 @@ import type { RoutineProduct } from "@/hooks/useRoutineProducts";
 const PHASE_TO_PEARL: Record<string, string> = {
   "Folliculaire": "Perle douce",
   "Ovulatoire":   "Perle lumineuse",
-  "Lutéal":       "Perle terne",
-  "Menstruation": "Perle fragile",
+  "Lutéale":      "Perle terne",
+  "Menstruelle":  "Perle fragile",
 };
 
 const PEARL_GRADIENT: Record<string, { gradient: string; pulseColor: string }> = {
   "Folliculaire":  { gradient: "linear-gradient(145deg, #B8D4E8 0%, #7EB3D4 45%, #4A8AB8 100%)", pulseColor: "#7EB3D4" },
   "Ovulatoire":    { gradient: "linear-gradient(145deg, #F5E6A3 0%, #F0C060 45%, #E89020 100%)", pulseColor: "#F0C060" },
-  "Lutéal":        { gradient: "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)", pulseColor: "#A07850" },
-  "Menstruation":  { gradient: "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)", pulseColor: "#D06070" },
+  "Lutéale":       { gradient: "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)", pulseColor: "#A07850" },
+  "Menstruelle":   { gradient: "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)", pulseColor: "#D06070" },
 };
 
 const PEARL_SUBTITLES: Record<string, string> = {
@@ -42,10 +42,10 @@ const getPearlForDate = (
   const diffDays = Math.floor((target.getTime() - periodStart.getTime()) / 86400000);
   const day = (diffDays % cycleDuration) + 1;
   let phase: string;
-  if (day <= periodDuration)                              phase = "Menstruation";
+  if (day <= periodDuration)                              phase = "Menstruelle";
   else if (day <= Math.floor(cycleDuration / 2) - 1)     phase = "Folliculaire";
   else if (day <= Math.floor(cycleDuration / 2) + 2)     phase = "Ovulatoire";
-  else                                                    phase = "Lutéal";
+  else                                                    phase = "Lutéale";
   return { pearlName: PHASE_TO_PEARL[phase] ?? null, phase, cycleDay: day };
 };
 
