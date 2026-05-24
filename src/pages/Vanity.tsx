@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
@@ -32,6 +34,7 @@ type RoutineProduct = {
 };
 
 const Vanity = () => {
+  const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
@@ -271,23 +274,21 @@ const Vanity = () => {
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
-      <div className="mb-10 text-center">
-        <h1 className="text-3xl font-display text-foreground leading-tight">Vanity</h1>
-        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mt-2">Votre espace skincare</p>
-      </div>
+      <PageHeader title="Mes Produits" onBack={() => navigate(-1)} />
 
-      <div className="flex gap-2 mb-8">
+      <div className="flex border-b border-border/20 mb-6">
         {(["routines", "produits"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveMainTab(tab)}
-            className={`flex-1 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all ${
-              activeMainTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "bg-white border border-border/40 text-muted-foreground"
+            className={`flex-1 py-3 text-sm font-semibold transition-all relative ${
+              activeMainTab === tab ? "text-foreground" : "text-muted-foreground"
             }`}
           >
             {tab === "routines" ? "Routines" : "Mes produits"}
+            {activeMainTab === tab && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full" />
+            )}
           </button>
         ))}
       </div>
@@ -534,7 +535,7 @@ const Vanity = () => {
       ) : (
         <div>
           {/* Sous-onglets */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
             {([
               { key: "daily",   label: "Quotidienne"  },
               { key: "weekly",  label: "Hebdomadaire" },
@@ -543,10 +544,10 @@ const Vanity = () => {
               <button
                 key={key}
                 onClick={() => setActiveRoutineTab(key)}
-                className={`flex-1 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
                   activeRoutineTab === key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-white border border-border/40 text-muted-foreground"
+                    ? "bg-foreground text-background"
+                    : "border border-border/40 text-muted-foreground"
                 }`}
               >
                 {label}
@@ -559,7 +560,10 @@ const Vanity = () => {
             <div className="space-y-6">
               {morningProducts.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 px-1">Matin</p>
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <p className="text-base font-bold text-foreground">Routine du matin</p>
+                    <p className="text-sm font-semibold text-primary">{morningProducts.length} produit{morningProducts.length > 1 ? "s" : ""}</p>
+                  </div>
                   <div className="premium-card p-4 space-y-1">
                     {morningProducts.map(p => <ProductRow key={p.id} product={p} />)}
                   </div>
@@ -567,7 +571,10 @@ const Vanity = () => {
               )}
               {eveningProducts.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 px-1">Soir</p>
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <p className="text-base font-bold text-foreground">Routine du soir</p>
+                    <p className="text-sm font-semibold text-primary">{eveningProducts.length} produit{eveningProducts.length > 1 ? "s" : ""}</p>
+                  </div>
                   <div className="premium-card p-4 space-y-1">
                     {eveningProducts.map(p => <ProductRow key={p.id} product={p} />)}
                   </div>

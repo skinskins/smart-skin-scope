@@ -1,14 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ImageOff, Camera } from "lucide-react";
+import { ImageOff, Camera } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
-import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
-import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
-import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
-import pearlFragile   from "@/assets/pearls/Pearl-fragile.svg";
-import pearlAbsente   from "@/assets/pearls/Pearl-absente.svg";
 
 const PHASE_TO_PEARL: Record<string, string> = {
   "Folliculaire": "Perle douce",
@@ -17,11 +13,11 @@ const PHASE_TO_PEARL: Record<string, string> = {
   "Menstruation": "Perle fragile",
 };
 
-const PEARL_SVG: Record<string, string> = {
-  "Perle lumineuse": pearlLumineuse,
-  "Perle douce":     pearlDouce,
-  "Perle terne":     pearlTerne,
-  "Perle fragile":   pearlFragile,
+const PEARL_GRADIENT: Record<string, { gradient: string; pulseColor: string }> = {
+  "Folliculaire":  { gradient: "linear-gradient(145deg, #B8D4E8 0%, #7EB3D4 45%, #4A8AB8 100%)", pulseColor: "#7EB3D4" },
+  "Ovulatoire":    { gradient: "linear-gradient(145deg, #F5E6A3 0%, #F0C060 45%, #E89020 100%)", pulseColor: "#F0C060" },
+  "Lutéal":        { gradient: "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)", pulseColor: "#A07850" },
+  "Menstruation":  { gradient: "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)", pulseColor: "#D06070" },
 };
 
 const PEARL_SUBTITLES: Record<string, string> = {
@@ -141,6 +137,9 @@ const SuiviJour = () => {
     ? getPearlForDate(date, lastPeriodDate, cycleDuration, periodDuration)
     : { pearlName: null, phase: null, cycleDay: null };
 
+  const pearlGradient = phase ? (PEARL_GRADIENT[phase] ?? null) : null;
+  const uvCritical = (displayWeather?.uv ?? 0) >= 6;
+
   const productsByType = products.reduce<Record<string, Product[]>>((acc, p) => {
     const key = p.product_type ?? "Autre";
     if (!acc[key]) acc[key] = [];
@@ -151,16 +150,9 @@ const SuiviJour = () => {
   return (
     <div className="min-h-screen pb-24 max-w-lg mx-auto">
 
-      {/* Header */}
-      <div className="px-5 pt-10 pb-4 flex items-center gap-4">
-        <button onClick={() => navigate("/suivi")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={16} strokeWidth={1.5} />
-          Retour
-        </button>
-      </div>
+      <PageHeader title={dateLabel} onBack={() => navigate(-1)} />
 
       <div className="px-5">
-        <h1 className="text-2xl font-display text-foreground mb-6 capitalize">{dateLabel}</h1>
 
         {loading ? (
           <p className="text-center text-sm text-muted-foreground py-16 animate-pulse">Chargement…</p>
@@ -169,11 +161,36 @@ const SuiviJour = () => {
 
             {/* Perle */}
             <div className="flex flex-col items-center gap-2 text-center">
-              <img
-                src={pearlName ? (PEARL_SVG[pearlName] ?? pearlAbsente) : pearlAbsente}
-                alt={pearlName ?? "Perle absente"}
-                className="w-16 h-16 object-contain"
-              />
+              <div style={{ position: "relative", width: 120, height: 120, flexShrink: 0 }}>
+                {/* Pulse ring */}
+                <motion.div
+                  animate={{ scale: [1, 1.22], opacity: [0.32, 0] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut" }}
+                  style={{
+                    position: "absolute", inset: -8, borderRadius: "50%",
+                    background: uvCritical ? "#E06010" : (pearlGradient?.pulseColor ?? "#ccc"),
+                    pointerEvents: "none",
+                  }}
+                />
+                {/* Pearl layers */}
+                <div style={{ width: "100%", height: "100%", borderRadius: "50%", overflow: "hidden", position: "relative" }}>
+                  {/* Layer 1 — cycle */}
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pearlGradient?.gradient ?? "#E0D8D0" }} />
+                  {/* Layer 2 — UV */}
+                  <motion.div
+                    animate={{ opacity: uvCritical ? 1 : 0 }}
+                    transition={{ duration: 0.45 }}
+                    style={{
+                      position: "absolute", inset: 0, borderRadius: "50%",
+                      background: "radial-gradient(circle at 82% 18%, rgba(224,100,10,0.78) 0%, rgba(200,70,0,0.38) 38%, transparent 62%)",
+                    }}
+                  />
+                  {/* Layer 3 — facteurs (pas de données checkin sur cette page) */}
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", opacity: 0,
+                    background: "radial-gradient(circle at 20% 78%, rgba(110,60,180,0.75) 0%, rgba(80,40,150,0.35) 38%, transparent 62%)",
+                  }} />
+                </div>
+              </div>
               <p className="text-base font-bold text-foreground">
                 {pearlName ?? "Perle absente"}
               </p>

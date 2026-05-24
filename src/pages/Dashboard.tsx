@@ -1,15 +1,12 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Check, Bell, BookOpen } from "lucide-react";
+import { Sparkles, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
-import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
-import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
-import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
-import pearlFragile   from "@/assets/pearls/Pearl-fragile.svg";
-import pearlAbsente   from "@/assets/pearls/Pearl-absente.svg";
+import { PearlHero } from "@/components/PearlHero";
+import { PageHeader } from "@/components/PageHeader";
 
 const Dashboard = () => {
   const [userName, setUserName] = useState<string | null>(null);
@@ -265,90 +262,34 @@ const Dashboard = () => {
     );
   };
 
-  const PEARL_CONFIG: Record<string, { name: string; subtitle: string; img: string }> = {
-    Folliculaire: { name: "Perle douce",     subtitle: "Votre peau est équilibrée",     img: pearlDouce     },
-    Ovulatoire:   { name: "Perle lumineuse", subtitle: "Votre peau est au top",          img: pearlLumineuse },
-    Lutéale:      { name: "Perle terne",     subtitle: "Votre peau a besoin de douceur", img: pearlTerne     },
-    Menstruelle:  { name: "Perle fragile",   subtitle: "Votre peau est plus sensible",   img: pearlFragile   },
-  };
-
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
     : null;
   const cyclePhase = cycleCalc?.phase ?? null;
   const cycleDay   = cycleCalc?.day   ?? null;
-  const pearl = cyclePhase ? (PEARL_CONFIG[cyclePhase] ?? null) : null;
-  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay, "| pearl:", pearl?.name ?? "null");
-
-  const cycleUp = ["Folliculaire", "Ovulatoire"].includes(cyclePhase ?? "");
-  const airUp   = ["Bon", "Faible"].includes(liveWeather.pollution ?? "");
+  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay);
 
   return (
     <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white">
 
-      {/* Header — fond blanc */}
-      <div className="bg-white px-5 pt-8 pb-4">
-        <div className="flex items-center justify-between mb-5">
-          <div className="w-10 h-10 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center">
-            <img src={pearlDouce} alt="avatar" className="w-7 h-7 object-contain" />
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="w-9 h-9 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors">
-              <Bell size={20} strokeWidth={1.5} />
-            </button>
-            <button className="w-9 h-9 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors">
-              <BookOpen size={20} strokeWidth={1.5} />
-            </button>
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Bonjour {userName ?? ""}
-        </h1>
-      </div>
+      <PageHeader title={`Bonjour ${userName ?? ""}`} />
 
-      {/* Hero — fond #F8F6F2 */}
-      <div className="px-5 pt-6 pb-6" style={{ backgroundColor: "#F8F6F2" }}>
+      {/* Hero */}
+      <div className="px-5 pt-6 pb-6 bg-white">
 
-        {/* Cartes contextuelles */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-white rounded-2xl p-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-sm font-bold ${cycleUp ? "text-green-500" : "text-muted-foreground"}`}>
-                {cycleUp ? "↗" : "↘"}
-              </span>
-              <p className="text-sm font-bold text-foreground">{cyclePhase ?? "–"}</p>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              {cycleDay ? `Jour ${cycleDay} sur ${cycleDuration}` : "–"}
-            </p>
+        {/* PearlHero */}
+        {cyclePhase && cycleDay ? (
+          <div className="mb-6">
+            <PearlHero
+              firstName={userName ?? undefined}
+              cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle"}
+              cycleDay={cycleDay}
+              cycleDuration={cycleDuration}
+              weather={{ uv_index: liveWeather.uv ?? 0 }}
+              streakCount={streakCount}
+            />
           </div>
-          <div className="bg-white rounded-2xl p-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-sm font-bold ${airUp ? "text-green-500" : "text-muted-foreground"}`}>
-                {airUp ? "↗" : "↘"}
-              </span>
-              <p className="text-sm font-bold text-foreground">Qualité d'air</p>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Indice UV à {liveWeather.uv ?? 0}
-            </p>
-          </div>
-        </div>
-
-        {/* Perle */}
-        <div className="text-center mb-6">
-          <p className="text-xl font-bold text-foreground mb-1">
-            {pearl?.name ?? "Perle absente"}
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            {pearl?.subtitle ?? ""}
-          </p>
-          <img
-            src={pearl?.img ?? pearlAbsente}
-            alt={pearl?.name ?? "Perle absente"}
-            className="w-40 h-40 object-contain mx-auto"
-          />
-        </div>
+        ) : null}
 
         {/* Conseil du jour */}
         <div className="bg-white rounded-2xl p-4 flex items-start gap-3 mb-3">
