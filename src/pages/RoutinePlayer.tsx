@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronRight, Check, AlertTriangle, ShieldAlert } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoutineProducts, type RoutineProduct } from "@/hooks/useRoutineProducts";
+import { FactorsModal } from "@/components/FactorsModal";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhase } from "@/utils/cycle";
 
@@ -58,21 +59,14 @@ const fmt = (s: number) => {
 const RADIUS = 54;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-const FACTORS = [
-  { category: "Alimentation",          pills: ["Sucré/gras", "Alcool", "Peu d'eau"] },
-  { category: "Stress & sommeil",      pills: ["Stress élevé", "Mauvaise nuit"] },
-  { category: "Corps & environnement", pills: ["Sport intense", "Médicament", "Voyage", "Exposition solaire"] },
-];
-
 const RoutinePlayer = () => {
   const navigate = useNavigate();
   const { morning, evening, loading } = useRoutineProducts();
   const [currentStep, setCurrentStep] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [completed, setCompleted] = useState(false);
-  const [completionStep, setCompletionStep] = useState<1 | 2 | 3>(1);
-  const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
-  const [factorsSaved, setFactorsSaved] = useState(false);
+  const [completionStep, setCompletionStep] = useState<1 | 3>(1);
+  const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [checkinAlreadyFilled, setCheckinAlreadyFilled] = useState(false);
 
   // INCI analysis states
@@ -279,43 +273,6 @@ const RoutinePlayer = () => {
     setDecisions(prev => ({ ...prev, [productName]: "keep" }));
   };
 
-  const toggleFactor = (pill: string) => {
-    setSelectedFactors(prev => {
-      const next = new Set(prev);
-      if (next.has(pill)) next.delete(pill); else next.add(pill);
-      return next;
-    });
-  };
-
-  const saveFactors = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setCompletionStep(3); return; }
-    const today = new Date().toISOString().split("T")[0];
-    await (supabase as any).from("daily_checkins").upsert(
-      {
-        user_id:         session.user.id,
-        date:            today,
-        food_quality:    selectedFactors.has("Sucré/gras")   ? "Grasses / Sucrées" : null,
-        alcohol_drinks:  selectedFactors.has("Alcool")        ? 1                   : null,
-        water_glasses:   selectedFactors.has("Peu d'eau")     ? 2                   : null,
-        stress_level:    selectedFactors.has("Stress élevé")  ? 4                   : null,
-        sleep_hours:     selectedFactors.has("Mauvaise nuit") ? 5                   : null,
-        did_sport:       selectedFactors.has("Sport intense"),
-        sport_intensity: selectedFactors.has("Sport intense") ? "Intense"           : null,
-        product_change:  selectedFactors.has("Nouveau produit"),
-        extra_factors: {
-          medication:   selectedFactors.has("Médicament"),
-          travel:       selectedFactors.has("Voyage"),
-          sun_exposure: selectedFactors.has("Exposition solaire"),
-          new_product:  selectedFactors.has("Nouveau produit"),
-        },
-      },
-      { onConflict: "user_id,date" }
-    );
-    setFactorsSaved(true);
-    setTimeout(() => setCompletionStep(3), 800);
-  };
-
   const goNext = async () => {
     if (currentStep < filteredSteps.length - 1) {
       const next = currentStep + 1;
@@ -335,7 +292,8 @@ const RoutinePlayer = () => {
           .eq("user_id", session.user.id)
           .eq("date", today)
           .maybeSingle();
-        setCheckinAlreadyFilled(!!checkin);
+        const alreadyFilled = !!checkin;
+        setCheckinAlreadyFilled(alreadyFilled);
       }
       setCompleted(true);
     }
@@ -492,70 +450,17 @@ const RoutinePlayer = () => {
         </motion.div>
         <motion.button
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-          onClick={() => setCompletionStep(checkinAlreadyFilled ? 3 : 2)}
+          onClick={() => { if (!checkinAlreadyFilled) setShowFactorsModal(true); else setCompletionStep(3); }}
           className="w-full max-w-xs h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
         >
           Continuer
         </motion.button>
       </motion.div>
-    );
-  }
-
-  if (completed && completionStep === 2) {
-    return (
-      <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
-        className="min-h-screen bg-[#F0EBE3] flex flex-col px-6 pt-16 pb-10"
-      >
-        <div className="mb-8">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Facteurs du jour</p>
-          <h2 className="text-2xl font-display text-foreground">Quelque chose à noter ?</h2>
-        </div>
-        <div className="flex-1 space-y-6 mb-8">
-          {FACTORS.map(({ category, pills }) => (
-            <div key={category}>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{category}</p>
-              <div className="flex flex-wrap gap-2">
-                {pills.map(pill => {
-                  const active = selectedFactors.has(pill);
-                  return (
-                    <button key={pill} onClick={() => toggleFactor(pill)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
-                        active ? "bg-primary text-primary-foreground border-primary"
-                               : "bg-white border-border/40 text-muted-foreground hover:border-primary/40"
-                      }`}
-                    >
-                      {pill}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-3">
-          <AnimatePresence mode="wait">
-            {factorsSaved ? (
-              <motion.div key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                className="w-full h-12 flex items-center justify-center gap-2 bg-primary/10 rounded-full">
-                <Check size={16} className="text-primary" />
-                <span className="text-sm font-bold text-primary">Noté !</span>
-              </motion.div>
-            ) : (
-              <motion.button key="save" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                onClick={saveFactors} disabled={selectedFactors.size === 0}
-                className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-              >
-                Enregistrer
-              </motion.button>
-            )}
-          </AnimatePresence>
-          <button onClick={() => setCompletionStep(3)}
-            className="w-full h-10 text-[12px] text-muted-foreground/70 hover:text-foreground transition-colors"
-          >
-            Rien à noter aujourd'hui
-          </button>
-        </div>
-      </motion.div>
+      <FactorsModal
+        open={showFactorsModal}
+        onClose={() => { setShowFactorsModal(false); setCompletionStep(3); }}
+        onSaved={() => { setShowFactorsModal(false); setCompletionStep(3); }}
+      />
     );
   }
 
