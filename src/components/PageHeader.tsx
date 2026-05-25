@@ -13,7 +13,7 @@ export function PageHeader({ title, onBack }: PageHeaderProps) {
           <ChevronLeft size={20} />
         </button>
       )}
-      <h1 className="text-[22px] font-semibold">{title}</h1>
+      <h1 className="text-[22px] font-normal">{title}</h1>
     </div>
   );
 }

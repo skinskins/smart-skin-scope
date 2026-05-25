@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronRight, Check, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Camera, ChevronRight, Check, AlertTriangle, ShieldAlert } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoutineProducts, type RoutineProduct } from "@/hooks/useRoutineProducts";
 import { FactorsModal } from "@/components/FactorsModal";
@@ -75,6 +75,9 @@ const RoutinePlayer = () => {
   const [excludedProductIds, setExcludedProductIds] = useState<Set<string>>(new Set());
   const [decisions, setDecisions] = useState<Record<string, "remove" | "keep">>({});
   const [warningsReviewed, setWarningsReviewed] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoTaken, setPhotoTaken] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const steps = useMemo<Step[]>(() =>
     evening
@@ -273,6 +276,31 @@ const RoutinePlayer = () => {
     setDecisions(prev => ({ ...prev, [productName]: "keep" }));
   };
 
+  const goToNextCompletionStep = () => {
+    if (!checkinAlreadyFilled) setShowFactorsModal(true);
+    else setCompletionStep(3);
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoUploading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setPhotoUploading(false); return; }
+    const today = new Date().toISOString().split("T")[0];
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${session.user.id}/${today}.${ext}`;
+    const { error } = await supabase.storage
+      .from("skin-photos")
+      .upload(path, file, { upsert: true });
+    if (!error) {
+      await (supabase as any).from("skin_photos").upsert(
+        { user_id: session.user.id, date: today, storage_path: path },
+        { onConflict: "user_id,date" }
+      );
+      setPhotoTaken(true);
+    }
+    setPhotoUploading(false);
+  };
+
   const goNext = async () => {
     if (currentStep < filteredSteps.length - 1) {
       const next = currentStep + 1;
@@ -443,15 +471,70 @@ const RoutinePlayer = () => {
           >
             <Check size={44} strokeWidth={2} className="text-primary" />
           </motion.div>
+
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <h2 className="text-3xl font-display text-foreground mb-3">Routine terminée</h2>
-            <p className="text-base text-muted-foreground mb-12 leading-relaxed">
-              Bonne nuit — ta perle de demain se prépare.
+            <p className="text-base text-muted-foreground mb-6 leading-relaxed">
+              Bonne nuit ✨ Ta perle de demain se prépare.
             </p>
           </motion.div>
+
+          {/* Photo invitation */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+            className="w-full max-w-xs mb-6"
+          >
+            <div className="rounded-2xl p-4 text-left" style={{ background: "rgba(255,255,255,0.7)" }}>
+              <div className="flex items-start gap-3 mb-3">
+                <Camera size={17} strokeWidth={1.5} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Prends une photo de ta peau ce soir — elle enrichit les prédictions de demain.
+                </p>
+              </div>
+              {photoTaken ? (
+                <div className="flex items-center gap-2 justify-center py-1">
+                  <Check size={15} className="text-primary" />
+                  <span className="text-sm font-semibold text-primary">Photo enregistrée</span>
+                </div>
+              ) : (
+                <label className="block cursor-pointer">
+                  <div
+                    className="w-full h-11 rounded-xl flex items-center justify-center transition-colors"
+                    style={{ background: "rgba(44,24,16,0.08)" }}
+                  >
+                    {photoUploading ? (
+                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <span className="text-sm font-semibold" style={{ color: "#2C1810" }}>
+                        Prendre une photo 📸
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="user"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
+                  />
+                </label>
+              )}
+            </div>
+            {!photoTaken && (
+              <button
+                onClick={goToNextCompletionStep}
+                className="w-full mt-2 text-xs py-1 transition-colors"
+                style={{ color: "#8B7355" }}
+              >
+                Passer
+              </button>
+            )}
+          </motion.div>
+
           <motion.button
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-            onClick={() => { if (!checkinAlreadyFilled) setShowFactorsModal(true); else setCompletionStep(3); }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
+            onClick={goToNextCompletionStep}
             className="w-full max-w-xs h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
           >
             Continuer

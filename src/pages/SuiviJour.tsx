@@ -63,6 +63,7 @@ const SuiviJour = () => {
   const [loading, setLoading] = useState(true);
   const [loggedProducts, setLoggedProducts] = useState<RoutineProduct[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -117,17 +118,33 @@ const SuiviJour = () => {
   const handlePhotoUpload = async (file: File) => {
     if (!date || !userId) return;
     setUploading(true);
+    setUploadError(null);
+    console.log("[PhotoUpload] fichier:", file.name, file.size + " bytes", file.type);
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `${userId}/${date}.${ext}`;
-    const { error } = await supabase.storage.from("skin-photos").upload(path, file, { upsert: true });
-    if (!error) {
-      await (supabase as any).from("skin_photos").upsert(
-        { user_id: userId, date, storage_path: path },
-        { onConflict: "user_id,date" }
-      );
-      const { data: signed } = await supabase.storage.from("skin-photos").createSignedUrl(path, 3600);
-      if (signed?.signedUrl) setSkinPhotoUrl(signed.signedUrl);
+    console.log("[PhotoUpload] path bucket:", path);
+    const { error: storageError } = await supabase.storage
+      .from("skin-photos")
+      .upload(path, file, { upsert: true });
+    console.log("[PhotoUpload] storage.upload →", storageError ? `ERREUR: ${storageError.message}` : "OK");
+    if (storageError) {
+      setUploadError(storageError.message);
+      setUploading(false);
+      return;
     }
+    const { error: dbError } = await (supabase as any).from("skin_photos").upsert(
+      { user_id: userId, date, storage_path: path },
+      { onConflict: "user_id,date" }
+    );
+    console.log("[PhotoUpload] skin_photos.upsert →", dbError ? `ERREUR: ${JSON.stringify(dbError)}` : "OK");
+    if (dbError) {
+      setUploadError(dbError.message ?? "Erreur base de données");
+      setUploading(false);
+      return;
+    }
+    const { data: signed } = await supabase.storage.from("skin-photos").createSignedUrl(path, 3600);
+    console.log("[PhotoUpload] createSignedUrl →", signed?.signedUrl ? "OK" : "URL manquante");
+    if (signed?.signedUrl) setSkinPhotoUrl(signed.signedUrl);
     setUploading(false);
   };
 
@@ -236,6 +253,9 @@ const SuiviJour = () => {
                   onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
                 />
               </label>
+            )}
+            {uploadError && (
+              <p className="text-xs text-red-500 text-center mt-2 px-2">{uploadError}</p>
             )}
 
             {/* Cartes contextuelles */}

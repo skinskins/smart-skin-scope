@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { MessageCircle, Sparkles } from "lucide-react";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
 import { RoutineCard } from "@/components/RoutineCard";
 import { FactorsModal } from "@/components/FactorsModal";
@@ -10,7 +10,19 @@ import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
 
+const DashboardSkeleton = () => (
+  <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white animate-pulse">
+    <div className="h-14 bg-[#F8F6F2]" />
+    <div className="px-5 pt-8">
+      <div className="rounded-3xl bg-[#F8F6F2] h-64 mb-3" />
+      <div className="rounded-2xl bg-[#F8F6F2] h-20 mb-3" />
+      <div className="h-4 bg-[#F8F6F2] rounded-full w-48 mx-auto mt-4" />
+    </div>
+  </div>
+);
+
 const Dashboard = () => {
+  const [checkinStatus, setCheckinStatus] = useState<"loading" | "done">("loading");
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -32,6 +44,30 @@ const Dashboard = () => {
   const eveningProducts = products.filter(p => p.evening_use && p.frequency === "daily");
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
+
+  // Guard : redirect to daily conversation if checkin not done yet today
+  useEffect(() => {
+    const checkDailyCheckin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setCheckinStatus("done");
+        return;
+      }
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await (supabase as any)
+        .from("daily_checkins")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .eq("date", today)
+        .maybeSingle();
+      if (!data) {
+        navigate("/daily-conversation", { replace: true });
+      } else {
+        setCheckinStatus("done");
+      }
+    };
+    checkDailyCheckin();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -224,6 +260,8 @@ const Dashboard = () => {
   const cycleDay   = cycleCalc?.day   ?? null;
   console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay);
 
+  if (checkinStatus === "loading") return <DashboardSkeleton />;
+
   return (
     <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white">
 
@@ -234,7 +272,7 @@ const Dashboard = () => {
 
         {/* PearlHero */}
         {cyclePhase && cycleDay ? (
-          <div className="mb-6">
+          <div className="mb-3">
             <PearlHero
               firstName={userName ?? undefined}
               cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle"}
@@ -330,6 +368,16 @@ const Dashboard = () => {
         onClose={() => setShowFactorsModal(false)}
         onSaved={() => setShowFactorsModal(false)}
       />
+
+      {/* Bouton flottant IA */}
+      <button
+        onClick={() => navigate("/daily-conversation")}
+        className="fixed bottom-20 right-4 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-50 transition-transform active:scale-95"
+        style={{ background: "#2C1810" }}
+        aria-label="Ouvrir la conversation"
+      >
+        <MessageCircle size={22} strokeWidth={1.8} className="text-white" />
+      </button>
 
     </div>
   );

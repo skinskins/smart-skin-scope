@@ -23,6 +23,7 @@ import PricingPlanScreen from "./pages/PricingPlanScreen";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 import ResetPassword from "./pages/ResetPassword";
 import RoutinePlayer from "./pages/RoutinePlayer";
+import DailyConversation from "./pages/DailyConversation";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import RGPD from "./pages/RGPD";
@@ -144,6 +145,7 @@ const App = () => (
           <Route path="/vanity" element={<AuthGuard><Vanity /></AuthGuard>} />
           <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
           <Route path="/routine-player" element={<AuthGuard><RoutinePlayer /></AuthGuard>} />
+          <Route path="/daily-conversation" element={<AuthGuard><DailyConversation /></AuthGuard>} />
 
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />
