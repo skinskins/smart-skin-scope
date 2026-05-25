@@ -1,26 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, ChevronRight, Check, AlertTriangle, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Camera, ChevronRight, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRoutineProducts, type RoutineProduct } from "@/hooks/useRoutineProducts";
 import { FactorsModal } from "@/components/FactorsModal";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateCyclePhase } from "@/utils/cycle";
 
 type Step = RoutineProduct & {
   order: number;
   durationMin: number;
 };
-
-type Incompatibility = {
-  product_name: string;
-  verdict: "danger" | "warning";
-  reason: string;
-  rule: string;
-  product_id: string | null; // résolu au chargement, pas au clic
-};
-
-type AnalysisState = "idle" | "loading" | "done" | "error";
 
 const TYPE_ORDER: Record<string, number> = {
   "démaquillant": 1, "makeup remover": 1, "makeup_remover": 1, "démaquillage": 1,
@@ -61,36 +50,21 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const RoutinePlayer = () => {
   const navigate = useNavigate();
-  const { morning, evening, loading } = useRoutineProducts();
+  const { morning, evening, loading: productsLoading } = useRoutineProducts();
+  const isMorning = new Date().getHours() < 18;
   const [currentStep, setCurrentStep] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [completionStep, setCompletionStep] = useState<1 | 3>(1);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [checkinAlreadyFilled, setCheckinAlreadyFilled] = useState(false);
-
-  // INCI analysis states
-  const [analysisState, setAnalysisState] = useState<AnalysisState>("idle");
-  const [incompatibilities, setIncompatibilities] = useState<Incompatibility[]>([]);
-  const [excludedProductIds, setExcludedProductIds] = useState<Set<string>>(new Set());
-  const [decisions, setDecisions] = useState<Record<string, "remove" | "keep">>({});
-  const [warningsReviewed, setWarningsReviewed] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
-
-  const steps = useMemo<Step[]>(() =>
-    evening
-      .filter(p => p.frequency === "daily")
-      .map(p => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
-      .sort((a, b) => a.order - b.order),
-    [evening]
-  );
-
-  const filteredSteps = useMemo<Step[]>(
-    () => steps.filter(s => !excludedProductIds.has(s.id)),
-    [steps, excludedProductIds]
-  );
+  const [steps, setSteps] = useState<Step[]>([]);
+  const [stepsReady, setStepsReady] = useState(false);
+  const [logCheckComplete, setLogCheckComplete] = useState(false);
+  const loading = !stepsReady;
 
   const morningSteps = useMemo(() =>
     morning
@@ -101,180 +75,63 @@ const RoutinePlayer = () => {
   );
   const totalMorningMin = morningSteps.reduce((acc, s) => acc + s.durationMin, 0);
 
-  const showPlayer = useMemo(
-    () =>
-      (analysisState === "done" || analysisState === "error") &&
-      (incompatibilities.length === 0 || warningsReviewed),
-    [analysisState, incompatibilities.length, warningsReviewed]
-  );
-
-  // Trigger INCI analysis once products are loaded
+  // Phase 1 — Lire daily_routine_log pour aujourd'hui
   useEffect(() => {
-    if (!loading && steps.length > 0 && analysisState === "idle") {
-      runInciAnalysis();
+    const fetchRoutine = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setLogCheckComplete(true); return; }
+      const today = new Date().toISOString().split("T")[0];
+      const period = isMorning ? "morning" : "evening";
+      const { data: logData } = await (supabase as any)
+        .from("daily_routine_log")
+        .select("product_ids")
+        .eq("user_id", session.user.id)
+        .eq("date", today)
+        .eq("period", period)
+        .maybeSingle();
+      if (logData?.product_ids?.length > 0) {
+        const { data: products } = await (supabase as any)
+          .from("user_products")
+          .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, ingredients")
+          .in("id", logData.product_ids);
+        const hydrated: Step[] = (products ?? [])
+          .map((p: any) => ({
+            ...p,
+            order: getOrder(p.product_type),
+            durationMin: getDuration(p.product_type),
+          }))
+          .sort((a: Step, b: Step) => a.order - b.order);
+        setSteps(hydrated);
+        setStepsReady(true);
+      }
+      setLogCheckComplete(true);
+    };
+    fetchRoutine();
+  }, []); // eslint-disable-line
+
+  // Phase 2 — Fallback useRoutineProducts si daily_routine_log vide
+  useEffect(() => {
+    if (!logCheckComplete || stepsReady || productsLoading) return;
+    const source = isMorning ? morning : evening;
+    const fallbackSteps: Step[] = source
+      .filter(p => p.frequency === "daily")
+      .map(p => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
+      .sort((a, b) => a.order - b.order);
+    setSteps(fallbackSteps);
+    setStepsReady(true);
+  }, [logCheckComplete, stepsReady, productsLoading]); // eslint-disable-line
+
+  useEffect(() => {
+    if (stepsReady && steps.length > 0) {
+      setTimeLeft(steps[0].durationMin * 60);
     }
-  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stepsReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-proceed to player once every incompatibility has a decision
   useEffect(() => {
-    if (
-      incompatibilities.length > 0 &&
-      incompatibilities.every(inc => decisions[inc.product_name])
-    ) {
-      setWarningsReviewed(true);
-    }
-  }, [decisions, incompatibilities]);
-
-  // Initialize timer when player becomes ready
-  useEffect(() => {
-    if (showPlayer && filteredSteps.length > 0) {
-      setTimeLeft(filteredSteps[0].durationMin * 60);
-    }
-  }, [showPlayer]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Countdown timer
-  useEffect(() => {
-    if (completed || filteredSteps.length === 0 || timeLeft <= 0) return;
+    if (completed || steps.length === 0 || timeLeft <= 0) return;
     const id = setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(id);
-  }, [timeLeft, completed, filteredSteps.length]);
-
-  const runInciAnalysis = async () => {
-    setAnalysisState("loading");
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setAnalysisState("done"); return; }
-
-      const today = new Date().toISOString().split("T")[0];
-
-      // Morning products used today
-      const { data: morningLogs } = await (supabase as any)
-        .from("routine_product_logs")
-        .select("product_id")
-        .eq("user_id", session.user.id)
-        .eq("date", today)
-        .eq("period", "morning");
-
-      let morningProducts: Array<{ product_name: string; brand: string }> = [];
-      if (morningLogs?.length > 0) {
-        const { data: mProds } = await (supabase as any)
-          .from("user_products")
-          .select("product_name, brand")
-          .in("id", morningLogs.map((l: any) => l.product_id));
-        morningProducts = mProds ?? [];
-      }
-
-      // Cycle phase from profiles
-      const { data: profile } = await (supabase as any)
-        .from("profiles")
-        .select("last_period_date, cycle_duration, period_duration")
-        .eq("id", session.user.id)
-        .single();
-
-      const { phase: cyclePhase } = calculateCyclePhase(
-        profile?.last_period_date ?? null,
-        profile?.cycle_duration ?? 28,
-        profile?.period_duration ?? 5
-      );
-
-      // UV index from daily_weather
-      const { data: weather } = await (supabase as any)
-        .from("daily_weather")
-        .select("uv")
-        .eq("user_id", session.user.id)
-        .eq("date", today)
-        .maybeSingle();
-
-      // Evening products with INCI
-      const eveningProducts = steps.map(s => ({
-        product_name: s.product_name,
-        brand: s.brand,
-        ingredients: s.ingredients,
-      }));
-
-      const { data: result, error } = await (supabase as any).functions.invoke("inci-analysis", {
-        body: {
-          eveningProducts,
-          morningProducts,
-          cyclePhase,
-          uvIndex: weather?.uv ?? null,
-        },
-      });
-
-      if (error || !result) {
-        console.error("[inci-analysis] error:", error);
-        setAnalysisState("error");
-        return;
-      }
-
-      const rawIncompats: Omit<Incompatibility, "product_id">[] = result.incompatibilities ?? [];
-
-      // Résolution product_id au chargement avec fuzzy match (Claude peut tronquer les noms)
-      const incompats: Incompatibility[] = rawIncompats.map(inc => {
-        const b = inc.product_name.toLowerCase().trim();
-        const matched = steps.find(s => {
-          const a = s.product_name.toLowerCase().trim();
-          return a === b || a.includes(b) || b.includes(a);
-        });
-        return { ...inc, product_id: matched?.id ?? null };
-      });
-
-      // Fire-and-forget — nécessite RLS INSERT sur daily_inci_verdicts
-      incompats.forEach(inc => {
-        (supabase as any).from("daily_inci_verdicts").insert({
-          user_id: session.user.id,
-          date: today,
-          product_id: inc.product_id,
-          product_name: inc.product_name,
-          verdict: inc.verdict,
-          reason: inc.reason,
-          rule_id: inc.rule,
-        });
-      });
-
-      setIncompatibilities(incompats);
-      setAnalysisState("done");
-    } catch (err) {
-      console.error("[inci-analysis] runInciAnalysis error:", err);
-      setAnalysisState("error");
-    }
-  };
-
-  // Fuzzy match : exact insensible à la casse, puis contains dans les deux sens
-  const getProductIdByName = (name: string): string | undefined => {
-    const b = name.toLowerCase().trim();
-    return steps.find(s => {
-      const a = s.product_name.toLowerCase().trim();
-      return a === b || a.includes(b) || b.includes(a);
-    })?.id;
-  };
-
-  const handleRemoveProduct = (productName: string) => {
-    // product_id résolu au chargement — pas de risque de mismatch au clic
-    const inc = incompatibilities.find(i => i.product_name === productName);
-    const id = inc?.product_id ?? getProductIdByName(productName);
-    if (id) {
-      setExcludedProductIds(prev => {
-        const next = new Set(prev);
-        next.add(id);
-        return next;
-      });
-    }
-    setDecisions(prev => ({ ...prev, [productName]: "remove" }));
-  };
-
-  const handleKeepProduct = (productName: string) => {
-    const inc = incompatibilities.find(i => i.product_name === productName);
-    const id = inc?.product_id ?? getProductIdByName(productName);
-    if (id) {
-      setExcludedProductIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-    setDecisions(prev => ({ ...prev, [productName]: "keep" }));
-  };
+  }, [timeLeft, completed, steps.length]);
 
   const goToNextCompletionStep = () => {
     if (!checkinAlreadyFilled) setShowFactorsModal(true);
@@ -302,16 +159,16 @@ const RoutinePlayer = () => {
   };
 
   const goNext = async () => {
-    if (currentStep < filteredSteps.length - 1) {
+    if (currentStep < steps.length - 1) {
       const next = currentStep + 1;
       setCurrentStep(next);
-      setTimeLeft(filteredSteps[next].durationMin * 60);
+      setTimeLeft(steps[next].durationMin * 60);
     } else {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const today = new Date().toISOString().split("T")[0];
         await (supabase as any).from("routine_logs").upsert(
-          { user_id: session.user.id, date: today, evening_routine_done: true },
+          { user_id: session.user.id, date: today, [isMorning ? "morning_routine_done" : "evening_routine_done"]: true },
           { onConflict: "user_id,date" }
         );
         const { data: checkin } = await (supabase as any)
@@ -320,22 +177,18 @@ const RoutinePlayer = () => {
           .eq("user_id", session.user.id)
           .eq("date", today)
           .maybeSingle();
-        const alreadyFilled = !!checkin;
-        setCheckinAlreadyFilled(alreadyFilled);
+        setCheckinAlreadyFilled(!!checkin);
       }
       setCompleted(true);
     }
   };
 
-  // ── Loading screens ────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
 
-  if (loading || analysisState === "loading") {
+  if (loading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-[#F0EBE3] gap-4">
+      <div className="h-screen flex items-center justify-center bg-[#F0EBE3]">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        {analysisState === "loading" && (
-          <p className="text-xs text-muted-foreground font-medium">Analyse de compatibilité INCI…</p>
-        )}
       </div>
     );
   }
@@ -343,7 +196,7 @@ const RoutinePlayer = () => {
   if (steps.length === 0) {
     return (
       <div className="min-h-screen bg-[#F0EBE3] flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-lg font-display text-foreground mb-2">Aucun produit du soir</p>
+        <p className="text-lg font-display text-foreground mb-2">Aucun produit du {isMorning ? "matin" : "soir"}</p>
         <p className="text-sm text-muted-foreground mb-8">
           Ajoute des produits à ta routine du soir dans la Vanity.
         </p>
@@ -354,105 +207,6 @@ const RoutinePlayer = () => {
           Retour
         </button>
       </div>
-    );
-  }
-
-  // ── Incompatibilities screen ───────────────────────────────────────────────
-
-  if (incompatibilities.length > 0 && !warningsReviewed) {
-    const dangerCount = incompatibilities.filter(i => i.verdict === "danger").length;
-
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto"
-      >
-        {/* Header */}
-        <div className="px-5 pt-12 pb-4 flex items-center gap-3">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="w-9 h-9 rounded-full bg-white/70 flex items-center justify-center"
-          >
-            <ArrowLeft size={18} strokeWidth={2} className="text-foreground" />
-          </button>
-          <div className="flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Analyse INCI
-            </p>
-            <h2 className="text-xl font-display text-foreground leading-tight">
-              Points d'attention
-            </h2>
-          </div>
-          {dangerCount > 0 && (
-            <ShieldAlert size={22} className="text-red-400 flex-shrink-0" />
-          )}
-        </div>
-
-        <div className="flex-1 px-5 pb-6 overflow-y-auto space-y-3">
-          {incompatibilities.map((inc, i) => {
-            const decision = decisions[inc.product_name];
-            const isDanger = inc.verdict === "danger";
-
-            return (
-              <div
-                key={i}
-                className={`bg-white rounded-2xl p-4 border-l-4 ${
-                  isDanger ? "border-red-400" : "border-amber-400"
-                }`}
-              >
-                <div className="flex items-start gap-2 mb-3">
-                  <AlertTriangle
-                    size={15}
-                    className={`flex-shrink-0 mt-0.5 ${isDanger ? "text-red-400" : "text-amber-400"}`}
-                  />
-                  <div>
-                    <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${
-                      isDanger ? "text-red-500" : "text-amber-500"
-                    }`}>
-                      {isDanger ? "Incompatible" : "Attention"}
-                    </p>
-                    <p className="text-sm font-bold text-foreground">{inc.product_name}</p>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{inc.reason}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleRemoveProduct(inc.product_name)}
-                    className={`flex-1 h-9 rounded-xl text-[11px] font-bold transition-all ${
-                      decision === "remove"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-primary/10 text-primary"
-                    }`}
-                  >
-                    Retirer ce soir
-                  </button>
-                  <button
-                    onClick={() => handleKeepProduct(inc.product_name)}
-                    className={`flex-1 h-9 rounded-xl text-[11px] font-bold border transition-all ${
-                      decision === "keep"
-                        ? "bg-white border-primary/40 text-primary"
-                        : "bg-white border-border/40 text-muted-foreground"
-                    }`}
-                  >
-                    Garder quand même
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="px-5 pb-10">
-          <button
-            onClick={() => setWarningsReviewed(true)}
-            className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
-          >
-            Commencer ma routine
-          </button>
-        </div>
-      </motion.div>
     );
   }
 
@@ -475,11 +229,10 @@ const RoutinePlayer = () => {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <h2 className="text-3xl font-display text-foreground mb-3">Routine terminée</h2>
             <p className="text-base text-muted-foreground mb-6 leading-relaxed">
-              Bonne nuit ✨ Ta perle de demain se prépare.
+              {isMorning ? "Belle journée ✨ Ta peau te remercie." : "Bonne nuit ✨ Ta perle de demain se prépare."}
             </p>
           </motion.div>
 
-          {/* Photo invitation */}
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
             className="w-full max-w-xs mb-6"
@@ -590,31 +343,13 @@ const RoutinePlayer = () => {
 
   // ── Player ─────────────────────────────────────────────────────────────────
 
-  if (filteredSteps.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#F0EBE3] flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-lg font-display text-foreground mb-2">Tous les produits ont été retirés</p>
-        <p className="text-sm text-muted-foreground mb-8">
-          Aucun produit compatible ce soir. Ta peau te remercie !
-        </p>
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="h-12 px-8 bg-primary text-primary-foreground rounded-full font-bold text-sm"
-        >
-          Retour
-        </button>
-      </div>
-    );
-  }
-
-  const step = filteredSteps[currentStep];
+  const step = steps[currentStep];
   const timerProgress = timeLeft / (step.durationMin * 60);
-  const totalMin = filteredSteps.reduce((acc, s) => acc + s.durationMin, 0);
+  const totalMin = steps.reduce((acc, s) => acc + s.durationMin, 0);
 
   return (
     <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto">
 
-      {/* Header */}
       <div className="px-5 pt-12 pb-4 flex items-center gap-3">
         <button
           onClick={() => navigate("/dashboard")}
@@ -623,29 +358,27 @@ const RoutinePlayer = () => {
           <ArrowLeft size={18} strokeWidth={2} className="text-foreground" />
         </button>
         <p className="flex-1 text-xs text-muted-foreground font-medium uppercase tracking-widest">
-          Routine du soir
+          Routine du {isMorning ? "matin" : "soir"}
         </p>
         <p className="text-xs text-muted-foreground">{totalMin} min</p>
       </div>
 
-      {/* Progress bar */}
       <div className="px-5 mb-6">
         <div className="h-1 bg-white/50 rounded-full overflow-hidden">
           <motion.div
             className="h-full bg-primary rounded-full"
-            animate={{ width: `${((currentStep + 1) / filteredSteps.length) * 100}%` }}
+            animate={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
             transition={{ duration: 0.4 }}
           />
         </div>
         <div className="flex justify-between mt-1.5">
           <p className="text-[11px] text-muted-foreground">
-            Étape {currentStep + 1}/{filteredSteps.length}
+            Étape {currentStep + 1}/{steps.length}
           </p>
           <p className="text-[11px] text-muted-foreground">{step.durationMin} min</p>
         </div>
       </div>
 
-      {/* Step card */}
       <div className="flex-1 px-5 flex flex-col">
         <AnimatePresence mode="wait">
           <motion.div
@@ -669,13 +402,9 @@ const RoutinePlayer = () => {
               <p className="text-sm text-muted-foreground mb-8">{step.brand}</p>
             )}
 
-            {/* Circular timer */}
             <div className="relative w-36 h-36 mb-8">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                <circle
-                  cx="60" cy="60" r={RADIUS}
-                  fill="none" stroke="#F0EBE3" strokeWidth="6"
-                />
+                <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="#F0EBE3" strokeWidth="6" />
                 <motion.circle
                   cx="60" cy="60" r={RADIUS}
                   fill="none"
@@ -696,7 +425,7 @@ const RoutinePlayer = () => {
               onClick={goNext}
               className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2"
             >
-              {currentStep < filteredSteps.length - 1 ? (
+              {currentStep < steps.length - 1 ? (
                 <>Étape suivante <ChevronRight size={18} /></>
               ) : (
                 <>Terminer la routine <Check size={18} /></>

@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import { MessageCircle, Sparkles } from "lucide-react";
-import { useRoutineProducts } from "@/hooks/useRoutineProducts";
-import { RoutineCard } from "@/components/RoutineCard";
 import { FactorsModal } from "@/components/FactorsModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -36,12 +34,7 @@ const Dashboard = () => {
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"matin" | "soir">("matin");
-  const [checkedProducts, setCheckedProducts] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
-  const { products, loading: productsLoading } = useRoutineProducts();
-  const morningProducts = products.filter(p => p.morning_use && p.frequency === "daily");
-  const eveningProducts = products.filter(p => p.evening_use && p.frequency === "daily");
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
@@ -96,6 +89,8 @@ const Dashboard = () => {
     console.log("[WeatherSave] liveWeather changed:", liveWeather);
     if (liveWeather.locationName === "...") return;
     const save = async () => {
+      const hour = new Date().getHours();
+      if (hour < 11 || hour >= 15) { console.log("[WeatherSave] hors fenêtre 11h-15h, skip UV"); return; }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { console.log("[WeatherSave] no session, abort"); return; }
       const today = new Date().toISOString().split("T")[0];
@@ -201,57 +196,6 @@ const Dashboard = () => {
     fetchAdvice();
   }, []);
 
-  useEffect(() => {
-    if (productsLoading) return;
-    const fetchCheckedProducts = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      const today = new Date().toISOString().split("T")[0];
-      const { data } = await (supabase as any)
-        .from("routine_product_logs")
-        .select("product_id")
-        .eq("user_id", session.user.id)
-        .eq("date", today);
-      if (data) setCheckedProducts(new Set(data.map((r: any) => r.product_id as string)));
-    };
-    fetchCheckedProducts();
-  }, [productsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleProduct = async (productId: string) => {
-    const isChecking = !checkedProducts.has(productId);
-    setCheckedProducts(prev => {
-      const next = new Set(prev);
-      if (next.has(productId)) next.delete(productId);
-      else next.add(productId);
-      return next;
-    });
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const today = new Date().toISOString().split("T")[0];
-    const period = activeTab === "matin" ? "morning" : "evening";
-    if (isChecking) {
-      await (supabase as any)
-        .from("routine_product_logs")
-        .upsert(
-          { user_id: session.user.id, product_id: productId, date: today, period },
-          { onConflict: "user_id,product_id,date,period" }
-        );
-      // Maintenu pour le calcul du streak
-      const field = activeTab === "matin" ? "morning_routine_done" : "evening_routine_done";
-      await (supabase as any).from("routine_logs").upsert(
-        { user_id: session.user.id, date: today, [field]: true },
-        { onConflict: "user_id,date" }
-      );
-    } else {
-      await (supabase as any)
-        .from("routine_product_logs")
-        .delete()
-        .eq("user_id", session.user.id)
-        .eq("product_id", productId)
-        .eq("date", today)
-        .eq("period", period);
-    }
-  };
 
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
@@ -299,75 +243,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Lien facteurs */}
-        <div className="text-center pt-1">
-          <button
-            onClick={() => setShowFactorsModal(true)}
-            className="text-[12px] text-muted-foreground/60 hover:text-primary transition-colors"
-          >
-            Quelque chose à noter aujourd'hui ?
-          </button>
-        </div>
       </div>
-
-      {/* Content — fond blanc */}
-      <div className="bg-white px-5 pt-6">
-
-        {/* Mes routines */}
-        <h2 className="text-xl font-bold text-foreground mb-4">Mes routines</h2>
-
-        {/* Tabs */}
-        <div className="flex bg-[#F8F6F2] rounded-full p-1 mb-3">
-          {(["matin", "soir"] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all ${
-                activeTab === tab
-                  ? "bg-[#1a1a1a] text-white"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {tab === "matin" ? "Matin" : "Soir"}
-            </button>
-          ))}
-        </div>
-
-        {/* Compteur produits */}
-        {(() => {
-          const count = (activeTab === "matin" ? morningProducts : eveningProducts).length;
-          return count > 0 ? (
-            <p className="text-[12px] text-muted-foreground mb-3">
-              {count} produit{count > 1 ? "s" : ""}
-            </p>
-          ) : null;
-        })()}
-
-        {/* Liste produits */}
-        <div className="mb-8">
-          <RoutineCard
-            products={activeTab === "matin" ? morningProducts : eveningProducts}
-            checkedIds={checkedProducts}
-            onToggle={toggleProduct}
-          />
-        </div>
-
-        {activeTab === "soir" && eveningProducts.length > 0 && (
-          <button
-            onClick={() => navigate("/routine-player")}
-            className="w-full h-12 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide -mt-4 mb-8 flex items-center justify-center gap-2"
-          >
-            Commencer ma routine <span>→</span>
-          </button>
-        )}
-
-      </div>
-
-      <FactorsModal
-        open={showFactorsModal}
-        onClose={() => setShowFactorsModal(false)}
-        onSaved={() => setShowFactorsModal(false)}
-      />
 
       {/* Bouton flottant IA */}
       <button

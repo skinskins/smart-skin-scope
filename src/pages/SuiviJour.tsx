@@ -62,6 +62,7 @@ const SuiviJour = () => {
   const [weather, setWeather] = useState<{ temp: number; uv: number; pollution: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggedProducts, setLoggedProducts] = useState<RoutineProduct[]>([]);
+  const [inciMessageFromLog, setInciMessageFromLog] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +74,7 @@ const SuiviJour = () => {
       const uid = session.user.id;
       setUserId(uid);
 
-      const [profileRes, photoRes, weatherRes, logsRes] = await Promise.all([
+      const [profileRes, photoRes, weatherRes, routineLogRes] = await Promise.all([
         (supabase as any).from("profiles")
           .select("last_period_date, cycle_duration, period_duration")
           .eq("id", uid).single(),
@@ -81,8 +82,8 @@ const SuiviJour = () => {
           .select("storage_path").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("daily_weather")
           .select("temp, uv, pollution").eq("user_id", uid).eq("date", date).maybeSingle(),
-        (supabase as any).from("routine_product_logs")
-          .select("product_id, period, user_products(id, product_name, brand, product_type, photo_url)")
+        (supabase as any).from("daily_routine_log")
+          .select("product_ids, inci_message, period")
           .eq("user_id", uid).eq("date", date),
       ]);
 
@@ -100,13 +101,24 @@ const SuiviJour = () => {
       }
 
       if (weatherRes.data) setWeather(weatherRes.data);
-      if (logsRes.data) {
-        setLoggedProducts(logsRes.data.map((r: any) => ({
-          id: r.product_id,
-          product_name: r.user_products?.product_name ?? "",
-          brand: r.user_products?.brand ?? "",
-          product_type: r.user_products?.product_type ?? null,
-          photo_url: r.user_products?.photo_url ?? null,
+
+      const allProductIds: string[] = (routineLogRes.data ?? [])
+        .flatMap((r: any) => r.product_ids ?? []);
+      const inciMsg: string | null = (routineLogRes.data ?? [])
+        .find((r: any) => r.inci_message)?.inci_message ?? null;
+      setInciMessageFromLog(inciMsg);
+
+      if (allProductIds.length > 0) {
+        const { data: products } = await (supabase as any)
+          .from("user_products")
+          .select("id, product_name, brand, product_type, photo_url")
+          .in("id", allProductIds);
+        setLoggedProducts((products ?? []).map((p: any) => ({
+          id: p.id,
+          product_name: p.product_name,
+          brand: p.brand,
+          product_type: p.product_type ?? null,
+          photo_url: p.photo_url ?? null,
           frequency: null,
         })));
       }
@@ -275,6 +287,13 @@ const SuiviJour = () => {
                 )}
               </div>
             </div>
+
+            {/* Message INCI */}
+            {inciMessageFromLog && (
+              <div className="premium-card p-4">
+                <p className="text-sm text-muted-foreground leading-snug">{inciMessageFromLog}</p>
+              </div>
+            )}
 
             {/* Produits utilisés */}
             {loggedProducts.length > 0 && (

@@ -29,6 +29,8 @@ interface PearlHeroProps {
   checkin?: DailyCheckin;
   streakCount?: number;
   onPearlPress?: () => void;
+  hideTitle?: boolean;
+  hidePhotoButton?: boolean;
 }
 
 // ─── Pearl config per phase ──────────────────────────────────────────────────
@@ -133,6 +135,8 @@ export function PearlHero({
   checkin,
   streakCount = 0,
   onPearlPress,
+  hideTitle = false,
+  hidePhotoButton = false,
 }: PearlHeroProps) {
   const navigate = useNavigate();
   const [mounted, setMounted] = useState(false);
@@ -210,9 +214,11 @@ export function PearlHero({
       >
             {/* Pearl */}
             <div style={{ padding: "20px 20px 4px", textAlign: "center" }}>
-              <p style={{ fontFamily: "var(--font-inter)", fontSize: 14, color: "#111111", fontWeight: 400, margin: "0 0 12px" }}>
-                {todayLabel}
-              </p>
+              {!hideTitle && (
+                <p style={{ fontFamily: "var(--font-inter)", fontSize: 14, color: "#111111", fontWeight: 400, margin: "0 0 12px" }}>
+                  {todayLabel}
+                </p>
+              )}
 
               {/* pearl-wrap: anchor for floating chips */}
               <div style={{ position: "relative", width: 130, height: 130, margin: "0 auto 12px" }}>
@@ -323,34 +329,36 @@ export function PearlHero({
                 )}
               </div>
 
-              {photoUploaded ? (
-                <div className="flex items-center gap-2 justify-center mt-2 py-2">
-                  <Check size={14} className="text-primary" />
-                  <span className="text-sm font-semibold text-primary">Photo enregistrée</span>
-                </div>
-              ) : (
-                <>
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-full px-4 py-2 mt-2 mx-auto cursor-pointer w-fit">
-                    {camUploading ? (
-                      <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-                    ) : (
-                      <Camera size={16} />
+              {!hidePhotoButton && (
+                photoUploaded ? (
+                  <div className="flex items-center gap-2 justify-center mt-2 py-2">
+                    <Check size={14} className="text-primary" />
+                    <span className="text-sm font-semibold text-primary">Photo enregistrée</span>
+                  </div>
+                ) : (
+                  <>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-full px-4 py-2 mt-2 mx-auto cursor-pointer w-fit">
+                      {camUploading ? (
+                        <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                      ) : (
+                        <Camera size={16} />
+                      )}
+                      {camUploading ? "Envoi…" : "Prendre une photo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        className="hidden"
+                        onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
+                      />
+                    </label>
+                    {camError && (
+                      <p style={{ fontSize: 11, color: "#E53E3E", marginTop: 6, textAlign: "center", padding: "0 16px" }}>
+                        {camError}
+                      </p>
                     )}
-                    {camUploading ? "Envoi…" : "Prendre une photo"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="user"
-                      className="hidden"
-                      onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
-                    />
-                  </label>
-                  {camError && (
-                    <p style={{ fontSize: 11, color: "#E53E3E", marginTop: 6, textAlign: "center", padding: "0 16px" }}>
-                      {camError}
-                    </p>
-                  )}
-                </>
+                  </>
+                )
               )}
             </div>
 

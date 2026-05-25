@@ -206,6 +206,36 @@ export type Database = {
           },
         ]
       }
+      daily_routine_log: {
+        Row: {
+          created_at: string | null
+          date: string
+          id: string
+          inci_message: string | null
+          period: string | null
+          product_ids: string[]
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          id?: string
+          inci_message?: string | null
+          period?: string | null
+          product_ids: string[]
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          id?: string
+          inci_message?: string | null
+          period?: string | null
+          product_ids?: string[]
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       daily_weather: {
         Row: {
           aqi_score: number | null
