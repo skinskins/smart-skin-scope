@@ -35,10 +35,10 @@ const PillButton = ({
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+    className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
       active
-        ? "bg-[#2C1810] text-white border-[#2C1810]"
-        : "bg-white/80 border-[#2C1810]/15 text-[#2C1810] hover:border-[#2C1810]/40"
+        ? "bg-primary text-primary-foreground border-primary"
+        : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/30"
     } ${disabled ? "opacity-50 cursor-default" : ""}`}
   >
     {label}
@@ -196,28 +196,21 @@ export default function DailyConversation() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#F0EBE3" }}>
+    <div className="min-h-screen flex flex-col bg-background">
 
       {/* Header */}
       <div className="flex items-start justify-between px-6 pt-14 pb-8">
         <div>
-          <p
-            className="text-[10px] uppercase tracking-[0.18em] font-medium"
-            style={{ color: "#8B7355" }}
-          >
+          <p className="text-[10px] uppercase tracking-[0.18em] font-medium text-muted-foreground">
             Nacre
           </p>
-          <h1
-            className="text-[26px] mt-1 leading-tight"
-            style={{ fontFamily: "Georgia, serif", color: "#2C1810" }}
-          >
+          <h1 className="text-[26px] mt-1 leading-tight font-display text-foreground">
             Bonjour{userName ? ` ${userName}` : ""}
           </h1>
         </div>
         <button
           onClick={skip}
-          className="mt-1 text-sm transition-colors"
-          style={{ color: "#8B7355" }}
+          className="mt-1 text-sm transition-colors text-muted-foreground"
         >
           Passer
         </button>
@@ -248,7 +241,7 @@ export default function DailyConversation() {
 
         {/* Q1 — Feeling */}
         <motion.div key="q1" variants={bubble} initial="hidden" animate="visible">
-          <p className="text-sm mb-3" style={{ color: "#8B7355" }}>
+          <p className="text-sm mb-3 text-muted-foreground">
             Comment tu te sens ce matin ?
           </p>
           <div className="flex gap-2 flex-wrap">
@@ -268,7 +261,7 @@ export default function DailyConversation() {
         <AnimatePresence>
           {step >= 1 && (
             <motion.div key="q2" variants={bubble} initial="hidden" animate="visible">
-              <p className="text-sm mb-3" style={{ color: "#8B7355" }}>
+              <p className="text-sm mb-3 text-muted-foreground">
                 Tu as bien dormi ?
               </p>
               <div className="flex gap-2">
@@ -290,7 +283,7 @@ export default function DailyConversation() {
         <AnimatePresence>
           {step >= 2 && (
             <motion.div key="q3" variants={bubble} initial="hidden" animate="visible">
-              <p className="text-sm mb-3" style={{ color: "#8B7355" }}>
+              <p className="text-sm mb-3 text-muted-foreground">
                 Quelque chose à noter ?
               </p>
               <div className="flex flex-wrap gap-2 mb-4">
@@ -307,8 +300,7 @@ export default function DailyConversation() {
               {!factorsDone && !isEditMode && (
                 <button
                   onClick={handleFactorsDone}
-                  className="text-xs transition-colors"
-                  style={{ color: "#8B7355" }}
+                  className="text-xs transition-colors text-muted-foreground"
                 >
                   {selectedFactors.size > 0 ? "C'est tout →" : "Rien à noter aujourd'hui"}
                 </button>
@@ -331,14 +323,8 @@ export default function DailyConversation() {
           >
             {/* Section routine */}
             {routineProducts.length > 0 && (
-              <div
-                className="rounded-2xl p-4 space-y-3 mb-1"
-                style={{ background: "rgba(255,255,255,0.7)" }}
-              >
-                <p
-                  className="text-[11px] uppercase tracking-[0.14em] font-medium"
-                  style={{ color: "#8B7355" }}
-                >
+              <div className="rounded-2xl p-4 space-y-3 mb-1 bg-muted/20">
+                <p className="text-[11px] uppercase tracking-[0.14em] font-medium text-muted-foreground">
                   {isMorning ? "Routine du matin" : "Routine du soir"}
                 </p>
                 {routineProducts.map(p => (
@@ -350,18 +336,15 @@ export default function DailyConversation() {
                         className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div
-                        className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
-                        style={{ background: "#F0EBE3" }}
-                      >
-                        <span style={{ color: "#8B7355", fontSize: 16 }}>✦</span>
+                      <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center bg-muted/20">
+                        <span className="text-muted-foreground text-base">✦</span>
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: "#2C1810" }}>
+                      <p className="text-sm font-semibold truncate text-foreground">
                         {p.product_name}
                       </p>
-                      <p className="text-[11px] truncate" style={{ color: "#8B7355" }}>
+                      <p className="text-[11px] truncate text-muted-foreground">
                         {p.brand}
                       </p>
                     </div>
@@ -375,8 +358,7 @@ export default function DailyConversation() {
               <button
                 onClick={handleStartRoutine}
                 disabled={saving}
-                className="w-full h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-opacity disabled:opacity-60"
-                style={{ background: "#2C1810", color: "#F0EBE3" }}
+                className="w-full h-14 rounded-full bg-primary text-primary-foreground font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-60"
               >
                 {saving ? "Un instant…" : <>Commencer ma routine <ChevronRight size={18} /></>}
               </button>
@@ -386,12 +368,7 @@ export default function DailyConversation() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full h-12 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-opacity disabled:opacity-60 border"
-              style={{
-                color: "#2C1810",
-                borderColor: "rgba(44,24,16,0.2)",
-                background: "rgba(255,255,255,0.6)",
-              }}
+              className="w-full h-12 rounded-full font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60 border border-border/60 text-muted-foreground hover:text-primary hover:border-primary"
             >
               {saving ? "Un instant…" : <>Voir ma perle <ChevronRight size={16} /></>}
             </button>
