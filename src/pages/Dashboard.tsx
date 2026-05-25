@@ -197,7 +197,7 @@ const Dashboard = () => {
         .eq("user_id", session.user.id)
         .eq("date", today)
         .maybeSingle();
-
+      console.log("[AdviceDebug] data:", JSON.stringify(data), "user:", session.user.id, "date:", today);
       if (data) {
         setAdvice(data);
         return;
@@ -205,17 +205,28 @@ const Dashboard = () => {
 
       // 2. Pas de conseil → générer
       setAdviceLoading(true);
+      console.log("[AdviceDebug] Lancement generate-advice pour:", session.user.id);
       try {
-        const { error } = await supabase.functions.invoke("generate-advice", {
+        const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
           body: { user_id: session.user.id },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         });
 
         if (error) {
-          console.error("[AdviceDebug] Erreur generate-advice:", error);
+          console.error("[AdviceDebug] Erreur:", JSON.stringify(error));
           return;
         }
 
-        // 3. Relire depuis la DB après génération
+        // Utiliser directement la réponse
+        if (genData?.conseils?.length > 0) {
+          const first = genData.conseils[0];
+          setAdvice({ advice_title: first.advice_title, advice_text: first.advice_text });
+          return;
+        }
+
+        // Fallback — relire depuis DB
         const { data: fresh } = await (supabase as any)
           .from("daily_advice_log")
           .select("advice_title, advice_text")
@@ -224,6 +235,7 @@ const Dashboard = () => {
           .maybeSingle();
 
         if (fresh) setAdvice(fresh);
+
       } catch (err) {
         console.error("[AdviceDebug] Exception:", err);
       } finally {
