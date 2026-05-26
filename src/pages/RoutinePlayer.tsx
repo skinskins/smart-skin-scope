@@ -50,7 +50,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const RoutinePlayer = () => {
   const navigate = useNavigate();
-  const { morning, evening, loading: productsLoading } = useRoutineProducts();
+  const { morning } = useRoutineProducts();
   const isMorning = new Date().getHours() < 18;
   const [currentStep, setCurrentStep] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -66,7 +66,6 @@ const RoutinePlayer = () => {
   const goNextRef = useRef<() => Promise<void>>();
   const [steps, setSteps] = useState<Step[]>([]);
   const [stepsReady, setStepsReady] = useState(false);
-  const [logCheckComplete, setLogCheckComplete] = useState(false);
   const loading = !stepsReady;
 
   const morningSteps = useMemo(() =>
@@ -78,13 +77,16 @@ const RoutinePlayer = () => {
   );
   const totalMorningMin = morningSteps.reduce((acc, s) => acc + s.durationMin, 0);
 
-  // Phase 1 — Lire daily_routine_log pour aujourd'hui
+  // Initialisation séquentielle : daily_routine_log → fallback user_products
   useEffect(() => {
-    const fetchRoutine = async () => {
+    const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setLogCheckComplete(true); return; }
+      if (!session) { setStepsReady(true); return; }
+
       const today = new Date().toISOString().split("T")[0];
       const period = isMorning ? "morning" : "evening";
+
+      // Priorité : routine générée par DailyConversation
       const { data: logData } = await (supabase as any)
         .from("daily_routine_log")
         .select("product_ids")
@@ -92,43 +94,41 @@ const RoutinePlayer = () => {
         .eq("date", today)
         .eq("period", period)
         .maybeSingle();
+
       if (logData?.product_ids?.length > 0) {
         const { data: products } = await (supabase as any)
           .from("user_products")
           .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, ingredients")
           .in("id", logData.product_ids);
         const hydrated: Step[] = (products ?? [])
-          .map((p: any) => ({
-            ...p,
-            order: getOrder(p.product_type),
-            durationMin: getDuration(p.product_type),
-          }))
+          .map((p: any) => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
           .sort((a: Step, b: Step) => a.order - b.order);
         setSteps(hydrated);
         setStepsReady(true);
+        return;
       }
-      setLogCheckComplete(true);
+
+      // Fallback : produits quotidiens habituels
+      const { data: fallback } = await (supabase as any)
+        .from("user_products")
+        .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, ingredients")
+        .eq("user_id", session.user.id)
+        .eq(isMorning ? "morning_use" : "evening_use", true)
+        .eq("frequency", "daily");
+      const fallbackSteps: Step[] = (fallback ?? [])
+        .map((p: any) => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
+        .sort((a: Step, b: Step) => a.order - b.order);
+      setSteps(fallbackSteps);
+      setStepsReady(true);
     };
-    fetchRoutine();
+    init();
   }, []); // eslint-disable-line
 
-  // Phase 2 — Fallback useRoutineProducts si daily_routine_log vide
   useEffect(() => {
-    if (!logCheckComplete || stepsReady || productsLoading) return;
-    const source = isMorning ? morning : evening;
-    const fallbackSteps: Step[] = source
-      .filter(p => p.frequency === "daily")
-      .map(p => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
-      .sort((a, b) => a.order - b.order);
-    setSteps(fallbackSteps);
-    setStepsReady(true);
-  }, [logCheckComplete, stepsReady, productsLoading]); // eslint-disable-line
-
-  useEffect(() => {
-    if (stepsReady && steps.length > 0) {
+    if (stepsReady && steps.length > 0 && timeLeft === 0) {
       setTimeLeft(steps[0].durationMin * 60);
     }
-  }, [stepsReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stepsReady, steps]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (completed || steps.length === 0 || timeLeft <= 0) return;

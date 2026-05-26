@@ -7,6 +7,19 @@ import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
+import {
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip,
+} from "recharts";
+
+type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
+type SymptomRow    = { date: string; symptom: string; trend: string };
+type CheckinRow    = { date: string; stress_level: number | null; sleep_hours: number | null; food_quality: string | null; alcohol_drinks: number | null };
+
+const trendToScore = (t: string) => t === "moins" ? 1 : t === "plus" ? -1 : 0;
+const foodToScore  = (q: string | null): number | null =>
+  q === "Équilibrée" ? 5 : q === "Quelconque" ? 3 : q === "Grasses / Sucrées" ? 1 : null;
 
 const DashboardSkeleton = () => (
   <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white animate-pulse">
@@ -34,6 +47,9 @@ const Dashboard = () => {
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
+  const [routineLogs, setRoutineLogs] = useState<RoutineLogRow[]>([]);
+  const [symptomData, setSymptomData] = useState<SymptomRow[]>([]);
+  const [checkinData, setCheckinData] = useState<CheckinRow[]>([]);
   const navigate = useNavigate();
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
@@ -196,6 +212,32 @@ const Dashboard = () => {
     fetchAdvice();
   }, []);
 
+  useEffect(() => {
+    const fetchCharts = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const sinceStr = since.toISOString().split("T")[0];
+      const uid = session.user.id;
+      const [r1, r2, r3] = await Promise.all([
+        (supabase as any).from("routine_logs")
+          .select("date, morning_routine_done, evening_routine_done")
+          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
+        (supabase as any).from("symptom_tracking")
+          .select("date, symptom, trend")
+          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
+        (supabase as any).from("daily_checkins")
+          .select("date, stress_level, sleep_hours, food_quality, alcohol_drinks")
+          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
+      ]);
+      setRoutineLogs(r1.data ?? []);
+      setSymptomData(r2.data ?? []);
+      setCheckinData(r3.data ?? []);
+    };
+    fetchCharts();
+  }, []);
+
 
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
@@ -203,6 +245,36 @@ const Dashboard = () => {
   const cyclePhase = cycleCalc?.phase ?? null;
   const cycleDay   = cycleCalc?.day   ?? null;
   console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay);
+
+  const routineChartData = routineLogs.map(r => ({
+    date: r.date.slice(8),
+    matin: r.morning_routine_done ? 1 : 0,
+    soir:  r.evening_routine_done ? 1 : 0,
+  }));
+
+  const symptomByDate = new Map<string, number[]>();
+  for (const s of symptomData) {
+    if (!symptomByDate.has(s.date)) symptomByDate.set(s.date, []);
+    symptomByDate.get(s.date)!.push(trendToScore(s.trend));
+  }
+  const symptomChartData = Array.from(symptomByDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, scores]) => ({
+      date: date.slice(8),
+      score: +(scores.reduce((a, v) => a + v, 0) / scores.length).toFixed(2),
+    }));
+
+  const skinScoreMap = new Map<string, number>();
+  symptomByDate.forEach((scores, date) =>
+    skinScoreMap.set(date, +((scores.reduce((a, v) => a + v, 0) / scores.length + 1) * 2.5).toFixed(2))
+  );
+  const factorsChartData = checkinData.map(c => ({
+    date:   c.date.slice(8),
+    stress: c.stress_level,
+    sleep:  c.sleep_hours != null ? +(Math.min(5, Math.max(1, c.sleep_hours - 3))).toFixed(1) : null,
+    food:   foodToScore(c.food_quality),
+    peau:   skinScoreMap.get(c.date) ?? null,
+  }));
 
   if (checkinStatus === "loading") return <DashboardSkeleton />;
 
@@ -243,6 +315,109 @@ const Dashboard = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Graphiques tendances */}
+      <div className="px-5 pb-6">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1 mb-3">
+          Tendances · 30 derniers jours
+        </p>
+
+        {/* 1 — Régularité routine */}
+        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Régularité routine</p>
+          {routineChartData.length < 7 ? (
+            <p className="text-xs text-muted-foreground text-center py-5">
+              Continue ta routine pour voir tes tendances apparaître 🌱
+            </p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={routineChartData} barSize={5} barCategoryGap="30%">
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis hide domain={[0, 2]} />
+                  <Tooltip
+                    formatter={(v: number, key: string) => [v === 1 ? "Faite ✓" : "Manquée", key === "matin" ? "Matin" : "Soir"]}
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
+                  />
+                  <Bar dataKey="matin" stackId="a" fill="#2C1810" radius={[0, 0, 2, 2]} />
+                  <Bar dataKey="soir"  stackId="a" fill="#C4A882" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 justify-center mt-1">
+                {([["#2C1810","Matin"],["#C4A882","Soir"]] as [string,string][]).map(([c,l]) => (
+                  <div key={l} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-sm" style={{ background: c }} />
+                    <span className="text-[10px] text-muted-foreground">{l}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 2 — Évolution symptômes */}
+        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Évolution symptômes</p>
+          {symptomChartData.length < 7 ? (
+            <p className="text-xs text-muted-foreground text-center py-5">
+              Continue ta routine pour voir tes tendances apparaître 🌱
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={symptomChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis domain={[-1, 1]} ticks={[-1, 0, 1]} tickFormatter={(v) => v === 1 ? "↑" : v === -1 ? "↓" : "—"}
+                  tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} width={16} />
+                <Tooltip
+                  formatter={(v: number) => [v > 0 ? "S'améliore" : v < 0 ? "Se détériore" : "Stable", "Peau"]}
+                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
+                />
+                <Line type="monotone" dataKey="score" stroke="#2C1810" strokeWidth={2} dot={false} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* 3 — Facteurs vs peau */}
+        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Facteurs & peau</p>
+          {factorsChartData.length < 7 ? (
+            <p className="text-xs text-muted-foreground text-center py-5">
+              Continue ta routine pour voir tes tendances apparaître 🌱
+            </p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={130}>
+                <LineChart data={factorsChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis domain={[0, 5]} hide />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
+                    formatter={(v: number, key: string) => {
+                      const labels: Record<string, string> = { stress: "Stress", sleep: "Sommeil", food: "Alimentation", peau: "Peau" };
+                      return [v, labels[key] ?? key];
+                    }}
+                  />
+                  <Line type="monotone" dataKey="stress" stroke="#E07070" strokeWidth={2} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="sleep"  stroke="#70A0D0" strokeWidth={2} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="food"   stroke="#70C090" strokeWidth={2} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="peau"   stroke="#2C1810" strokeWidth={2} dot={false} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="flex gap-3 justify-center mt-1 flex-wrap">
+                {([["#E07070","Stress"],["#70A0D0","Sommeil"],["#70C090","Alimentation"],["#2C1810","Peau"]] as [string,string][]).map(([c,l]) => (
+                  <div key={l} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ background: c }} />
+                    <span className="text-[10px] text-muted-foreground">{l}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Bouton flottant IA */}
