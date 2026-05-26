@@ -61,6 +61,9 @@ const RoutinePlayer = () => {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoTaken, setPhotoTaken] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const alarmFiredRef = useRef(false);
+  const goNextRef = useRef<() => Promise<void>>();
   const [steps, setSteps] = useState<Step[]>([]);
   const [stepsReady, setStepsReady] = useState(false);
   const [logCheckComplete, setLogCheckComplete] = useState(false);
@@ -131,6 +134,25 @@ const RoutinePlayer = () => {
     if (completed || steps.length === 0 || timeLeft <= 0) return;
     const id = setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
     return () => clearInterval(id);
+  }, [timeLeft, completed, steps.length]);
+
+  useEffect(() => { goNextRef.current = goNext; });
+
+  useEffect(() => {
+    alarmFiredRef.current = false;
+    setWarningMessage(null);
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (completed || steps.length === 0) return;
+    if (timeLeft === 0) { goNextRef.current?.(); return; }
+    if (timeLeft === 20 && !alarmFiredRef.current) {
+      alarmFiredRef.current = true;
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      setWarningMessage("Prochaine étape dans 20s");
+      const id = setTimeout(() => setWarningMessage(null), 5000);
+      return () => clearTimeout(id);
+    }
   }, [timeLeft, completed, steps.length]);
 
   const goToNextCompletionStep = () => {
@@ -348,11 +370,11 @@ const RoutinePlayer = () => {
   const totalMin = steps.reduce((acc, s) => acc + s.durationMin, 0);
 
   return (
-    <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto">
+    <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto" onClick={goNext}>
 
       <div className="px-5 pt-12 pb-4 flex items-center gap-3">
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={(e) => { e.stopPropagation(); navigate("/dashboard"); }}
           className="w-9 h-9 rounded-full bg-white/70 flex items-center justify-center"
         >
           <ArrowLeft size={18} strokeWidth={2} className="text-foreground" />
@@ -399,7 +421,13 @@ const RoutinePlayer = () => {
               {step.product_name}
             </h2>
             {step.brand && (
-              <p className="text-sm text-muted-foreground mb-8">{step.brand}</p>
+              <p className="text-sm text-muted-foreground mb-6">{step.brand}</p>
+            )}
+
+            {warningMessage && (
+              <p className="text-xs text-muted-foreground mb-4 px-4 py-1.5 bg-muted/20 rounded-full">
+                {warningMessage}
+              </p>
             )}
 
             <div className="relative w-36 h-36 mb-8">
@@ -422,7 +450,7 @@ const RoutinePlayer = () => {
             </div>
 
             <button
-              onClick={goNext}
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
               className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide flex items-center justify-center gap-2"
             >
               {currentStep < steps.length - 1 ? (
