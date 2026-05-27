@@ -38,7 +38,7 @@ const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
     <motion.div
       layout
       onClick={() => setOpen(!open)}
-      className="bg-white rounded-2xl p-4 cursor-pointer hover:bg-muted/5 transition-colors"
+      className="bg-white rounded-2xl p-3 cursor-pointer hover:bg-muted/5 transition-colors"
     >
       {/* Preview */}
       <div className="flex items-start gap-3">
@@ -48,7 +48,7 @@ const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
               {typeConf.label}
             </span>
           </div>
-          <p className="text-sm font-semibold text-foreground leading-snug mb-1">
+          <p className="text-[13px] font-semibold text-foreground leading-snug mb-0.5">
             {conseil.advice_title}
           </p>
           <p className={`text-[12px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-1"}`}>
@@ -305,11 +305,13 @@ const Dashboard = () => {
 
         // Utiliser directement la réponse
         if (genData?.conseils?.length > 0) {
-          const first = genData.conseils[0];
-          setAdvices(genData.conseils);
+          const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+          const sorted = [...genData.conseils].sort((a: any, b: any) =>
+            (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)
+          );
+          setAdvices(sorted);
           return;
         }
-
         // Fallback — relire depuis DB
         const { data: fresh } = await (supabase as any)
           .from("daily_advice_log")
@@ -467,7 +469,7 @@ const Dashboard = () => {
           <img
             src={pearl?.img ?? pearlAbsente}
             alt={pearl?.name ?? "Perle absente"}
-            className="w-40 h-40 object-contain mx-auto"
+            className="w-28 h-28 object-contain mx-auto"
           />
         </div>
         {/* Conseil du jour */}
