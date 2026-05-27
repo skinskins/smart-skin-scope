@@ -11,6 +11,90 @@ import pearlTerne from "@/assets/pearls/Pearl-terne.svg";
 import pearlFragile from "@/assets/pearls/Pearl-fragile.svg";
 import pearlAbsente from "@/assets/pearls/Pearl-absente.svg";
 
+// Types
+type Conseil = {
+  id: string;
+  advice_title: string;
+  advice_text: string;
+  advice_tip: string;
+  advice_group: string;
+  priority: string;
+};
+
+// Config type badges
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  observation: { label: "Observation", color: "text-blue-600", bg: "bg-blue-50" },
+  astuce: { label: "Astuce", color: "text-green-600", bg: "bg-green-50" },
+  alerte: { label: "Alerte", color: "text-orange-600", bg: "bg-orange-50" },
+  warning: { label: "Attention", color: "text-red-500", bg: "bg-red-50" },
+};
+
+// Composant card conseil
+const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
+  const [open, setOpen] = useState(false);
+  const typeConf = TYPE_CONFIG[conseil.advice_group] ?? TYPE_CONFIG["astuce"];
+
+  return (
+    <motion.div
+      layout
+      onClick={() => setOpen(!open)}
+      className="bg-white rounded-2xl p-4 cursor-pointer hover:bg-muted/5 transition-colors"
+    >
+      {/* Preview */}
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeConf.bg} ${typeConf.color}`}>
+              {typeConf.label}
+            </span>
+          </div>
+          <p className="text-sm font-semibold text-foreground leading-snug mb-1">
+            {conseil.advice_title}
+          </p>
+          <p className={`text-[12px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-1"}`}>
+            {conseil.advice_text}
+          </p>
+        </div>
+        <motion.div
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-shrink-0 mt-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" />
+          </svg>
+        </motion.div>
+      </div>
+
+      {/* Détail expandable */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="pt-3 mt-3 border-t border-border/15">
+              <p className="text-[12px] text-muted-foreground leading-relaxed mb-3">
+                {conseil.advice_text}
+              </p>
+              {conseil.advice_tip && (
+                <div className="bg-primary/5 rounded-xl p-3">
+                  <p className="text-[11px] font-bold text-primary mb-1">Action suggérée</p>
+                  <p className="text-[12px] text-foreground/80 leading-relaxed">
+                    {conseil.advice_tip}
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 const Dashboard = () => {
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
@@ -23,7 +107,7 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [skinGoal, setSkinGoal] = useState<string | null>(null);
   const [streakLoaded, setStreakLoaded] = useState(false);
-  const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
+  const [advices, setAdvices] = useState<Conseil[]>([]);
   const [adviceLoading, setAdviceLoading] = useState(false);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
@@ -199,7 +283,7 @@ const Dashboard = () => {
         .maybeSingle();
       console.log("[AdviceDebug] data:", JSON.stringify(data), "user:", session.user.id, "date:", today);
       if (data) {
-        setAdvice(data);
+        setAdvices([data]);
         return;
       }
 
@@ -222,7 +306,7 @@ const Dashboard = () => {
         // Utiliser directement la réponse
         if (genData?.conseils?.length > 0) {
           const first = genData.conseils[0];
-          setAdvice({ advice_title: first.advice_title, advice_text: first.advice_text });
+          setAdvices(genData.conseils);
           return;
         }
 
@@ -234,7 +318,7 @@ const Dashboard = () => {
           .eq("date", today)
           .maybeSingle();
 
-        if (fresh) setAdvice(fresh);
+        if (fresh) setAdvices([fresh]);
 
       } catch (err) {
         console.error("[AdviceDebug] Exception:", err);
@@ -387,72 +471,29 @@ const Dashboard = () => {
           />
         </div>
         {/* Conseil du jour */}
-        <div className="bg-white rounded-2xl p-4 flex items-start gap-3 mb-3">
-          <Sparkles size={16} strokeWidth={1.5} className="text-primary mt-0.5 flex-shrink-0" />
-          <div>
-            {adviceLoading ? (
-              <div className="flex items-center gap-2">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
-                />
-                <p className="text-[12px] text-muted-foreground">
-                  Votre conseil personnalisé est en cours de préparation...
-                </p>
-              </div>
-            ) : advice ? (
-              <>
-                <p className="text-sm font-bold text-foreground mb-1">{advice.advice_title}</p>
-                <p className="text-[12px] text-muted-foreground leading-relaxed">{advice.advice_text}</p>
-              </>
-            ) : (
+        <div className="flex flex-col gap-2 mb-3">
+          {adviceLoading ? (
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
+              />
+              <p className="text-[12px] text-muted-foreground">
+                Vos conseils personnalisés sont en cours de préparation...
+              </p>
+            </div>
+          ) : advices.length > 0 ? (
+            advices.map((conseil) => (
+              <AdviceCard key={conseil.id} conseil={conseil} />
+            ))
+          ) : (
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
+              <Sparkles size={16} strokeWidth={1.5} className="text-primary flex-shrink-0" />
               <p className="text-sm text-muted-foreground">Votre conseil arrive bientôt</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-        {/* Lien facteurs */}
-        <div className="text-center pt-1">
-          <button
-            onClick={() => setShowFactorsModal(true)}
-            className="text-[12px] text-muted-foreground/60 hover:text-primary transition-colors"
-          >
-            Quelque chose à noter aujourd'hui ?
-          </button>
-        </div>
-      </div>
-
-      {/* Content — fond blanc */}
-      <div className="bg-white px-5 pt-6">
-
-        {/* Mes routines */}
-        <h2 className="text-xl font-bold text-foreground mb-4">Mes routines</h2>
-
-        {/* Tabs */}
-        <div className="flex bg-[#F8F6F2] rounded-full p-1 mb-3">
-          {(["matin", "soir"] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all ${activeTab === tab
-                ? "bg-[#1a1a1a] text-white"
-                : "text-muted-foreground"
-                }`}
-            >
-              {tab === "matin" ? "Matin" : "Soir"}
-            </button>
-          ))}
-        </div>
-
-        {/* Compteur produits */}
-        {(() => {
-          const count = (activeTab === "matin" ? morningProducts : eveningProducts).length;
-          return count > 0 ? (
-            <p className="text-[12px] text-muted-foreground mb-3">
-              {count} produit{count > 1 ? "s" : ""}
-            </p>
-          ) : null;
-        })()}
 
         {/* Liste produits */}
         <div className="rounded-2xl overflow-hidden border border-border/15 mb-8">
