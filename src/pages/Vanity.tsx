@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/PageHeader";
+import { useRoutineProducts } from "@/hooks/useRoutineProducts";
+import { RoutineCard } from "@/components/RoutineCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
@@ -21,17 +25,8 @@ const FREQ_OPTIONS = [
   { value: "monthly", label: "Mensuelle",     sub: "Traitement ponctuel" },
 ] as const;
 
-type RoutineProduct = {
-  id: string;
-  product_name: string;
-  brand: string;
-  photo_url: string | null;
-  morning_use: boolean | null;
-  evening_use: boolean | null;
-  frequency: string | null;
-};
-
 const Vanity = () => {
+  const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
@@ -41,8 +36,8 @@ const Vanity = () => {
   const [selectedFrequency, setSelectedFrequency] = useState<"daily" | "weekly" | "monthly">("daily");
   const [deleteMode, setDeleteMode] = useState(false);
   const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [routineProducts, setRoutineProducts] = useState<RoutineProduct[]>([]);
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
+  const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
   const [catalogResults, setCatalogResults] = useState<CatalogProduct[]>([]);
@@ -81,18 +76,6 @@ const Vanity = () => {
       });
   }, []);
 
-  useEffect(() => {
-    if (!userId) return;
-    (supabase as any)
-      .from("user_products")
-      .select("id, product_name, brand, photo_url, morning_use, evening_use, frequency")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .then(({ data }: any) => {
-        if (data) setRoutineProducts(data);
-      });
-  }, [userId]);
-
   const dailyProducts   = routineProducts.filter(p => p.frequency === "daily");
   const weeklyProducts  = routineProducts.filter(p => p.frequency === "weekly");
   const monthlyProducts = routineProducts.filter(p => p.frequency === "monthly");
@@ -106,35 +89,6 @@ const Vanity = () => {
       else next.add(id);
       return next;
     });
-  };
-
-  const ProductRow = ({ product }: { product: RoutineProduct }) => {
-    const isChecked = checkedRoutineProducts.has(product.id);
-    return (
-      <button
-        onClick={() => toggleRoutineProduct(product.id)}
-        className="w-full flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-muted/10 transition-all text-left"
-      >
-        <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-          {product.photo_url ? (
-            <img src={product.photo_url} alt={product.product_name} className="w-full h-full object-contain" />
-          ) : (
-            <ImageOff size={14} className="text-muted-foreground/40" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium transition-all ${isChecked ? "line-through text-muted-foreground/50" : "text-foreground"}`}>
-            {product.product_name}
-          </p>
-          <p className="text-[11px] text-muted-foreground truncate">{product.brand}</p>
-        </div>
-        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-          isChecked ? "bg-primary border-primary" : "border-border/60"
-        }`}>
-          {isChecked && <Check size={12} strokeWidth={3} className="text-white" />}
-        </div>
-      </button>
-    );
   };
 
   useEffect(() => {
@@ -201,9 +155,7 @@ const Vanity = () => {
       setUserProducts(prev =>
         prev.map(p => p.id === product.id ? { ...p, frequency: selectedFrequency } : p)
       );
-      setRoutineProducts(prev =>
-        prev.map(p => p.id === product.id ? { ...p, frequency: selectedFrequency } : p)
-      );
+      refetchRoutine();
     }
     setFrequencyModal(null);
   };
@@ -271,23 +223,21 @@ const Vanity = () => {
 
   return (
     <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
-      <div className="mb-10 text-center">
-        <h1 className="text-3xl font-display text-foreground leading-tight">Vanity</h1>
-        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mt-2">Votre espace skincare</p>
-      </div>
+      <PageHeader title="Mes Produits" onBack={() => navigate(-1)} />
 
-      <div className="flex gap-2 mb-8">
+      <div className="flex border-b border-border/20 mb-6">
         {(["routines", "produits"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveMainTab(tab)}
-            className={`flex-1 py-2 rounded-full text-[11px] font-bold uppercase tracking-widest transition-all ${
-              activeMainTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "bg-white border border-border/40 text-muted-foreground"
+            className={`flex-1 py-3 text-sm font-semibold transition-all relative ${
+              activeMainTab === tab ? "text-foreground" : "text-muted-foreground"
             }`}
           >
             {tab === "routines" ? "Routines" : "Mes produits"}
+            {activeMainTab === tab && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full" />
+            )}
           </button>
         ))}
       </div>
@@ -534,7 +484,7 @@ const Vanity = () => {
       ) : (
         <div>
           {/* Sous-onglets */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
             {([
               { key: "daily",   label: "Quotidienne"  },
               { key: "weekly",  label: "Hebdomadaire" },
@@ -543,10 +493,10 @@ const Vanity = () => {
               <button
                 key={key}
                 onClick={() => setActiveRoutineTab(key)}
-                className={`flex-1 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
                   activeRoutineTab === key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-white border border-border/40 text-muted-foreground"
+                    ? "bg-foreground text-background"
+                    : "border border-border/40 text-muted-foreground"
                 }`}
               >
                 {label}
@@ -559,18 +509,30 @@ const Vanity = () => {
             <div className="space-y-6">
               {morningProducts.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 px-1">Matin</p>
-                  <div className="premium-card p-4 space-y-1">
-                    {morningProducts.map(p => <ProductRow key={p.id} product={p} />)}
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <p className="text-base font-bold text-foreground">Routine du matin</p>
+                    <p className="text-sm font-semibold text-primary">{morningProducts.length} produit{morningProducts.length > 1 ? "s" : ""}</p>
                   </div>
+                  <RoutineCard
+                    products={morningProducts}
+                    checkedIds={checkedRoutineProducts}
+                    onToggle={toggleRoutineProduct}
+                    showPhotos
+                  />
                 </div>
               )}
               {eveningProducts.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 px-1">Soir</p>
-                  <div className="premium-card p-4 space-y-1">
-                    {eveningProducts.map(p => <ProductRow key={p.id} product={p} />)}
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <p className="text-base font-bold text-foreground">Routine du soir</p>
+                    <p className="text-sm font-semibold text-primary">{eveningProducts.length} produit{eveningProducts.length > 1 ? "s" : ""}</p>
                   </div>
+                  <RoutineCard
+                    products={eveningProducts}
+                    checkedIds={checkedRoutineProducts}
+                    onToggle={toggleRoutineProduct}
+                    showPhotos
+                  />
                 </div>
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
@@ -580,17 +542,13 @@ const Vanity = () => {
               )}
             </div>
           ) : (
-            <div className="premium-card p-4 space-y-1">
-              {(activeRoutineTab === "weekly" ? weeklyProducts : monthlyProducts).length === 0 ? (
-                <p className="text-center py-12 text-sm text-muted-foreground italic">
-                  Aucun produit dans cette routine
-                </p>
-              ) : (
-                (activeRoutineTab === "weekly" ? weeklyProducts : monthlyProducts).map(p => (
-                  <ProductRow key={p.id} product={p} />
-                ))
-              )}
-            </div>
+            <RoutineCard
+              products={activeRoutineTab === "weekly" ? weeklyProducts : monthlyProducts}
+              checkedIds={checkedRoutineProducts}
+              onToggle={toggleRoutineProduct}
+              showPhotos
+              emptyMessage="Aucun produit dans cette routine"
+            />
           )}
         </div>
       )}

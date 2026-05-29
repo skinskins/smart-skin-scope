@@ -1,17 +1,124 @@
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Check, Bell, BookOpen } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+import { MessageCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
-import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
-import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
-import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
-import pearlFragile   from "@/assets/pearls/Pearl-fragile.svg";
-import pearlAbsente   from "@/assets/pearls/Pearl-absente.svg";
+import { PearlHero } from "@/components/PearlHero";
+import { PageHeader } from "@/components/PageHeader";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip,
+} from "recharts";
+
+type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
+type SymptomRow    = { date: string; symptom: string; trend: string };
+type CheckinRow    = { date: string; stress_level: number | null; sleep_hours: number | null; food_quality: string | null; alcohol_drinks: number | null };
+
+const trendToScore = (t: string) => t === "moins" ? 1 : t === "plus" ? -1 : 0;
+const foodToScore  = (q: string | null): number | null =>
+  q === "Équilibrée" ? 5 : q === "Quelconque" ? 3 : q === "Grasses / Sucrées" ? 1 : null;
+
+const DashboardSkeleton = () => (
+  <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white animate-pulse">
+    <div className="h-14 bg-[#F8F6F2]" />
+    <div className="px-5 pt-8">
+      <div className="rounded-3xl bg-[#F8F6F2] h-64 mb-3" />
+      <div className="rounded-2xl bg-[#F8F6F2] h-20 mb-3" />
+      <div className="h-4 bg-[#F8F6F2] rounded-full w-48 mx-auto mt-4" />
+    </div>
+  </div>
+);
+
+// Types from yael
+type Conseil = {
+  id: string;
+  advice_title: string;
+  advice_text: string;
+  advice_tip: string;
+  advice_group: string;
+  priority: string;
+};
+
+// Config type badges from yael
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  observation: { label: "Observation", color: "text-blue-600", bg: "bg-blue-50" },
+  astuce: { label: "Astuce", color: "text-green-600", bg: "bg-green-50" },
+  alerte: { label: "Alerte", color: "text-orange-600", bg: "bg-orange-50" },
+  warning: { label: "Attention", color: "text-red-500", bg: "bg-red-50" },
+};
+
+// Composant card conseil from yael
+const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
+  const [open, setOpen] = useState(false);
+  const typeConf = TYPE_CONFIG[conseil.advice_group] ?? TYPE_CONFIG["astuce"];
+
+  return (
+    <motion.div
+      layout
+      onClick={() => setOpen(!open)}
+      className="bg-white rounded-2xl p-3 cursor-pointer hover:bg-muted/5 transition-colors border border-border/10"
+    >
+      {/* Preview */}
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeConf.bg} ${typeConf.color}`}>
+              {typeConf.label}
+            </span>
+          </div>
+          <p className="text-[13px] font-semibold text-foreground leading-snug mb-0.5">
+            {conseil.advice_title}
+          </p>
+          <p className={`text-[12px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-1"}`}>
+            {conseil.advice_text}
+          </p>
+        </div>
+        <motion.div
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-shrink-0 mt-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" />
+          </svg>
+        </motion.div>
+      </div>
+
+      {/* Détail expandable */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="pt-3 mt-3 border-t border-border/15">
+              <p className="text-[12px] text-muted-foreground leading-relaxed mb-3">
+                {conseil.advice_text}
+              </p>
+              {conseil.advice_tip && (
+                <div className="bg-primary/5 rounded-xl p-3">
+                  <p className="text-[11px] font-bold text-primary mb-1">Action suggérée</p>
+                  <p className="text-[12px] text-foreground/80 leading-relaxed">
+                    {conseil.advice_tip}
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 const Dashboard = () => {
+  const [checkinStatus, setCheckinStatus] = useState<"loading" | "done">("loading");
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -23,52 +130,38 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [skinGoal, setSkinGoal] = useState<string | null>(null);
   const [streakLoaded, setStreakLoaded] = useState(false);
-  const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
-  const [showFactorsModal, setShowFactorsModal] = useState(false);
-  const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
-  const [factorsSaved, setFactorsSaved] = useState(false);
-
-  const FACTORS = [
-    { category: "Alimentation",          pills: ["Sucré/gras", "Alcool", "Peu d'eau"] },
-    { category: "Stress & sommeil",      pills: ["Stress élevé", "Mauvaise nuit"] },
-    { category: "Corps & environnement", pills: ["Sport intense", "Médicament", "Voyage", "Exposition solaire"] },
-  ];
-
-  const toggleFactor = (pill: string) => {
-    setSelectedFactors(prev => {
-      const next = new Set(prev);
-      if (next.has(pill)) next.delete(pill); else next.add(pill);
-      return next;
-    });
-  };
-
-  const saveFactors = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setShowFactorsModal(false); return; }
-    const today = new Date().toISOString().split("T")[0];
-    await (supabase as any).from("daily_checkins").upsert(
-      {
-        user_id:         session.user.id,
-        date:            today,
-        food_quality:    selectedFactors.has("Sucré/gras")   ? "Grasses / Sucrées" : null,
-        alcohol_drinks:  selectedFactors.has("Alcool")        ? 1                   : null,
-        water_glasses:   selectedFactors.has("Peu d'eau")     ? 2                   : null,
-        stress_level:    selectedFactors.has("Stress élevé")  ? 4                   : null,
-        sleep_hours:     selectedFactors.has("Mauvaise nuit") ? 5                   : null,
-        did_sport:       selectedFactors.has("Sport intense"),
-        sport_intensity: selectedFactors.has("Sport intense") ? "Intense"           : null,
-      },
-      { onConflict: "user_id,date" }
-    );
-    setFactorsSaved(true);
-    setTimeout(() => { setShowFactorsModal(false); setFactorsSaved(false); setSelectedFactors(new Set()); }, 800);
-  };
-  const [morningProducts, setMorningProducts] = useState<{ id: string; product_name: string; brand: string; frequency?: string | null }[]>([]);
-  const [eveningProducts, setEveningProducts] = useState<{ id: string; product_name: string; brand: string; frequency?: string | null }[]>([]);
-  const [activeTab, setActiveTab] = useState<"matin" | "soir">("matin");
-  const [checkedProducts, setCheckedProducts] = useState<Set<string>>(new Set());
+  const [advices, setAdvices] = useState<Conseil[]>([]);
+  const [adviceLoading, setAdviceLoading] = useState(false);
+  const [routineLogs, setRoutineLogs] = useState<RoutineLogRow[]>([]);
+  const [symptomData, setSymptomData] = useState<SymptomRow[]>([]);
+  const [checkinData, setCheckinData] = useState<CheckinRow[]>([]);
+  const navigate = useNavigate();
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
+
+  // Guard : redirect to daily conversation if checkin not done yet today
+  useEffect(() => {
+    const checkDailyCheckin = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setCheckinStatus("done");
+        return;
+      }
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await (supabase as any)
+        .from("daily_checkins")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .eq("date", today)
+        .maybeSingle();
+      if (!data) {
+        navigate("/daily-conversation", { replace: true });
+      } else {
+        setCheckinStatus("done");
+      }
+    };
+    checkDailyCheckin();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -97,6 +190,8 @@ const Dashboard = () => {
     console.log("[WeatherSave] liveWeather changed:", liveWeather);
     if (liveWeather.locationName === "...") return;
     const save = async () => {
+      const hour = new Date().getHours();
+      if (hour < 11 || hour >= 15) { console.log("[WeatherSave] hors fenêtre 11h-15h, skip UV"); return; }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { console.log("[WeatherSave] no session, abort"); return; }
       const today = new Date().toISOString().split("T")[0];
@@ -188,330 +283,309 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
-      console.log("[AdviceDebug] querying for user_id:", session.user.id, "date:", today);
-      const { data, error } = await (supabase as any)
+
+      // 1. Chercher si conseils déjà en base
+      const { data } = await (supabase as any)
         .from("daily_advice_log")
         .select("advice_title, advice_text")
         .eq("user_id", session.user.id)
         .eq("date", today)
         .maybeSingle();
-      console.log("[AdviceDebug] data:", JSON.stringify(data));
-      console.log("[AdviceDebug] error:", JSON.stringify(error));
-      if (data) setAdvice(data);
+
+      console.log("[AdviceDebug] data:", JSON.stringify(data), "user:", session.user.id, "date:", today);
+      if (data) {
+        // Fallback structure compatible with AdviceCard
+        setAdvices([{
+          id: "today-advice",
+          advice_title: data.advice_title,
+          advice_text: data.advice_text,
+          advice_tip: "",
+          advice_group: "astuce",
+          priority: "normal"
+        }]);
+        return;
+      }
+
+      // 2. Pas de conseil → générer
+      setAdviceLoading(true);
+      console.log("[AdviceDebug] Lancement generate-advice pour:", session.user.id);
+      try {
+        const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
+          body: { user_id: session.user.id },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (error) {
+          console.error("[AdviceDebug] Erreur:", JSON.stringify(error));
+          return;
+        }
+
+        // Utiliser directement la réponse
+        if (genData?.conseils?.length > 0) {
+          const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+          const sorted = [...genData.conseils].sort((a: any, b: any) =>
+            (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)
+          );
+          setAdvices(sorted);
+          return;
+        }
+        // Fallback — relire depuis DB
+        const { data: fresh } = await (supabase as any)
+          .from("daily_advice_log")
+          .select("advice_title, advice_text")
+          .eq("user_id", session.user.id)
+          .eq("date", today)
+          .maybeSingle();
+
+        if (fresh) {
+          setAdvices([{
+            id: "today-advice-fresh",
+            advice_title: fresh.advice_title,
+            advice_text: fresh.advice_text,
+            advice_tip: "",
+            advice_group: "astuce",
+            priority: "normal"
+          }]);
+        }
+
+      } catch (err) {
+        console.error("[AdviceDebug] Exception:", err);
+      } finally {
+        setAdviceLoading(false);
+      }
     };
+
     fetchAdvice();
   }, []);
 
   useEffect(() => {
-    const fetchProductsAndRoutine = async () => {
+    const fetchCharts = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
-      const today = new Date().toISOString().split("T")[0];
-
-      const [productsRes, routineRes] = await Promise.all([
-        (supabase as any)
-          .from("user_products")
-          .select("id, product_name, brand, morning_use, evening_use, frequency")
-          .eq("user_id", session.user.id)
-          .eq("is_active", true),
-        (supabase as any)
-          .from("routine_logs")
-          .select("morning_routine_done, evening_routine_done")
-          .eq("user_id", session.user.id)
-          .eq("date", today)
-          .maybeSingle(),
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const sinceStr = since.toISOString().split("T")[0];
+      const uid = session.user.id;
+      const [r1, r2, r3] = await Promise.all([
+        (supabase as any).from("routine_logs")
+          .select("date, morning_routine_done, evening_routine_done")
+          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
+        (supabase as any).from("symptom_tracking")
+          .select("date, symptom, trend")
+          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
+        (supabase as any).from("daily_checkins")
+          .select("date, stress_level, sleep_hours, food_quality, alcohol_drinks")
+          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
       ]);
-
-      const products = productsRes.data ?? [];
-      const morning = products.filter((p: any) => p.morning_use);
-      const evening = products.filter((p: any) => p.evening_use);
-      setMorningProducts(morning);
-      setEveningProducts(evening);
-
-      const log = routineRes.data;
-      if (log) {
-        const preChecked = new Set<string>();
-        if (log.morning_routine_done) morning.forEach((p: any) => preChecked.add(p.id));
-        if (log.evening_routine_done) evening.forEach((p: any) => preChecked.add(p.id));
-        setCheckedProducts(preChecked);
-      }
+      setRoutineLogs(r1.data ?? []);
+      setSymptomData(r2.data ?? []);
+      setCheckinData(r3.data ?? []);
     };
-    fetchProductsAndRoutine();
+    fetchCharts();
   }, []);
-
-  const toggleProduct = async (productId: string) => {
-    const isChecking = !checkedProducts.has(productId);
-    setCheckedProducts(prev => {
-      const next = new Set(prev);
-      if (next.has(productId)) next.delete(productId);
-      else next.add(productId);
-      return next;
-    });
-    if (!isChecking) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const today = new Date().toISOString().split("T")[0];
-    const field = activeTab === "matin" ? "morning_routine_done" : "evening_routine_done";
-    await (supabase as any).from("routine_logs").upsert(
-      { user_id: session.user.id, date: today, [field]: true },
-      { onConflict: "user_id,date" }
-    );
-  };
-
-  const PEARL_CONFIG: Record<string, { name: string; subtitle: string; img: string }> = {
-    Folliculaire: { name: "Perle douce",     subtitle: "Votre peau est équilibrée",     img: pearlDouce     },
-    Ovulatoire:   { name: "Perle lumineuse", subtitle: "Votre peau est au top",          img: pearlLumineuse },
-    Lutéale:      { name: "Perle terne",     subtitle: "Votre peau a besoin de douceur", img: pearlTerne     },
-    Menstruelle:  { name: "Perle fragile",   subtitle: "Votre peau est plus sensible",   img: pearlFragile   },
-  };
 
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
     : null;
   const cyclePhase = cycleCalc?.phase ?? null;
   const cycleDay   = cycleCalc?.day   ?? null;
-  const pearl = cyclePhase ? (PEARL_CONFIG[cyclePhase] ?? null) : null;
-  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay, "| pearl:", pearl?.name ?? "null");
+  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay);
 
-  const cycleUp = ["Folliculaire", "Ovulatoire"].includes(cyclePhase ?? "");
-  const airUp   = ["Bon", "Faible"].includes(liveWeather.pollution ?? "");
+  const routineChartData = routineLogs.map(r => ({
+    date: r.date.slice(8),
+    matin: r.morning_routine_done ? 1 : 0,
+    soir:  r.evening_routine_done ? 1 : 0,
+  }));
+
+  const symptomByDate = new Map<string, number[]>();
+  for (const s of symptomData) {
+    if (!symptomByDate.has(s.date)) symptomByDate.set(s.date, []);
+    symptomByDate.get(s.date)!.push(trendToScore(s.trend));
+  }
+  const symptomChartData = Array.from(symptomByDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, scores]) => ({
+      date: date.slice(8),
+      score: +(scores.reduce((a, v) => a + v, 0) / scores.length).toFixed(2),
+    }));
+
+  const skinScoreMap = new Map<string, number>();
+  symptomByDate.forEach((scores, date) =>
+    skinScoreMap.set(date, +((scores.reduce((a, v) => a + v, 0) / scores.length + 1) * 2.5).toFixed(2))
+  );
+  const factorsChartData = checkinData.map(c => ({
+    date:   c.date.slice(8),
+    stress: c.stress_level,
+    sleep:  c.sleep_hours != null ? +(Math.min(5, Math.max(1, c.sleep_hours - 3))).toFixed(1) : null,
+    food:   foodToScore(c.food_quality),
+    peau:   skinScoreMap.get(c.date) ?? null,
+  }));
+
+  if (checkinStatus === "loading") return <DashboardSkeleton />;
 
   return (
     <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white">
 
-      {/* Header — fond blanc */}
-      <div className="bg-white px-5 pt-8 pb-4">
-        <div className="flex items-center justify-between mb-5">
-          <div className="w-10 h-10 rounded-full bg-primary/15 overflow-hidden flex items-center justify-center">
-            <img src={pearlDouce} alt="avatar" className="w-7 h-7 object-contain" />
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="w-9 h-9 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors">
-              <Bell size={20} strokeWidth={1.5} />
-            </button>
-            <button className="w-9 h-9 flex items-center justify-center text-foreground/50 hover:text-foreground transition-colors">
-              <BookOpen size={20} strokeWidth={1.5} />
-            </button>
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Bonjour {userName ?? ""}
-        </h1>
-      </div>
+      <PageHeader title={`Bonjour ${userName ?? ""}`} />
 
-      {/* Hero — fond #F8F6F2 */}
-      <div className="px-5 pt-6 pb-6" style={{ backgroundColor: "#F8F6F2" }}>
+      {/* Hero */}
+      <div className="px-5 pt-6 pb-6 bg-white">
 
-        {/* Cartes contextuelles */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-white rounded-2xl p-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-sm font-bold ${cycleUp ? "text-green-500" : "text-muted-foreground"}`}>
-                {cycleUp ? "↗" : "↘"}
-              </span>
-              <p className="text-sm font-bold text-foreground">{cyclePhase ?? "–"}</p>
+        {/* PearlHero */}
+        {cyclePhase && cycleDay ? (
+          <div className="mb-3">
+            <PearlHero
+              firstName={userName ?? undefined}
+              cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle"}
+              cycleDay={cycleDay}
+              cycleDuration={cycleDuration}
+              weather={{ uv_index: liveWeather.uv ?? 0 }}
+              streakCount={streakCount}
+            />
+          </div>
+        ) : null}
+
+        {/* Conseils du jour */}
+        <div className="flex flex-col gap-2 mb-3">
+          {adviceLoading ? (
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
+              />
+              <p className="text-[12px] text-muted-foreground">
+                Vos conseils personnalisés sont en cours de préparation...
+              </p>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {cycleDay ? `Jour ${cycleDay} sur ${cycleDuration}` : "–"}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl p-3 flex flex-col gap-1">
-            <div className="flex items-center gap-1.5">
-              <span className={`text-sm font-bold ${airUp ? "text-green-500" : "text-muted-foreground"}`}>
-                {airUp ? "↗" : "↘"}
-              </span>
-              <p className="text-sm font-bold text-foreground">Qualité d'air</p>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Indice UV à {liveWeather.uv ?? 0}
-            </p>
-          </div>
-        </div>
-
-        {/* Perle */}
-        <div className="text-center mb-6">
-          <p className="text-xl font-bold text-foreground mb-1">
-            {pearl?.name ?? "Perle absente"}
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            {pearl?.subtitle ?? ""}
-          </p>
-          <img
-            src={pearl?.img ?? pearlAbsente}
-            alt={pearl?.name ?? "Perle absente"}
-            className="w-40 h-40 object-contain mx-auto"
-          />
-        </div>
-
-        {/* Conseil du jour */}
-        <div className="bg-white rounded-2xl p-4 flex items-start gap-3 mb-3">
-          <Sparkles size={16} strokeWidth={1.5} className="text-primary mt-0.5 flex-shrink-0" />
-          <div>
-            {advice ? (
-              <>
-                <p className="text-sm font-bold text-foreground mb-1">{advice.advice_title}</p>
-                <p className="text-[12px] text-muted-foreground leading-relaxed">{advice.advice_text}</p>
-              </>
-            ) : (
+          ) : advices.length > 0 ? (
+            advices.map((conseil) => (
+              <AdviceCard key={conseil.id} conseil={conseil} />
+            ))
+          ) : (
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
+              <Sparkles size={16} strokeWidth={1.5} className="text-primary flex-shrink-0" />
               <p className="text-sm text-muted-foreground">Votre conseil arrive bientôt</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Lien facteurs */}
-        <div className="text-center pt-1">
-          <button
-            onClick={() => setShowFactorsModal(true)}
-            className="text-[12px] text-muted-foreground/60 hover:text-primary transition-colors"
-          >
-            Quelque chose à noter aujourd'hui ?
-          </button>
-        </div>
       </div>
 
-      {/* Content — fond blanc */}
-      <div className="bg-white px-5 pt-6">
+      {/* Graphiques tendances */}
+      <div className="px-5 pb-6">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1 mb-3">
+          Tendances · 30 derniers jours
+        </p>
 
-        {/* Mes routines */}
-        <h2 className="text-xl font-bold text-foreground mb-4">Mes routines</h2>
-
-        {/* Tabs */}
-        <div className="flex bg-[#F8F6F2] rounded-full p-1 mb-3">
-          {(["matin", "soir"] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2.5 rounded-full text-sm font-semibold transition-all ${
-                activeTab === tab
-                  ? "bg-[#1a1a1a] text-white"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {tab === "matin" ? "Matin" : "Soir"}
-            </button>
-          ))}
-        </div>
-
-        {/* Compteur produits */}
-        {(() => {
-          const count = (activeTab === "matin" ? morningProducts : eveningProducts).length;
-          return count > 0 ? (
-            <p className="text-[12px] text-muted-foreground mb-3">
-              {count} produit{count > 1 ? "s" : ""}
-            </p>
-          ) : null;
-        })()}
-
-        {/* Liste produits */}
-        <div className="rounded-2xl overflow-hidden border border-border/15 mb-8">
-          {(activeTab === "matin" ? morningProducts : eveningProducts).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              Aucun produit dans cette routine
+        {/* 1 — Régularité routine */}
+        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Régularité routine</p>
+          {routineChartData.length < 7 ? (
+            <p className="text-xs text-muted-foreground text-center py-5">
+              Continue ta routine pour voir tes tendances apparaître 🌱
             </p>
           ) : (
-            (activeTab === "matin" ? morningProducts : eveningProducts).map((product, i, arr) => {
-              const isChecked = checkedProducts.has(product.id);
-              return (
-                <button
-                  key={product.id}
-                  onClick={() => toggleProduct(product.id)}
-                  className={`w-full flex items-center gap-3 py-3.5 px-4 text-left hover:bg-muted/5 transition-colors ${
-                    i < arr.length - 1 ? "border-b border-border/15" : ""
-                  }`}
-                >
-                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-                    isChecked ? "bg-[#1a1a1a] border-[#1a1a1a]" : "border-border/40"
-                  }`}>
-                    {isChecked && <Check size={10} strokeWidth={3} className="text-white" />}
+            <>
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart data={routineChartData} barSize={5} barCategoryGap="30%">
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis hide domain={[0, 2]} />
+                  <Tooltip
+                    formatter={(v: number, key: string) => [v === 1 ? "Faite ✓" : "Manquée", key === "matin" ? "Matin" : "Soir"]}
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
+                  />
+                  <Bar dataKey="matin" stackId="a" fill="#2C1810" radius={[0, 0, 2, 2]} />
+                  <Bar dataKey="soir"  stackId="a" fill="#C4A882" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 justify-center mt-1">
+                {([["#2C1810","Matin"],["#C4A882","Soir"]] as [string,string][]).map(([c,l]) => (
+                  <div key={l} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-sm" style={{ background: c }} />
+                    <span className="text-[10px] text-muted-foreground">{l}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium transition-all ${
-                      isChecked ? "line-through text-muted-foreground/50" : "text-foreground"
-                    }`}>
-                      {product.product_name}
-                    </p>
-                    {product.brand && (
-                      <p className="text-[11px] text-muted-foreground">{product.brand}</p>
-                    )}
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 2 — Évolution symptômes */}
+        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Évolution symptômes</p>
+          {symptomChartData.length < 7 ? (
+            <p className="text-xs text-muted-foreground text-center py-5">
+              Continue ta routine pour voir tes tendances apparaître 🌱
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={symptomChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                <YAxis domain={[-1, 1]} ticks={[-1, 0, 1]} tickFormatter={(v) => v === 1 ? "↑" : v === -1 ? "↓" : "—"}
+                  tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} width={16} />
+                <Tooltip
+                  formatter={(v: number) => [v > 0 ? "S'améliore" : v < 0 ? "Se détériore" : "Stable", "Peau"]}
+                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
+                />
+                <Line type="monotone" dataKey="score" stroke="#2C1810" strokeWidth={2} dot={false} connectNulls />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* 3 — Facteurs vs peau */}
+        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Facteurs & peau</p>
+          {factorsChartData.length < 7 ? (
+            <p className="text-xs text-muted-foreground text-center py-5">
+              Continue ta routine pour voir tes tendances apparaître 🌱
+            </p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={130}>
+                <LineChart data={factorsChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                  <YAxis domain={[0, 5]} hide />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
+                    formatter={(v: number, key: string) => {
+                      const labels: Record<string, string> = { stress: "Stress", sleep: "Sommeil", food: "Alimentation", peau: "Peau" };
+                      return [v, labels[key] ?? key];
+                    }}
+                  />
+                  <Line type="monotone" dataKey="stress" stroke="#E07070" strokeWidth={2} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="sleep"  stroke="#70A0D0" strokeWidth={2} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="food"   stroke="#70C090" strokeWidth={2} dot={false} connectNulls />
+                  <Line type="monotone" dataKey="peau"   stroke="#2C1810" strokeWidth={2} dot={false} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="flex gap-3 justify-center mt-1 flex-wrap">
+                {([["#E07070","Stress"],["#70A0D0","Sommeil"],["#70C090","Alimentation"],["#2C1810","Peau"]] as [string,string][]).map(([c,l]) => (
+                  <div key={l} className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ background: c }} />
+                    <span className="text-[10px] text-muted-foreground">{l}</span>
                   </div>
-                  {product.frequency === "weekly" && (
-                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                      → Cette semaine
-                    </span>
-                  )}
-                  {product.frequency === "monthly" && (
-                    <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                      → Ce mois
-                    </span>
-                  )}
-                </button>
-              );
-            })
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Modale facteurs du jour */}
-      <Dialog open={showFactorsModal} onOpenChange={(open) => { if (!open) { setShowFactorsModal(false); setSelectedFactors(new Set()); setFactorsSaved(false); } }}>
-        <DialogContent className="max-w-sm rounded-[32px] border-none premium-shadow p-8">
-          <DialogHeader className="mb-6">
-            <DialogTitle className="text-xl font-display text-foreground">Ta journée</DialogTitle>
-            <p className="text-[11px] text-muted-foreground mt-1">Quelque chose à noter ?</p>
-          </DialogHeader>
-
-          <div className="space-y-6 mb-8">
-            {FACTORS.map(({ category, pills }) => (
-              <div key={category}>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">{category}</p>
-                <div className="flex flex-wrap gap-2">
-                  {pills.map(pill => {
-                    const active = selectedFactors.has(pill);
-                    return (
-                      <button
-                        key={pill}
-                        onClick={() => toggleFactor(pill)}
-                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
-                          active
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-white border-border/40 text-muted-foreground hover:border-primary/40"
-                        }`}
-                      >
-                        {pill}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            <AnimatePresence mode="wait">
-              {factorsSaved ? (
-                <motion.div key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  className="w-full h-12 flex items-center justify-center gap-2 bg-primary/10 rounded-full">
-                  <Check size={16} className="text-primary" />
-                  <span className="text-sm font-bold text-primary">Noté !</span>
-                </motion.div>
-              ) : (
-                <motion.button key="save" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  onClick={saveFactors}
-                  disabled={selectedFactors.size === 0}
-                  className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                >
-                  Enregistrer
-                </motion.button>
-              )}
-            </AnimatePresence>
-            <button
-              onClick={() => { setShowFactorsModal(false); setSelectedFactors(new Set()); }}
-              className="w-full h-10 text-[12px] text-muted-foreground/70 hover:text-foreground transition-colors"
-            >
-              Rien à noter aujourd'hui
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Bouton flottant IA */}
+      <button
+        onClick={() => navigate("/daily-conversation")}
+        className="fixed bottom-20 right-4 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-50 transition-transform active:scale-95"
+        style={{ background: "#2C1810" }}
+        aria-label="Ouvrir la conversation"
+      >
+        <MessageCircle size={22} strokeWidth={1.8} className="text-white" />
+      </button>
 
     </div>
   );

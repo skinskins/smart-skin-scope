@@ -1,27 +1,25 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ImageOff, Camera } from "lucide-react";
+import { Camera } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
-import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
-import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
-import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
-import pearlFragile   from "@/assets/pearls/Pearl-fragile.svg";
-import pearlAbsente   from "@/assets/pearls/Pearl-absente.svg";
+import { RoutineCard } from "@/components/RoutineCard";
+import type { RoutineProduct } from "@/hooks/useRoutineProducts";
 
 const PHASE_TO_PEARL: Record<string, string> = {
   "Folliculaire": "Perle douce",
   "Ovulatoire":   "Perle lumineuse",
-  "Lutéal":       "Perle terne",
-  "Menstruation": "Perle fragile",
+  "Lutéale":      "Perle terne",
+  "Menstruelle":  "Perle fragile",
 };
 
-const PEARL_SVG: Record<string, string> = {
-  "Perle lumineuse": pearlLumineuse,
-  "Perle douce":     pearlDouce,
-  "Perle terne":     pearlTerne,
-  "Perle fragile":   pearlFragile,
+const PEARL_GRADIENT: Record<string, { gradient: string; pulseColor: string }> = {
+  "Folliculaire":  { gradient: "linear-gradient(145deg, #B8D4E8 0%, #7EB3D4 45%, #4A8AB8 100%)", pulseColor: "#7EB3D4" },
+  "Ovulatoire":    { gradient: "linear-gradient(145deg, #F5E6A3 0%, #F0C060 45%, #E89020 100%)", pulseColor: "#F0C060" },
+  "Lutéale":       { gradient: "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)", pulseColor: "#A07850" },
+  "Menstruelle":   { gradient: "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)", pulseColor: "#D06070" },
 };
 
 const PEARL_SUBTITLES: Record<string, string> = {
@@ -44,14 +42,12 @@ const getPearlForDate = (
   const diffDays = Math.floor((target.getTime() - periodStart.getTime()) / 86400000);
   const day = (diffDays % cycleDuration) + 1;
   let phase: string;
-  if (day <= periodDuration)                              phase = "Menstruation";
+  if (day <= periodDuration)                              phase = "Menstruelle";
   else if (day <= Math.floor(cycleDuration / 2) - 1)     phase = "Folliculaire";
   else if (day <= Math.floor(cycleDuration / 2) + 2)     phase = "Ovulatoire";
-  else                                                    phase = "Lutéal";
+  else                                                    phase = "Lutéale";
   return { pearlName: PHASE_TO_PEARL[phase] ?? null, phase, cycleDay: day };
 };
-
-type Product = { id: string; product_name: string; brand: string; photo_url: string | null; product_type: string | null };
 
 const SuiviJour = () => {
   const { date } = useParams<{ date: string }>();
@@ -64,9 +60,11 @@ const SuiviJour = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [skinPhotoUrl, setSkinPhotoUrl] = useState<string | null>(null);
   const [weather, setWeather] = useState<{ temp: number; uv: number; pollution: string } | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loggedProducts, setLoggedProducts] = useState<RoutineProduct[]>([]);
+  const [inciMessageFromLog, setInciMessageFromLog] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,7 +74,7 @@ const SuiviJour = () => {
       const uid = session.user.id;
       setUserId(uid);
 
-      const [profileRes, photoRes, weatherRes, productsRes] = await Promise.all([
+      const [profileRes, photoRes, weatherRes, routineLogRes] = await Promise.all([
         (supabase as any).from("profiles")
           .select("last_period_date, cycle_duration, period_duration")
           .eq("id", uid).single(),
@@ -84,9 +82,9 @@ const SuiviJour = () => {
           .select("storage_path").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("daily_weather")
           .select("temp, uv, pollution").eq("user_id", uid).eq("date", date).maybeSingle(),
-        (supabase as any).from("user_products")
-          .select("id, product_name, brand, photo_url, product_type")
-          .eq("user_id", uid).eq("is_active", true),
+        (supabase as any).from("daily_routine_log")
+          .select("product_ids, inci_message, period")
+          .eq("user_id", uid).eq("date", date),
       ]);
 
       if (profileRes.data) {
@@ -103,7 +101,27 @@ const SuiviJour = () => {
       }
 
       if (weatherRes.data) setWeather(weatherRes.data);
-      if (productsRes.data) setProducts(productsRes.data);
+
+      const allProductIds: string[] = (routineLogRes.data ?? [])
+        .flatMap((r: any) => r.product_ids ?? []);
+      const inciMsg: string | null = (routineLogRes.data ?? [])
+        .find((r: any) => r.inci_message)?.inci_message ?? null;
+      setInciMessageFromLog(inciMsg);
+
+      if (allProductIds.length > 0) {
+        const { data: products } = await (supabase as any)
+          .from("user_products")
+          .select("id, product_name, brand, product_type, photo_url")
+          .in("id", allProductIds);
+        setLoggedProducts((products ?? []).map((p: any) => ({
+          id: p.id,
+          product_name: p.product_name,
+          brand: p.brand,
+          product_type: p.product_type ?? null,
+          photo_url: p.photo_url ?? null,
+          frequency: null,
+        })));
+      }
       setLoading(false);
     };
     fetchAll();
@@ -112,17 +130,33 @@ const SuiviJour = () => {
   const handlePhotoUpload = async (file: File) => {
     if (!date || !userId) return;
     setUploading(true);
+    setUploadError(null);
+    console.log("[PhotoUpload] fichier:", file.name, file.size + " bytes", file.type);
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `${userId}/${date}.${ext}`;
-    const { error } = await supabase.storage.from("skin-photos").upload(path, file, { upsert: true });
-    if (!error) {
-      await (supabase as any).from("skin_photos").upsert(
-        { user_id: userId, date, storage_path: path },
-        { onConflict: "user_id,date" }
-      );
-      const { data: signed } = await supabase.storage.from("skin-photos").createSignedUrl(path, 3600);
-      if (signed?.signedUrl) setSkinPhotoUrl(signed.signedUrl);
+    console.log("[PhotoUpload] path bucket:", path);
+    const { error: storageError } = await supabase.storage
+      .from("skin-photos")
+      .upload(path, file, { upsert: true });
+    console.log("[PhotoUpload] storage.upload →", storageError ? `ERREUR: ${storageError.message}` : "OK");
+    if (storageError) {
+      setUploadError(storageError.message);
+      setUploading(false);
+      return;
     }
+    const { error: dbError } = await (supabase as any).from("skin_photos").upsert(
+      { user_id: userId, date, storage_path: path },
+      { onConflict: "user_id,date" }
+    );
+    console.log("[PhotoUpload] skin_photos.upsert →", dbError ? `ERREUR: ${JSON.stringify(dbError)}` : "OK");
+    if (dbError) {
+      setUploadError(dbError.message ?? "Erreur base de données");
+      setUploading(false);
+      return;
+    }
+    const { data: signed } = await supabase.storage.from("skin-photos").createSignedUrl(path, 3600);
+    console.log("[PhotoUpload] createSignedUrl →", signed?.signedUrl ? "OK" : "URL manquante");
+    if (signed?.signedUrl) setSkinPhotoUrl(signed.signedUrl);
     setUploading(false);
   };
 
@@ -141,7 +175,10 @@ const SuiviJour = () => {
     ? getPearlForDate(date, lastPeriodDate, cycleDuration, periodDuration)
     : { pearlName: null, phase: null, cycleDay: null };
 
-  const productsByType = products.reduce<Record<string, Product[]>>((acc, p) => {
+  const pearlGradient = phase ? (PEARL_GRADIENT[phase] ?? null) : null;
+  const uvCritical = (displayWeather?.uv ?? 0) >= 6;
+
+  const productsByType = loggedProducts.reduce<Record<string, RoutineProduct[]>>((acc, p) => {
     const key = p.product_type ?? "Autre";
     if (!acc[key]) acc[key] = [];
     acc[key].push(p);
@@ -151,16 +188,9 @@ const SuiviJour = () => {
   return (
     <div className="min-h-screen pb-24 max-w-lg mx-auto">
 
-      {/* Header */}
-      <div className="px-5 pt-10 pb-4 flex items-center gap-4">
-        <button onClick={() => navigate("/suivi")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft size={16} strokeWidth={1.5} />
-          Retour
-        </button>
-      </div>
+      <PageHeader title={dateLabel} onBack={() => navigate(-1)} />
 
       <div className="px-5">
-        <h1 className="text-2xl font-display text-foreground mb-6 capitalize">{dateLabel}</h1>
 
         {loading ? (
           <p className="text-center text-sm text-muted-foreground py-16 animate-pulse">Chargement…</p>
@@ -169,11 +199,36 @@ const SuiviJour = () => {
 
             {/* Perle */}
             <div className="flex flex-col items-center gap-2 text-center">
-              <img
-                src={pearlName ? (PEARL_SVG[pearlName] ?? pearlAbsente) : pearlAbsente}
-                alt={pearlName ?? "Perle absente"}
-                className="w-16 h-16 object-contain"
-              />
+              <div style={{ position: "relative", width: 120, height: 120, flexShrink: 0 }}>
+                {/* Pulse ring */}
+                <motion.div
+                  animate={{ scale: [1, 1.22], opacity: [0.32, 0] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut" }}
+                  style={{
+                    position: "absolute", inset: -8, borderRadius: "50%",
+                    background: uvCritical ? "#E06010" : (pearlGradient?.pulseColor ?? "#ccc"),
+                    pointerEvents: "none",
+                  }}
+                />
+                {/* Pearl layers */}
+                <div style={{ width: "100%", height: "100%", borderRadius: "50%", overflow: "hidden", position: "relative" }}>
+                  {/* Layer 1 — cycle */}
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pearlGradient?.gradient ?? "#E0D8D0" }} />
+                  {/* Layer 2 — UV */}
+                  <motion.div
+                    animate={{ opacity: uvCritical ? 1 : 0 }}
+                    transition={{ duration: 0.45 }}
+                    style={{
+                      position: "absolute", inset: 0, borderRadius: "50%",
+                      background: "radial-gradient(circle at 82% 18%, rgba(224,100,10,0.78) 0%, rgba(200,70,0,0.38) 38%, transparent 62%)",
+                    }}
+                  />
+                  {/* Layer 3 — facteurs (pas de données checkin sur cette page) */}
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", opacity: 0,
+                    background: "radial-gradient(circle at 20% 78%, rgba(110,60,180,0.75) 0%, rgba(80,40,150,0.35) 38%, transparent 62%)",
+                  }} />
+                </div>
+              </div>
               <p className="text-base font-bold text-foreground">
                 {pearlName ?? "Perle absente"}
               </p>
@@ -211,6 +266,9 @@ const SuiviJour = () => {
                 />
               </label>
             )}
+            {uploadError && (
+              <p className="text-xs text-red-500 text-center mt-2 px-2">{uploadError}</p>
+            )}
 
             {/* Cartes contextuelles */}
             <div className="grid grid-cols-2 gap-3">
@@ -230,11 +288,18 @@ const SuiviJour = () => {
               </div>
             </div>
 
+            {/* Message INCI */}
+            {inciMessageFromLog && (
+              <div className="premium-card p-4">
+                <p className="text-sm text-muted-foreground leading-snug">{inciMessageFromLog}</p>
+              </div>
+            )}
+
             {/* Produits utilisés */}
-            {products.length > 0 && (
+            {loggedProducts.length > 0 && (
               <div>
                 <p className="text-base font-display font-bold text-foreground mb-4">
-                  {products.length} produit{products.length > 1 ? "s" : ""} utilisé{products.length > 1 ? "s" : ""}
+                  {loggedProducts.length} produit{loggedProducts.length > 1 ? "s" : ""} utilisé{loggedProducts.length > 1 ? "s" : ""}
                 </p>
                 <div className="space-y-5">
                   {Object.entries(productsByType).map(([type, items]) => (
@@ -242,29 +307,14 @@ const SuiviJour = () => {
                       <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                         {type}
                       </p>
-                      <div className="space-y-2">
-                        {items.map(p => (
-                          <div key={p.id} className="flex items-center gap-3 p-3 bg-white rounded-2xl border border-border/40">
-                            <div className="w-12 h-12 bg-muted/30 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0">
-                              {p.photo_url
-                                ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                                : <ImageOff size={16} className="text-muted-foreground/40" />
-                              }
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{p.product_name}</p>
-                              <p className="text-[11px] text-muted-foreground truncate">{p.brand}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <RoutineCard products={items} showPhotos />
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {products.length === 0 && !skinPhotoUrl && !weather && (
+            {loggedProducts.length === 0 && !skinPhotoUrl && !weather && (
               <p className="text-center text-sm text-muted-foreground italic py-8">
                 Pas de données pour ce jour
               </p>

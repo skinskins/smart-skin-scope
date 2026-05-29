@@ -1,45 +1,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
-import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
-import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
-import pearlFragile   from "@/assets/pearls/Pearl-fragile.svg";
-import pearlAbsente   from "@/assets/pearls/Pearl-absente.svg";
+import { calculateCyclePhaseForDate } from "@/utils/cycle";
+import { PageHeader } from "@/components/PageHeader";
 
-const PHASE_TO_PEARL: Record<string, string> = {
-  "Folliculaire": "Perle douce",
-  "Ovulatoire":   "Perle lumineuse",
-  "Lutéal":       "Perle terne",
-  "Menstruation": "Perle fragile",
+const PHASE_GRADIENTS: Record<string, string> = {
+  Folliculaire: "linear-gradient(145deg, #B8D4E8 0%, #7EB3D4 45%, #4A8AB8 100%)",
+  Ovulatoire:   "linear-gradient(145deg, #F5E6A3 0%, #F0C060 45%, #E89020 100%)",
+  Lutéale:      "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)",
+  Menstruelle:  "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)",
 };
 
-const PEARL_SVG: Record<string, string> = {
-  "Perle lumineuse": pearlLumineuse,
-  "Perle douce":     pearlDouce,
-  "Perle terne":     pearlTerne,
-  "Perle fragile":   pearlFragile,
-};
-
-const getPearlForDate = (
-  targetDate: Date,
-  lastPeriodDate: string,
-  cycleDuration: number,
-  periodDuration: number
-): string | null => {
-  if (!lastPeriodDate) return null;
-  const periodStart = new Date(lastPeriodDate); periodStart.setHours(0, 0, 0, 0);
-  const target = new Date(targetDate);          target.setHours(0, 0, 0, 0);
-  if (target < periodStart) return null;
-  const diffDays = Math.floor((target.getTime() - periodStart.getTime()) / 86400000);
-  const day = (diffDays % cycleDuration) + 1;
-  let phase: string;
-  if (day <= periodDuration)                              phase = "Menstruation";
-  else if (day <= Math.floor(cycleDuration / 2) - 1)     phase = "Folliculaire";
-  else if (day <= Math.floor(cycleDuration / 2) + 2)     phase = "Ovulatoire";
-  else                                                    phase = "Lutéal";
-  return PHASE_TO_PEARL[phase] ?? null;
-};
+function PearlDot({ phase, size = 36 }: { phase: string; size?: number }) {
+  return (
+    <div style={{
+      width: size,
+      height: size,
+      borderRadius: "50%",
+      background: PHASE_GRADIENTS[phase] ?? "#D3D1C7",
+    }} />
+  );
+}
 
 const DAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
 
@@ -113,9 +94,8 @@ const Suivi = () => {
               const date     = new Date(year, month, dayNum); date.setHours(0, 0, 0, 0);
               const isToday  = date.getTime() === today.getTime();
               const isFuture = date > today;
-              const pearlName = getPearlForDate(date, lastPeriodDate, cycleDuration, periodDuration);
-              const imgSrc = pearlName ? (PEARL_SVG[pearlName] ?? pearlAbsente) : pearlAbsente;
               const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+              const phase = calculateCyclePhaseForDate(lastPeriodDate, cycleDuration, periodDuration, dateStr);
 
               return (
                 <div
@@ -130,12 +110,10 @@ const Suivi = () => {
                     </span>
                   </div>
 
-                  {/* Pearl SVG */}
-                  <img
-                    src={imgSrc}
-                    alt={pearlName ?? ""}
-                    className={`w-8 h-8 object-contain transition-opacity ${isFuture ? "opacity-20" : ""}`}
-                  />
+                  {/* Pearl dot */}
+                  <div className={isFuture ? "opacity-20" : ""}>
+                    <PearlDot phase={phase ?? ""} size={32} />
+                  </div>
                 </div>
               );
             })}
@@ -150,9 +128,7 @@ const Suivi = () => {
 
       {/* Header + day labels sticky */}
       <div className="sticky top-0 bg-background z-10 border-b border-border/20">
-        <div className="px-5 pt-10 pb-2">
-          <h1 className="text-3xl font-display text-foreground">Suivi</h1>
-        </div>
+        <PageHeader title="Suivi" onBack={() => navigate(-1)} />
         <div className="grid grid-cols-7 px-5 pb-2">
           {DAY_LABELS.map((d, i) => (
             <div key={i} className="flex justify-center">

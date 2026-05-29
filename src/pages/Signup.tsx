@@ -102,7 +102,7 @@ const Signup = () => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
+                const { data } = await (supabase as any).from('profiles').select('first_name, last_name, profession, used_channels, age, gender, skin_type, skin_problems, skin_goals').eq('id', session.user.id).single();
                 if (data) {
                     if (data.first_name) setFirstName(data.first_name);
                     if (data.last_name) setLastName(data.last_name);
@@ -206,7 +206,7 @@ const Signup = () => {
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 120 } },
                 async (code: string) => {
-                    await scanner.stop().catch(() => {});
+                    await scanner.stop().catch(() => { });
                     onboardingScannerRef.current = null;
                     setOnboardingScannerOpen(false);
                     await processOnboardingBarcode(code);
@@ -215,7 +215,7 @@ const Signup = () => {
             );
         };
         init().catch(() => setOnboardingScannerOpen(false));
-        return () => { onboardingScannerRef.current?.stop().catch(() => {}); };
+        return () => { onboardingScannerRef.current?.stop().catch(() => { }); };
     }, [onboardingScannerOpen]);
 
     const toggleOnboardingProduct = (product: any) => {
@@ -356,6 +356,7 @@ const Signup = () => {
                         product_type: p.product_type,
                         user_id: userId,
                         morning_use: true,
+                        evening_use: true,
                         frequency: "daily",
                         is_active: true,
                     }))
@@ -556,22 +557,21 @@ const Signup = () => {
                                 </div>
                                 <div className="grid grid-cols-3 gap-4 flex-1">
                                     {[
-                                        { value: "très_claire",   label: "Très claire",    color: "#F5E6D8" },
-                                        { value: "claire",        label: "Claire",          color: "#EAC9A8" },
-                                        { value: "beige_doré",    label: "Beige dorée",     color: "#C8924F" },
-                                        { value: "olive_caramel", label: "Olive-Caramel",   color: "#A0622A" },
-                                        { value: "foncée",        label: "Foncée",          color: "#6B3A1F" },
-                                        { value: "ébène",         label: "Ébène",           color: "#2C1810" },
+                                        { value: "très_claire", label: "Très claire", color: "#F5E6D8" },
+                                        { value: "claire", label: "Claire", color: "#EAC9A8" },
+                                        { value: "beige_doré", label: "Beige dorée", color: "#C8924F" },
+                                        { value: "olive_caramel", label: "Olive-Caramel", color: "#A0622A" },
+                                        { value: "foncée", label: "Foncée", color: "#6B3A1F" },
+                                        { value: "ébène", label: "Ébène", color: "#2C1810" },
                                     ].map(swatch => (
                                         <button
                                             type="button"
                                             key={swatch.value}
                                             onClick={() => setCarnation(swatch.value)}
-                                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
-                                                carnation === swatch.value
+                                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value
                                                     ? "border-primary bg-primary/5 premium-shadow"
                                                     : "border-border/40 bg-background/40"
-                                            }`}
+                                                }`}
                                         >
                                             <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
                                             <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">
@@ -646,9 +646,9 @@ const Signup = () => {
                                 <div className="space-y-8 flex-1">
                                     <div className="space-y-3">
                                         {[
-                                            { icon: "☀️", title: "Indice UV",    desc: "Adapte votre SPF en temps réel" },
-                                            { icon: "💨", title: "Pollution",     desc: "Protège votre barrière cutanée" },
-                                            { icon: "🌡️", title: "Température",  desc: "Ajuste l'hydratation recommandée" },
+                                            { icon: "☀️", title: "Indice UV", desc: "Adapte votre SPF en temps réel" },
+                                            { icon: "💨", title: "Pollution", desc: "Protège votre barrière cutanée" },
+                                            { icon: "🌡️", title: "Température", desc: "Ajuste l'hydratation recommandée" },
                                         ].map(b => (
                                             <div key={b.title} className="flex items-center gap-4 p-4 bg-muted/20 rounded-2xl">
                                                 <span className="text-2xl">{b.icon}</span>
@@ -757,11 +757,10 @@ const Signup = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleOnboardingProduct(p)}
-                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                                                                        isAdded
+                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
                                                                             ? "bg-primary/10 text-primary cursor-default"
                                                                             : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
-                                                                    }`}
+                                                                        }`}
                                                                 >
                                                                     {isAdded ? <Check size={16} /> : <Plus size={16} />}
                                                                 </button>
@@ -1128,21 +1127,24 @@ const Signup = () => {
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-4 flex items-center gap-4">
                                     <BackButton />
-                                    <h2 className="text-2xl font-display text-foreground italic">Choisissez votre abonnement</h2>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em] mb-1">Votre essai est terminé</p>
+                                        <h2 className="text-2xl font-display text-foreground leading-tight">Continuez à prendre soin de vous</h2>
+                                    </div>
                                 </div>
 
-                                {/* Segmented Control */}
+                                {/* Segmented Control — Annuel (-40%) left, Mensuel right */}
                                 <div className="bg-muted/20 p-1.5 rounded-full flex mb-8 relative border border-border/40">
                                     <motion.div
                                         className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
-                                        animate={{ x: selectedPlan === 'yearly' ? '100%' : '0%' }}
+                                        animate={{ x: selectedPlan === 'monthly' ? '100%' : '0%' }}
                                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                     />
-                                    <button type="button" onClick={() => setSelectedPlan("monthly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 ${selectedPlan === 'monthly' ? 'text-primary' : 'text-muted-foreground'}`}>Mensuel</button>
                                     <button type="button" onClick={() => setSelectedPlan("yearly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 relative ${selectedPlan === 'yearly' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        <Badge className="absolute -top-3 -left-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
                                         Annuel
-                                        <Badge className="absolute -top-3 -right-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
                                     </button>
+                                    <button type="button" onClick={() => setSelectedPlan("monthly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 ${selectedPlan === 'monthly' ? 'text-primary' : 'text-muted-foreground'}`}>Mensuel</button>
                                 </div>
 
                                 {/* Price Display */}
@@ -1160,35 +1162,45 @@ const Signup = () => {
                                                 <span className="text-5xl font-display text-foreground italic leading-none">{PLANS[selectedPlan].price}</span>
                                                 <span className="text-xl text-muted-foreground italic">{PLANS[selectedPlan].period}</span>
                                             </div>
-                                            <div className="space-y-2">
-                                                <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
-                                            </div>
+                                            <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
                                         </motion.div>
                                     </AnimatePresence>
                                 </motion.div>
 
+                                {/* Feature list matching Figma */}
                                 <div className="space-y-4 mb-8">
-                                    {["Accès illimité", "Sans engagement", "Aucun débit maintenant"].map((text, idx) => (
-                                        <div key={idx} className="flex items-center gap-4">
-                                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><Check size={12} strokeWidth={3} /></div>
-                                            <span className="text-[13px] font-medium text-foreground italic">{text}</span>
+                                    {[
+                                        { label: "Accès illimité", desc: "Toutes les fonctionnalités sans restriction" },
+                                        { label: "Sans engagement", desc: "Annulez à tout moment" },
+                                        { label: "Conseils personnalisés", desc: "Adaptés à votre cycle, météo et routine" },
+                                        { label: "Mémoire illimitée", desc: "Historique complet sans limite de temps" },
+                                    ].map((item, idx) => (
+                                        <div key={idx} className="flex items-start gap-4">
+                                            <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5"><Check size={11} strokeWidth={3} /></div>
+                                            <div>
+                                                <p className="text-[13px] font-semibold text-foreground">{item.label}</p>
+                                                <p className="text-[11px] text-muted-foreground italic leading-tight">{item.desc}</p>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="space-y-4 pt-4">
+                                <div className="space-y-3 pt-4">
                                     <Button
                                         type="submit"
                                         className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
                                     >
-                                        SOUSCRIRE À L'OFFRE
+                                        Passer premium
                                     </Button>
                                     <button
                                         type="submit"
-                                        className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] text-center hover:text-primary transition-colors py-2"
+                                        className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
                                     >
-                                        Continuer gratuitement
+                                        Commencer mon essai gratuit
                                     </button>
+                                    <p className="text-center text-[10px] text-muted-foreground pt-1">
+                                        Renouvelé automatiquement à 9,99€/mois. Annulable à tout moment.
+                                    </p>
                                 </div>
                             </div>
                         )}
