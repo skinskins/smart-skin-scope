@@ -279,10 +279,10 @@ const Dashboard = () => {
         .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
         .eq("user_id", session.user.id)
         .eq("date", today)
-        .maybeSingle();
+        .order("priority", { ascending: true });
 
       if (data) {
-        setAdvices([data]);
+        if (data && data.length > 0) setAdvices(data);
         return;
       }
 
@@ -317,9 +317,9 @@ const Dashboard = () => {
           .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
           .eq("user_id", session.user.id)
           .eq("date", today)
-          .maybeSingle();
+          .order("priority", { ascending: true });
 
-        if (fresh) setAdvices([fresh]);
+        if (fresh && fresh.length > 0) setAdvices(fresh);
 
       } catch (err) {
 
