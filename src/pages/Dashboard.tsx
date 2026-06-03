@@ -162,14 +162,13 @@ const Dashboard = () => {
       if (session.user.user_metadata?.first_name) {
         setUserName(session.user.user_metadata.first_name);
       }
-      console.log("[CycleDebug] user.id used in WHERE:", session.user.id);
+
       const { data, error } = await (supabase as any)
         .from("profiles")
         .select("manual_location, last_period_date, cycle_duration, skin_goals")
         .eq("id", session.user.id)
         .single();
-      console.log("[CycleDebug] profiles data:", JSON.stringify(data));
-      console.log("[CycleDebug] profiles error:", JSON.stringify(error));
+
       if (data?.manual_location) setManualLocationState(data.manual_location);
       if (data?.last_period_date) setLastPeriodDate(data.last_period_date);
       if (data?.cycle_duration) setCycleDuration(data.cycle_duration);
@@ -179,13 +178,13 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    console.log("[WeatherSave] liveWeather changed:", liveWeather);
+
     if (liveWeather.locationName === "...") return;
     const save = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { console.log("[WeatherSave] no session, abort"); return; }
+
       const today = new Date().toISOString().split("T")[0];
-      console.log("[WeatherSave] inserting for", session.user.id, today, liveWeather);
+
       const { data, error } = await (supabase as any)
         .from("daily_weather")
         .upsert(
@@ -198,7 +197,7 @@ const Dashboard = () => {
           },
           { onConflict: "user_id,date", ignoreDuplicates: true }
         );
-      console.log("[WeatherSave] result →", { data, error });
+
     };
     save();
   }, [liveWeather]);
@@ -277,11 +276,11 @@ const Dashboard = () => {
       // 1. Chercher si conseils déjà en base
       const { data } = await (supabase as any)
         .from("daily_advice_log")
-        .select("advice_title, advice_text")
+        .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
         .eq("user_id", session.user.id)
         .eq("date", today)
         .maybeSingle();
-      console.log("[AdviceDebug] data:", JSON.stringify(data), "user:", session.user.id, "date:", today);
+
       if (data) {
         setAdvices([data]);
         return;
@@ -289,7 +288,7 @@ const Dashboard = () => {
 
       // 2. Pas de conseil → générer
       setAdviceLoading(true);
-      console.log("[AdviceDebug] Lancement generate-advice pour:", session.user.id);
+
       try {
         const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
           body: { user_id: session.user.id },
@@ -299,7 +298,7 @@ const Dashboard = () => {
         });
 
         if (error) {
-          console.error("[AdviceDebug] Erreur:", JSON.stringify(error));
+
           return;
         }
 
@@ -315,7 +314,7 @@ const Dashboard = () => {
         // Fallback — relire depuis DB
         const { data: fresh } = await (supabase as any)
           .from("daily_advice_log")
-          .select("advice_title, advice_text")
+          .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
           .eq("user_id", session.user.id)
           .eq("date", today)
           .maybeSingle();
@@ -323,7 +322,7 @@ const Dashboard = () => {
         if (fresh) setAdvices([fresh]);
 
       } catch (err) {
-        console.error("[AdviceDebug] Exception:", err);
+
       } finally {
         setAdviceLoading(false);
       }
@@ -401,7 +400,7 @@ const Dashboard = () => {
   const cyclePhase = cycleCalc?.phase ?? null;
   const cycleDay = cycleCalc?.day ?? null;
   const pearl = cyclePhase ? (PEARL_CONFIG[cyclePhase] ?? null) : null;
-  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay, "| pearl:", pearl?.name ?? "null");
+
 
   const cycleUp = ["Folliculaire", "Ovulatoire"].includes(cyclePhase ?? "");
   const airUp = ["Bon", "Faible"].includes(liveWeather.pollution ?? "");
