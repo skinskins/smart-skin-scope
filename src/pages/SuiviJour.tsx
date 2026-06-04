@@ -5,30 +5,30 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import pearlLumineuse from "@/assets/pearls/Pearl-lumineuse.svg";
-import pearlDouce     from "@/assets/pearls/Pearl-douce.svg";
-import pearlTerne     from "@/assets/pearls/Pearl-terne.svg";
-import pearlFragile   from "@/assets/pearls/Pearl-fragile.svg";
-import pearlAbsente   from "@/assets/pearls/Pearl-absente.svg";
+import pearlDouce from "@/assets/pearls/Pearl-douce.svg";
+import pearlTerne from "@/assets/pearls/Pearl-terne.svg";
+import pearlFragile from "@/assets/pearls/Pearl-fragile.svg";
+import pearlAbsente from "@/assets/pearls/Pearl-absente.svg";
 
 const PHASE_TO_PEARL: Record<string, string> = {
   "Folliculaire": "Perle douce",
-  "Ovulatoire":   "Perle lumineuse",
-  "Lutéal":       "Perle terne",
+  "Ovulatoire": "Perle lumineuse",
+  "Lutéal": "Perle terne",
   "Menstruation": "Perle fragile",
 };
 
 const PEARL_SVG: Record<string, string> = {
   "Perle lumineuse": pearlLumineuse,
-  "Perle douce":     pearlDouce,
-  "Perle terne":     pearlTerne,
-  "Perle fragile":   pearlFragile,
+  "Perle douce": pearlDouce,
+  "Perle terne": pearlTerne,
+  "Perle fragile": pearlFragile,
 };
 
 const PEARL_SUBTITLES: Record<string, string> = {
   "Perle lumineuse": "Votre peau est au top",
-  "Perle douce":     "Votre peau est équilibrée",
-  "Perle terne":     "Votre peau a besoin de douceur",
-  "Perle fragile":   "La douceur et la simplicité sont de mise aujourd'hui",
+  "Perle douce": "Votre peau est équilibrée",
+  "Perle terne": "Votre peau a besoin de douceur",
+  "Perle fragile": "La douceur et la simplicité sont de mise aujourd'hui",
 };
 
 const getPearlForDate = (
@@ -39,15 +39,15 @@ const getPearlForDate = (
 ): { pearlName: string | null; phase: string | null; cycleDay: number | null } => {
   if (!lastPeriodDate) return { pearlName: null, phase: null, cycleDay: null };
   const periodStart = new Date(lastPeriodDate); periodStart.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);             target.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr); target.setHours(0, 0, 0, 0);
   if (target < periodStart) return { pearlName: null, phase: null, cycleDay: null };
   const diffDays = Math.floor((target.getTime() - periodStart.getTime()) / 86400000);
   const day = (diffDays % cycleDuration) + 1;
   let phase: string;
-  if (day <= periodDuration)                              phase = "Menstruation";
-  else if (day <= Math.floor(cycleDuration / 2) - 1)     phase = "Folliculaire";
-  else if (day <= Math.floor(cycleDuration / 2) + 2)     phase = "Ovulatoire";
-  else                                                    phase = "Lutéal";
+  if (day <= periodDuration) phase = "Menstruation";
+  else if (day <= Math.floor(cycleDuration / 2) - 1) phase = "Folliculaire";
+  else if (day <= Math.floor(cycleDuration / 2) + 2) phase = "Ovulatoire";
+  else phase = "Lutéal";
   return { pearlName: PHASE_TO_PEARL[phase] ?? null, phase, cycleDay: day };
 };
 
@@ -67,6 +67,7 @@ const SuiviJour = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [skinAnalysis, setSkinAnalysis] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ const SuiviJour = () => {
           .select("last_period_date, cycle_duration, period_duration")
           .eq("id", uid).single(),
         (supabase as any).from("skin_photos")
-          .select("storage_path").eq("user_id", uid).eq("date", date).maybeSingle(),
+          .select("storage_path, analysis_json").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("daily_weather")
           .select("temp, uv, pollution").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("user_products")
@@ -91,8 +92,8 @@ const SuiviJour = () => {
 
       if (profileRes.data) {
         if (profileRes.data.last_period_date) setLastPeriodDate(profileRes.data.last_period_date);
-        if (profileRes.data.cycle_duration)   setCycleDuration(profileRes.data.cycle_duration);
-        if (profileRes.data.period_duration)  setPeriodDuration(profileRes.data.period_duration);
+        if (profileRes.data.cycle_duration) setCycleDuration(profileRes.data.cycle_duration);
+        if (profileRes.data.period_duration) setPeriodDuration(profileRes.data.period_duration);
       }
 
       if (photoRes.data?.storage_path) {
@@ -100,6 +101,7 @@ const SuiviJour = () => {
           .from("skin-photos")
           .createSignedUrl(photoRes.data.storage_path, 3600);
         if (signed?.signedUrl) setSkinPhotoUrl(signed.signedUrl);
+        if (photoRes.data?.analysis_json) setSkinAnalysis(photoRes.data.analysis_json);
       }
 
       if (weatherRes.data) setWeather(weatherRes.data);
@@ -130,8 +132,8 @@ const SuiviJour = () => {
   const isToday = date === today;
   const displayWeather = weather
     ?? (isToday && liveWeather.pollution !== "..."
-        ? { temp: liveWeather.temp, uv: liveWeather.uv, pollution: liveWeather.pollution }
-        : null);
+      ? { temp: liveWeather.temp, uv: liveWeather.uv, pollution: liveWeather.pollution }
+      : null);
 
   const dateLabel = date
     ? new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
@@ -210,6 +212,101 @@ const SuiviJour = () => {
                   onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
                 />
               </label>
+            )}
+            {/* Analyse peau */}
+            {skinAnalysis && (
+              <div className="px-5 mt-6">
+                <h2 className="text-lg font-bold text-foreground mb-4">Analyse de la peau</h2>
+
+                {/* Métriques principales */}
+                <div className="bg-white rounded-2xl p-5 space-y-4 border border-border/15">
+
+                  {/* Éclat global */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[12px] font-semibold text-foreground">Éclat global</span>
+                      <span className="text-[12px] text-muted-foreground">{skinAnalysis.eclat_global}/10</span>
+                    </div>
+                    <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${(skinAnalysis.eclat_global / 10) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Hydratation */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[12px] font-semibold text-foreground">Hydratation</span>
+                      <span className="text-[12px] text-muted-foreground">{skinAnalysis.hydratation?.score}/4</span>
+                    </div>
+                    <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-400 rounded-full" style={{ width: `${(skinAnalysis.hydratation?.score / 4) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Érythème */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[12px] font-semibold text-foreground">Érythème</span>
+                      <span className="text-[12px] text-muted-foreground">{skinAnalysis.erytheme?.score}/4</span>
+                    </div>
+                    <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-red-400 rounded-full" style={{ width: `${(skinAnalysis.erytheme?.score / 4) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Acné */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[12px] font-semibold text-foreground">Acné</span>
+                      <span className="text-[12px] text-muted-foreground">{skinAnalysis.acne?.score}/4</span>
+                    </div>
+                    <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-400 rounded-full" style={{ width: `${(skinAnalysis.acne?.score / 4) * 100}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Sébum */}
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-[12px] font-semibold text-foreground">Sébum zone T</span>
+                      <span className="text-[12px] text-muted-foreground">{skinAnalysis.sebum?.zone_t}/5</span>
+                    </div>
+                    <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(skinAnalysis.sebum?.zone_t / 5) * 100}%` }} />
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Type de peau détecté */}
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  {skinAnalysis.carnation_detectee && (
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-primary/10 text-primary">
+                      {skinAnalysis.carnation_detectee}
+                    </span>
+                  )}
+                  {skinAnalysis.type_peau_detecte && (
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-muted/30 text-foreground">
+                      Peau {skinAnalysis.type_peau_detecte}
+                    </span>
+                  )}
+                  {skinAnalysis.glogau && (
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-muted/30 text-foreground">
+                      Glogau {skinAnalysis.glogau}
+                    </span>
+                  )}
+                </div>
+
+                {/* Observations libres */}
+                {skinAnalysis.observations_libres && (
+                  <div className="mt-4 bg-muted/10 rounded-2xl p-4">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Observations</p>
+                    <p className="text-[13px] text-foreground/80 leading-relaxed">
+                      {skinAnalysis.observations_libres}
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Cartes contextuelles */}
