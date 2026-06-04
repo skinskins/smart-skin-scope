@@ -133,8 +133,12 @@ const Suivi = () => {
         img.src = url;
       });
 
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("skin-analysis", {
         body: { user_id: userId, imageBase64: base64 },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
       });
 
       if (error) throw new Error(error.message);
@@ -239,8 +243,8 @@ const Suivi = () => {
               photoInputRef.current?.click();
             }}
             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${hasAnalysisToday
-                ? "bg-primary/10 text-primary cursor-default"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
+              ? "bg-primary/10 text-primary cursor-default"
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
               }`}
           >
             {hasAnalysisToday
