@@ -191,7 +191,7 @@ const SuiviJour = () => {
               <div className="rounded-2xl overflow-hidden border border-border/40">
                 <img src={skinPhotoUrl} alt="Photo peau" className="w-full object-cover" />
               </div>
-            ) : (
+            ) : isToday ? (
               <label className="block cursor-pointer">
                 <div className="w-full h-[200px] bg-muted/20 rounded-2xl border-2 border-dashed border-border/40 flex flex-col items-center justify-center gap-3 hover:bg-muted/30 transition-colors">
                   {uploading ? (
@@ -212,6 +212,10 @@ const SuiviJour = () => {
                   onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
                 />
               </label>
+            ) : (
+              <div className="w-full h-[80px] bg-muted/10 rounded-2xl border border-border/20 flex items-center justify-center">
+                <p className="text-sm text-muted-foreground italic">Aucune analyse ce jour</p>
+              </div>
             )}
             {/* Analyse peau */}
             {skinAnalysis && (
