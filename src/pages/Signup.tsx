@@ -375,6 +375,35 @@ const Signup = () => {
                 );
             }
 
+            // Upload onboarding photo for daily tracking (suivi)
+            if (onboardingPhotoBase64) {
+                try {
+                    const byteCharacters = atob(onboardingPhotoBase64);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: "image/jpeg" });
+                    const path = `${userId}/${today}.jpg`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from("skin-photos")
+                        .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+
+                    if (!uploadError) {
+                        await (supabase as any).from("skin_photos").upsert(
+                            { user_id: userId, date: today, storage_path: path },
+                            { onConflict: "user_id,date" }
+                        );
+                    } else {
+                        console.error("Error uploading onboarding photo to storage:", uploadError);
+                    }
+                } catch (photoErr) {
+                    console.error("Error processing onboarding photo for tracking:", photoErr);
+                }
+            }
+
             const baselinePromises: any[] = [];
             await Promise.all(baselinePromises);
 

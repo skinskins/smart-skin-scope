@@ -39,7 +39,8 @@ const getOrder = (type: string | null): number =>
 const getDuration = (type: string | null): number =>
   type ? (TYPE_DURATION[type.toLowerCase().trim()] ?? 2) : 2;
 
-const fmt = (s: number) => {
+const fmt = (s: number | null) => {
+  if (s === null) return "0:00";
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${m}:${sec.toString().padStart(2, "0")}`;
@@ -53,7 +54,7 @@ const RoutinePlayer = () => {
   const { morning } = useRoutineProducts();
   const isMorning = new Date().getHours() < 18;
   const [currentStep, setCurrentStep] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [completed, setCompleted] = useState(false);
   const [completionStep, setCompletionStep] = useState<1 | 3>(1);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
@@ -125,14 +126,14 @@ const RoutinePlayer = () => {
   }, []); // eslint-disable-line
 
   useEffect(() => {
-    if (stepsReady && steps.length > 0 && timeLeft === 0) {
+    if (stepsReady && steps.length > 0 && timeLeft === null) {
       setTimeLeft(steps[0].durationMin * 60);
     }
-  }, [stepsReady, steps]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [stepsReady, steps, timeLeft]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (completed || steps.length === 0 || timeLeft <= 0) return;
-    const id = setInterval(() => setTimeLeft(t => Math.max(0, t - 1)), 1000);
+    if (completed || steps.length === 0 || timeLeft === null || timeLeft <= 0) return;
+    const id = setInterval(() => setTimeLeft(t => t !== null ? Math.max(0, t - 1) : null), 1000);
     return () => clearInterval(id);
   }, [timeLeft, completed, steps.length]);
 
@@ -144,7 +145,7 @@ const RoutinePlayer = () => {
   }, [currentStep]);
 
   useEffect(() => {
-    if (completed || steps.length === 0) return;
+    if (completed || steps.length === 0 || timeLeft === null) return;
     if (timeLeft === 0) { goNextRef.current?.(); return; }
     if (timeLeft === 20 && !alarmFiredRef.current) {
       alarmFiredRef.current = true;
@@ -366,7 +367,7 @@ const RoutinePlayer = () => {
   // ── Player ─────────────────────────────────────────────────────────────────
 
   const step = steps[currentStep];
-  const timerProgress = timeLeft / (step.durationMin * 60);
+  const timerProgress = timeLeft !== null && step ? timeLeft / (step.durationMin * 60) : 1;
   const totalMin = steps.reduce((acc, s) => acc + s.durationMin, 0);
 
   return (
