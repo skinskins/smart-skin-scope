@@ -90,6 +90,12 @@ const Signup = () => {
 
     const [step, setStep] = useState(1);
     const [onboardingPhotoBase64, setOnboardingPhotoBase64] = useState<string | null>(null);
+    const [onboardingAnalysis, setOnboardingAnalysis] = useState<any>(null);
+    const [analysisLoading, setAnalysisLoading] = useState(false);
+    const [showDiagnostic, setShowDiagnostic] = useState(false);
+    const [editingDiagnostic, setEditingDiagnostic] = useState(false);
+    const [correctedSkinType, setCorrectedSkinType] = useState("");
+    const [correctedProblems, setCorrectedProblems] = useState<string[]>([]);
     const [showPreview, setShowPreview] = useState(false);
     const [pricingMode, setPricingMode] = useState<"free" | "premium">("premium");
     const [loading, setLoading] = useState(false);
@@ -278,14 +284,13 @@ const Signup = () => {
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (step === 7 && !showPreview) {
-            setShowPreview(true);
+        if (step === 7 && onboardingPhotoBase64 && !showDiagnostic) {
+            setShowDiagnostic(true);
             window.scrollTo(0, 0);
             return;
         }
-
-        if (showPreview) {
-            setShowPreview(false);
+        if (showDiagnostic) {
+            setShowDiagnostic(false);
             setStep(8);
             window.scrollTo(0, 0);
             return;
@@ -529,6 +534,24 @@ const Signup = () => {
                                                     img.src = url;
                                                 });
                                                 setOnboardingPhotoBase64(base64);
+                                                setAnalysisLoading(true);
+                                                supabase.functions.invoke("skin-analysis", {
+                                                    body: { imageBase64: base64, age: age || undefined },
+
+                                                }).then(({ data }) => {
+                                                    if (data?.rejected) {
+                                                        // Photo mauvaise qualité → message + reset photo
+                                                        setOnboardingPhotoBase64(null);
+                                                        setAnalysisLoading(false);
+                                                        alert(`📸 ${data.reason}`);
+                                                        return;
+                                                    }
+                                                    if (data?.analysis) {
+                                                        setOnboardingAnalysis(data.analysis);
+                                                        setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
+                                                    }
+                                                    setAnalysisLoading(false);
+                                                }).catch(() => setAnalysisLoading(false));
                                             }}
                                         />
                                     </label>
@@ -877,6 +900,142 @@ const Signup = () => {
                                     </div>
                                 </div>
                             </>
+                        )}
+                        {showDiagnostic && (
+                            <div className="space-y-6 h-full flex flex-col">
+                                <div className="mb-6 flex items-start justify-between">
+                                    <div className="flex items-start gap-4">
+                                        <button type="button" onClick={() => setShowDiagnostic(false)}>
+                                            <ArrowLeft size={20} strokeWidth={1.8} className="text-foreground mt-1" />
+                                        </button>
+                                        <div>
+                                            <h1 className="text-2xl font-display text-foreground leading-tight mb-1">
+                                                Votre diagnostic de peau
+                                            </h1>
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+                                                Basé sur votre photo
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditingDiagnostic(!editingDiagnostic)}
+                                        className="w-9 h-9 rounded-full bg-muted/20 flex items-center justify-center"
+                                    >
+                                        {editingDiagnostic
+                                            ? <Check size={16} strokeWidth={2} className="text-primary" />
+                                            : <Sparkles size={16} strokeWidth={1.5} className="text-foreground/60" />}
+                                    </button>
+                                </div>
+
+                                {analysisLoading ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                                        <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                        <p className="text-sm text-muted-foreground">Analyse de votre peau en cours...</p>
+                                    </div>
+                                ) : onboardingAnalysis ? (
+                                    <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+
+                                        {/* KPIs principaux */}
+                                        <div className="grid grid-cols-2 gap-2 p-3 bg-muted/20 rounded-2xl">
+                                            {[
+                                                { label: "Type", value: onboardingAnalysis.type_peau_detecte ?? "—" },
+                                                { label: "Carnation", value: onboardingAnalysis.carnation_detectee ?? "—" },
+                                                { label: "Âge", value: age ? `${age} ans` : "—" },
+                                                { label: "Éclat", value: onboardingAnalysis.eclat_global ? `${onboardingAnalysis.eclat_global}/10` : "—" },
+                                            ].map(kpi => (
+                                                <div key={kpi.label} className="bg-white rounded-xl p-3 border border-border/40">
+                                                    <p className="text-[10px] text-muted-foreground font-medium mb-1">{kpi.label}</p>
+                                                    <p className="text-sm font-bold text-foreground capitalize">{kpi.value}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Scores visuels */}
+                                        <div className="bg-white rounded-2xl p-4 border border-border/40 space-y-3">
+                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Scores cutanés</p>
+                                            {[
+                                                { label: "Hydratation", value: onboardingAnalysis.hydratation?.score, max: 4, color: "bg-blue-400" },
+                                                { label: "Érythème", value: onboardingAnalysis.erytheme?.score, max: 4, color: "bg-red-400" },
+                                                { label: "Sébum zone T", value: onboardingAnalysis.sebum?.zone_t, max: 5, color: "bg-yellow-400" },
+                                                { label: "Acné", value: onboardingAnalysis.acne?.score, max: 4, color: "bg-orange-400" },
+                                            ].map(s => (
+                                                <div key={s.label}>
+                                                    <div className="flex justify-between mb-1">
+                                                        <span className="text-[11px] font-semibold text-foreground">{s.label}</span>
+                                                        <span className="text-[11px] text-muted-foreground">{s.value}/{s.max}</span>
+                                                    </div>
+                                                    <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${s.color} rounded-full`} style={{ width: `${(s.value / s.max) * 100}%` }} />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Points forts */}
+                                        {onboardingAnalysis.points_forts?.length > 0 && (
+                                            <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10">
+                                                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-2">✨ Points forts</p>
+                                                {onboardingAnalysis.points_forts.map((p: string, i: number) => (
+                                                    <p key={i} className="text-[12px] text-foreground/80 mb-1">• {p}</p>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Points attention */}
+                                        {onboardingAnalysis.points_attention?.length > 0 && (
+                                            <div className="bg-muted/10 rounded-2xl p-4 border border-border/40">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">À surveiller</p>
+                                                {onboardingAnalysis.points_attention.map((p: string, i: number) => (
+                                                    <p key={i} className="text-[12px] text-foreground/80 mb-1">• {p}</p>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Mode édition */}
+                                        {editingDiagnostic && (
+                                            <div className="bg-white rounded-2xl p-4 border-2 border-primary/20 space-y-4">
+                                                <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Corriger si nécessaire</p>
+                                                <div>
+                                                    <p className="text-[11px] font-bold text-foreground mb-2">Type de peau</p>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {["normale", "sèche", "grasse", "mixte", "sensible"].map(t => (
+                                                            <button type="button" key={t} onClick={() => setCorrectedSkinType(t)}
+                                                                className={`py-2 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wide border transition-all ${correctedSkinType === t ? 'bg-primary text-white border-primary' : 'bg-muted/20 border-transparent text-foreground/60'}`}>
+                                                                {t}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[11px] font-bold text-foreground mb-2">Préoccupations</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {["Acné", "Rides", "Taches", "Rougeurs", "Cernes", "Sécheresse", "Eczéma"].map(p => (
+                                                            <button type="button" key={p}
+                                                                onClick={() => setCorrectedProblems(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
+                                                                className={`py-1.5 px-3 rounded-full text-[10px] font-bold border transition-all ${correctedProblems.includes(p) ? 'bg-primary text-white border-primary' : 'bg-muted/10 border-border/40 text-foreground/60'}`}>
+                                                                {p}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Observations */}
+                                        {onboardingAnalysis.observations_libres && (
+                                            <div className="bg-muted/5 rounded-2xl p-4 border border-border/20">
+                                                <p className="text-[11px] text-foreground/70 leading-relaxed italic">{onboardingAnalysis.observations_libres}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
+                                        <p className="text-muted-foreground text-sm">Analyse non disponible</p>
+                                        <p className="text-[11px] text-muted-foreground/60">Vous pourrez analyser votre peau depuis l'application</p>
+                                    </div>
+                                )}
+                            </div>
                         )}
                         {step === 8 && (
                             <div className="space-y-8 h-full flex flex-col">
