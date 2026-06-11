@@ -862,197 +862,22 @@ const Signup = () => {
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
                                     <div>
-                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Diagnostic & Objectifs</h1>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Identification et priorités</p>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Vos objectifs</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Qu'est-ce qui compte le plus pour vous ?</p>
                                     </div>
                                 </div>
                                 <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
-                                    <div className="space-y-6">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Type de peau</label>
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            {["Sèche", "Grasse", "Mixte", "Normale", "Sensible", "Acnéique"].map(type => (
-                                                <button type="button" key={type} onClick={() => { setSkinType(type); setQuizStarted(false); }}
-                                                    className={`py-5 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinType === type && !quizStarted ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
-                                                    {type}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button type="button" onClick={() => { setQuizStarted(!quizStarted); setSkinType(""); setQuizStep(1); }}
-                                            className={`w-full py-4 px-4 border rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${quizStarted ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-white text-primary border-primary hover:bg-primary/5'}`}>
-                                            Diagnostic assisté
-                                        </button>
-
-                                        <AnimatePresence>
-                                            {quizStarted && (
-                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="premium-card p-6 mt-6 overflow-hidden bg-white/40 border-primary/10">
-                                                    {quizStep === 1 && (
-                                                        <div className="space-y-6">
-                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">1. Réaction après nettoyage</p>
-                                                            <div className="flex flex-col gap-3">
-                                                                {[
-                                                                    { label: "Elle tiraille et est inconfortable", val: "Sèche" },
-                                                                    { label: "Elle brille sur tout le visage", val: "Grasse" },
-                                                                    { label: "Seulement la zone T brille", val: "Mixte" },
-                                                                    { label: "Elle est confortable et équilibrée", val: "Normale" },
-                                                                    { label: "Elle est rouge ou chauffe", val: "Sensible" }
-                                                                ].map(opt => (
-                                                                    <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q1: opt.val }); setQuizStep(2); }}
-                                                                        className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
-                                                                        {opt.label}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {quizStep === 2 && (
-                                                        <div className="space-y-6">
-                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">2. Apparence des pores</p>
-                                                            <div className="flex flex-col gap-3">
-                                                                {[
-                                                                    { label: "Presque invisibles", val: "Sèche" },
-                                                                    { label: "Larges sur tout le visage", val: "Grasse" },
-                                                                    { label: "Visibles uniquement sur le nez", val: "Mixte" },
-                                                                    { label: "Petits mais réguliers", val: "Normale" }
-                                                                ].map(opt => (
-                                                                    <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q2: opt.val }); setQuizStep(3); }}
-                                                                        className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
-                                                                        {opt.label}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {quizStep === 3 && (
-                                                        <div className="space-y-6">
-                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">3. Fréquence des imperfections</p>
-                                                            <div className="flex flex-col gap-3">
-                                                                {[
-                                                                    { label: "Rarement ou jamais", val: "Sèche" },
-                                                                    { label: "Très souvent (points noirs, boutons)", val: "Grasse" },
-                                                                    { label: "Localisées sur le front ou le nez", val: "Mixte" },
-                                                                    { label: "Ma peau réagit aux produits", val: "Sensible" }
-                                                                ].map(opt => (
-                                                                    <button type="button" key={opt.val} onClick={() => { setQuizAnswers({ ...quizAnswers, q3: opt.val }); setQuizStep(4); }}
-                                                                        className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
-                                                                        {opt.label}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {quizStep === 4 && (
-                                                        <div className="space-y-6">
-                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest italic opacity-60">4. Texture au toucher</p>
-                                                            <div className="flex flex-col gap-3">
-                                                                {[
-                                                                    { label: "Rugueuse ou squameuse", val: "Sèche" },
-                                                                    { label: "Épaisse et souvent huileuse", val: "Grasse" },
-                                                                    { label: "Variable (grasse et sèche)", val: "Mixte" },
-                                                                    { label: "Lisse, douce et souple", val: "Normale" }
-                                                                ].map(opt => (
-                                                                    <button type="button" key={opt.val} onClick={() => {
-                                                                        const finalAnswers = { ...quizAnswers, q4: opt.val };
-                                                                        setQuizAnswers(finalAnswers);
-                                                                        const scores = { Sèche: 0, Grasse: 0, Mixte: 0, Normale: 0, Sensible: 0 };
-                                                                        if (finalAnswers.q1 === "Sèche") scores.Sèche += 2;
-                                                                        if (finalAnswers.q1 === "Grasse") scores.Grasse += 2;
-                                                                        if (finalAnswers.q1 === "Mixte") scores.Mixte += 2;
-                                                                        if (finalAnswers.q1 === "Normale") scores.Normale += 2;
-                                                                        if (finalAnswers.q1 === "Sensible") scores.Sensible += 2;
-                                                                        if (finalAnswers.q2 === "Sèche") { scores.Sèche += 1; scores.Normale += 1; }
-                                                                        if (finalAnswers.q2 === "Grasse") scores.Grasse += 2;
-                                                                        if (finalAnswers.q2 === "Mixte") scores.Mixte += 2;
-                                                                        if (finalAnswers.q2 === "Normale") scores.Normale += 2;
-                                                                        if (finalAnswers.q3 === "Sèche") { scores.Sèche += 1; scores.Normale += 1; }
-                                                                        if (finalAnswers.q3 === "Grasse") scores.Grasse += 2;
-                                                                        if (finalAnswers.q3 === "Mixte") scores.Mixte += 2;
-                                                                        if (finalAnswers.q3 === "Sensible") scores.Sensible += 2;
-                                                                        if (finalAnswers.q4 === "Sèche") scores.Sèche += 2;
-                                                                        if (finalAnswers.q4 === "Grasse") scores.Grasse += 2;
-                                                                        if (finalAnswers.q4 === "Mixte") scores.Mixte += 2;
-                                                                        if (finalAnswers.q4 === "Normale") scores.Normale += 2;
-                                                                        let winner = "Normale";
-                                                                        let maxScore = -1;
-                                                                        Object.entries(scores).forEach(([type, score]) => {
-                                                                            if (score > maxScore) {
-                                                                                maxScore = score;
-                                                                                winner = type;
-                                                                            }
-                                                                        });
-                                                                        setSkinType(winner);
-                                                                        setQuizStep(5);
-                                                                    }}
-                                                                        className="text-left py-4 px-6 border border-border/40 rounded-2xl text-[11px] font-bold tracking-tight hover:border-primary transition-all bg-white/60 hover:bg-white shadow-sm">
-                                                                        {opt.label}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {quizStep === 5 && (
-                                                        <div className="space-y-6 text-center py-4">
-                                                            <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-                                                                <CheckCircle2 size={40} strokeWidth={1.5} />
-                                                            </div>
-                                                            <h3 className="text-xl font-display text-foreground leading-tight">Analyse terminée</h3>
-                                                            <div className="p-6 rounded-3xl bg-white border border-primary/10 premium-shadow">
-                                                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 opacity-60">Type détecté</p>
-                                                                <p className="text-2xl font-display text-primary">{skinType}</p>
-                                                            </div>
-                                                            <p className="text-[11px] text-muted-foreground leading-relaxed italic px-4">
-                                                                Votre peau semble être de type {skinType}.
-                                                                Validez pour enregistrer.
-                                                            </p>
-                                                            <div className="flex flex-col gap-4 mt-8">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setQuizStarted(false)}
-                                                                    className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow"
-                                                                >
-                                                                    Valider
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setQuizStep(1)}
-                                                                    className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
-                                                                >
-                                                                    Recommencer
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-
-                                    <div className="space-y-6 pt-10 border-t border-border/40">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Sensibilités prioritaires</label>
-                                        <div className="grid grid-cols-2 gap-3 mt-2">
-                                            {["Acné", "Rougeurs", "Taches", "Points noirs", "Déshydratation", "Rides", "Cernes", "Eczéma"].map(prob => (
-                                                <button type="button" key={prob} onClick={() => toggleProblem(prob)}
-                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinProblems.includes(prob) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
-                                                    {prob}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-6 pt-10 border-t border-border/40">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Objectifs & Priorités</label>
-                                        <div className="grid grid-cols-2 gap-3 mt-2">
-                                            {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
-                                                <button type="button" key={goal} onClick={() => toggleGoal(goal)}
-                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
-                                                    {goal}
-                                                </button>
-                                            ))}
-                                        </div>
+                                    <div className="grid grid-cols-2 gap-3 mt-2">
+                                        {["Hydratation", "Anti-âge", "Éclat / Glow", "Anti-imperfections", "Apaiser", "Taches", "Pores", "Anti-cernes"].map(goal => (
+                                            <button type="button" key={goal} onClick={() => toggleGoal(goal)}
+                                                className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                                                {goal}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </>
                         )}
-
                         {step === 8 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-6 flex items-start gap-4">
@@ -1313,7 +1138,7 @@ const Signup = () => {
 
                                         (step === 2 && (!age || !gender)) ||
                                         (step === 3 && !carnation) ||
-                                        (step === 7 && !showPreview && (!skinType || skinGoals.length === 0)) ||
+                                        (step === 7 && skinGoals.length === 0) ||
                                         (step === 10 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                     }
                                     className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
