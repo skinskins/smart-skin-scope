@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan } from "lucide-react";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
@@ -89,6 +89,7 @@ const Signup = () => {
     const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
 
     const [step, setStep] = useState(1);
+    const [onboardingPhotoBase64, setOnboardingPhotoBase64] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const [pricingMode, setPricingMode] = useState<"free" | "premium">("premium");
     const [loading, setLoading] = useState(false);
@@ -240,7 +241,8 @@ const Signup = () => {
                 }
                 else if (step === 9) setStep(8);
                 else if (step === 8) setShowPreview(true);
-                else if (step > 1) setStep(step - 1);
+                else if (step > 2) setStep(step - 1);
+                else if (step === 2) navigate("/onboarding");
                 else navigate("/onboarding");
             }}
             className="w-10 h-10 flex items-center justify-center rounded-full border border-border/40 bg-white/50 hover:bg-white transition-all shadow-sm shrink-0 mt-1"
@@ -459,54 +461,72 @@ const Signup = () => {
                     <form onSubmit={handleNext} className="space-y-6 h-full flex flex-col">
                         {step === 1 && (
                             <>
-                                <div className="mb-10 flex items-start gap-4">
+                                <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
                                     <div>
-                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Socio-professsionnel</h1>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">(Optionnel) Données statistiques</p>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-2">
+                                            Obtenez votre diagnostic de peau
+                                        </h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+                                            Une simple photo suffit
+                                        </p>
                                     </div>
                                 </div>
-                                <div className="space-y-8 flex-1">
-                                    <div className="space-y-4 relative">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Catégorie professionnelle</label>
-                                        <div className="relative">
-                                            <Briefcase className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                                            <select
-                                                className="w-full pl-12 h-14 bg-white border border-border/60 rounded-full focus:outline-none focus:border-primary text-xs font-bold tracking-tight appearance-none transition-all shadow-sm"
-                                                value={profession}
-                                                onChange={(e) => setProfession(e.target.value)}
-                                            >
-                                                <option value="">Sélectionner (optionnel)</option>
-                                                {professions.map(prof => (
-                                                    <option key={prof} value={prof}>{prof}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+
+                                <div className="flex-1 flex flex-col gap-6">
+                                    {/* Zone photo */}
+                                    <div className="relative rounded-3xl overflow-hidden bg-muted/20 border border-border/40" style={{ height: 320 }}>
+                                        {onboardingPhotoBase64 ? (
+                                            <img
+                                                src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
+                                                alt="Photo peau"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground/50">
+                                                <Camera size={40} strokeWidth={1.2} />
+                                                <p className="text-sm">Visage démaquillé, face à la lumière</p>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="space-y-6 pt-10 border-t border-border/40">
-                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Canaux de découverte</label>
-                                        <div className="grid grid-cols-2 gap-3 mt-2">
-                                            {channels.map(ch => (
-                                                <button type="button" key={ch} onClick={() => toggleChannel(ch)}
-                                                    className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${usedChannels.includes(ch) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
-                                                    {ch}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <AnimatePresence>
-                                            {usedChannels.includes("Autre") && (
-                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-2 overflow-hidden">
-                                                    <Input
-                                                        type="text"
-                                                        placeholder="Veuillez préciser..."
-                                                        value={otherChannel}
-                                                        onChange={(e) => setOtherChannel(e.target.value)}
-                                                        className="h-14"
-                                                    />
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
+
+                                    {/* Disclaimer RGPD */}
+                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-4">
+                                        Votre photo est utilisée uniquement pour l'analyse de peau, conformément à notre politique de confidentialité.
+                                    </p>
+
+                                    {/* Bouton prendre une photo */}
+                                    <label className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest cursor-pointer hover:opacity-90 transition-all active:scale-[0.98]">
+                                        <Camera size={18} strokeWidth={2} />
+                                        {onboardingPhotoBase64 ? "Reprendre la photo" : "Prendre une photo"}
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="user"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                const base64 = await new Promise<string>((resolve, reject) => {
+                                                    const img = new Image();
+                                                    const url = URL.createObjectURL(file);
+                                                    img.onload = () => {
+                                                        const canvas = document.createElement("canvas");
+                                                        const MAX = 1200;
+                                                        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+                                                        canvas.width = img.width * ratio;
+                                                        canvas.height = img.height * ratio;
+                                                        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                                        URL.revokeObjectURL(url);
+                                                        resolve(canvas.toDataURL("image/jpeg", 0.8).split(",")[1]);
+                                                    };
+                                                    img.onerror = reject;
+                                                    img.src = url;
+                                                });
+                                                setOnboardingPhotoBase64(base64);
+                                            }}
+                                        />
+                                    </label>
                                 </div>
                             </>
                         )}
@@ -569,8 +589,8 @@ const Signup = () => {
                                             key={swatch.value}
                                             onClick={() => setCarnation(swatch.value)}
                                             className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value
-                                                    ? "border-primary bg-primary/5 premium-shadow"
-                                                    : "border-border/40 bg-background/40"
+                                                ? "border-primary bg-primary/5 premium-shadow"
+                                                : "border-border/40 bg-background/40"
                                                 }`}
                                         >
                                             <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
@@ -758,8 +778,8 @@ const Signup = () => {
                                                                     type="button"
                                                                     onClick={() => toggleOnboardingProduct(p)}
                                                                     className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
-                                                                            ? "bg-primary/10 text-primary cursor-default"
-                                                                            : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                                                                        ? "bg-primary/10 text-primary cursor-default"
+                                                                        : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                                                                         }`}
                                                                 >
                                                                     {isAdded ? <Check size={16} /> : <Plus size={16} />}
@@ -1285,7 +1305,7 @@ const Signup = () => {
                                     type="submit"
                                     disabled={
                                         (loading) ||
-                                        (step === 1 && usedChannels.includes('Autre') && !otherChannel) ||
+
                                         (step === 2 && (!age || !gender)) ||
                                         (step === 3 && !carnation) ||
                                         (step === 7 && !showPreview && (!skinType || skinGoals.length === 0)) ||
