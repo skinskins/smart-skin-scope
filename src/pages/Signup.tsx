@@ -302,7 +302,12 @@ const Signup = () => {
         }
 
         if (step < 10) {
-            setStep(step + 1);
+            // Si photo prise et on est au step 2, sauter carnation (step 3)
+            if (step === 2 && onboardingPhotoBase64) {
+                setStep(4);
+            } else {
+                setStep(step + 1);
+            }
             window.scrollTo(0, 0);
             return;
         }
