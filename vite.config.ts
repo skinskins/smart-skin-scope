@@ -9,7 +9,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: ['header-rising-remake.ngrok-free.dev', 'all'],
     hmr: {
       overlay: false,
     },

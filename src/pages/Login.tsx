@@ -32,7 +32,7 @@ const Login = () => {
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-            const { data } = await (supabase as any).from('profiles').select('skin_goals').eq('id', session.user.id).single();
+            const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
             const profile = data as any;
             if (profile && profile.skin_goals && (profile.skin_goals as any).length > 0) {
                 navigate("/dashboard");

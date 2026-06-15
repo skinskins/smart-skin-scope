@@ -1,10 +1,10 @@
-import { Home, CalendarDays, Sparkles, User } from "lucide-react";
+import { Home, Stethoscope, Sparkles, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
   { path: "/dashboard", icon: Home, label: "Accueil" },
-  { path: "/vanity", icon: Sparkles, label: "Vanity" },
-  { path: "/suivi", icon: CalendarDays, label: "Suivi" },
+  { path: "/routine", icon: Sparkles, label: "Routine" },
+  { path: "/diagnosis", icon: Stethoscope, label: "Diagnostic" },
   { path: "/profile", icon: User, label: "Profil" },
 ];
 
@@ -12,7 +12,7 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/rgpd", "/", "/reset-password", "/callback", "/strava-connect", "/routine-player", "/daily-conversation"];
+  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/rgpd", "/", "/reset-password", "/callback", "/strava-connect"];
   if (hiddenRoutes.includes(location.pathname)) return null;
 
   return (

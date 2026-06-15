@@ -91,6 +91,11 @@ const RoutineSetupOnboarding = () => {
         try {
             const { data: sessionData } = await supabase.auth.getSession();
             if (sessionData?.session) {
+                // @ts-ignore
+                await (supabase as any).from("profiles").update({
+                    am_routine: userProducts,
+                    pm_routine: userProducts
+                }).eq("id", sessionData.session.user.id);
             }
         } catch (e) {
             console.error(e);

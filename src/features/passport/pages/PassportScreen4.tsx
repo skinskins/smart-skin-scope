@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight, Expand, Sparkles, X } from "lucide-react";
 import PassportShareButton from "@/features/passport/components/PassportShareButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { calculateCyclePhaseForDate } from "@/utils/cycle";
 
 interface PhotoEntry {
   id: string;
@@ -35,18 +34,22 @@ export default function PassportScreen4() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setLoading(false); return; }
 
-      const [{ data: photoRows }, { data: profile }] = await Promise.all([
+      const [{ data: photoRows }, { data: checkinRows }] = await Promise.all([
         (supabase as any)
           .from("skin_photos")
           .select("id, date, storage_path")
           .eq("user_id", session.user.id)
           .order("date", { ascending: true }),
         (supabase as any)
-          .from("profiles")
-          .select("last_period_date, cycle_duration")
-          .eq("id", session.user.id)
-          .maybeSingle(),
+          .from("daily_checkins")
+          .select("date, cycle_phase")
+          .eq("user_id", session.user.id),
       ]);
+
+      const cycleMap: Record<string, string> = {};
+      (checkinRows ?? []).forEach((r: any) => {
+        if (r.cycle_phase) cycleMap[r.date] = r.cycle_phase;
+      });
 
       const entries: PhotoEntry[] = await Promise.all(
         (photoRows ?? []).map(async (row: any) => {
@@ -58,7 +61,7 @@ export default function PassportScreen4() {
             date: row.date,
             storage_path: row.storage_path,
             publicUrl: signed?.signedUrl ?? "",
-            cycle_phase: calculateCyclePhaseForDate(profile?.last_period_date ?? null, profile?.cycle_duration ?? 28, 5, row.date),
+            cycle_phase: cycleMap[row.date] ?? null,
           };
         })
       );

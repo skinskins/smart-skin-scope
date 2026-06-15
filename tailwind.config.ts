@@ -47,10 +47,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        success: {
-          DEFAULT: "hsl(var(--success))",
-          foreground: "hsl(var(--success-foreground))",
-        },
         skin: {
           glow: "hsl(var(--skin-glow))",
           hydration: "hsl(var(--skin-hydration))",
@@ -70,9 +66,8 @@ export default {
         },
       },
       fontFamily: {
-        display: ['DM Sans', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
-        inter: ['Inter', 'sans-serif'],
+        display: ['Playfair Display', 'serif'],
+        body: ['DM Sans', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
