@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock } from "lucide-react";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,26 @@ const Signup = () => {
     const [rednessBaseline, setRednessBaseline] = useState("");
     const [drynessBaseline, setDrynessBaseline] = useState("");
 
+    // Step 3 — Carnation
+    const [carnation, setCarnation] = useState("");
+
+    // Step 4 — Cycle
+    const [lastPeriodDate, setLastPeriodDate] = useState("");
+    const [cycleDuration, setCycleDuration] = useState(28);
+
+    // Step 5 — Location
+    const [locationMode, setLocationMode] = useState<"geo" | "manual" | null>(null);
+    const [manualCity, setManualCity] = useState("");
+    const [geoLoading, setGeoLoading] = useState(false);
+
+    // Step 6 — Produits (sélection locale, insert après création compte)
+    const [productSearchQuery, setProductSearchQuery] = useState("");
+    const [productCatalogResults, setProductCatalogResults] = useState<any[]>([]);
+    const [selectedOnboardingProducts, setSelectedOnboardingProducts] = useState<any[]>([]);
+    const [onboardingScannerOpen, setOnboardingScannerOpen] = useState(false);
+    const [onboardingScanMessage, setOnboardingScanMessage] = useState<string | null>(null);
+    const onboardingScannerRef = useRef<any>(null);
+
     // Pricing Step State
     const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
 
@@ -81,7 +102,7 @@ const Signup = () => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                const { data } = await (supabase as any).from('profiles').select('*').eq('id', session.user.id).single();
+                const { data } = await (supabase as any).from('profiles').select('first_name, last_name, profession, used_channels, age, gender, skin_type, skin_problems, skin_goals').eq('id', session.user.id).single();
                 if (data) {
                     if (data.first_name) setFirstName(data.first_name);
                     if (data.last_name) setLastName(data.last_name);
@@ -143,6 +164,66 @@ const Signup = () => {
         return advices.slice(0, 4); // Show up to 4 advices
     };
 
+    useEffect(() => {
+        if (productSearchQuery.length < 2) { setProductCatalogResults([]); return; }
+        const timer = setTimeout(async () => {
+            const { data } = await (supabase as any)
+                .from("user_products")
+                .select("id, product_name, brand, photo_url, product_type")
+                .is("user_id", null)
+                .or(`product_name.ilike.%${productSearchQuery}%,brand.ilike.%${productSearchQuery}%`)
+                .limit(8);
+            if (data) setProductCatalogResults(data);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [productSearchQuery]);
+
+    const processOnboardingBarcode = async (barcode: string) => {
+        const { data: catalogProduct } = await (supabase as any)
+            .from("user_products")
+            .select("*")
+            .is("user_id", null)
+            .eq("barcode", barcode)
+            .maybeSingle();
+        if (catalogProduct) {
+            const isAlready = selectedOnboardingProducts.some(p => p.id === catalogProduct.id);
+            if (!isAlready) setSelectedOnboardingProducts(prev => [...prev, catalogProduct]);
+            setOnboardingScanMessage("Produit trouvé et ajouté ✓");
+        } else {
+            setOnboardingScanMessage("Produit non reconnu — introuvable dans le catalogue");
+        }
+        setTimeout(() => setOnboardingScanMessage(null), 4000);
+    };
+
+    useEffect(() => {
+        if (!onboardingScannerOpen) return;
+        let scanner: any;
+        const init = async () => {
+            const { Html5Qrcode } = await import("html5-qrcode");
+            scanner = new Html5Qrcode("qr-reader-onboarding");
+            onboardingScannerRef.current = scanner;
+            await scanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 120 } },
+                async (code: string) => {
+                    await scanner.stop().catch(() => {});
+                    onboardingScannerRef.current = null;
+                    setOnboardingScannerOpen(false);
+                    await processOnboardingBarcode(code);
+                },
+                undefined
+            );
+        };
+        init().catch(() => setOnboardingScannerOpen(false));
+        return () => { onboardingScannerRef.current?.stop().catch(() => {}); };
+    }, [onboardingScannerOpen]);
+
+    const toggleOnboardingProduct = (product: any) => {
+        const isAdded = selectedOnboardingProducts.some(p => p.id === product.id);
+        if (isAdded) setSelectedOnboardingProducts(prev => prev.filter(p => p.id !== product.id));
+        else setSelectedOnboardingProducts(prev => [...prev, product]);
+    };
+
     const BackButton = () => (
         <motion.button
             type="button"
@@ -153,12 +234,12 @@ const Signup = () => {
             onClick={(e) => {
                 e.preventDefault();
                 if (showPreview) setShowPreview(false);
-                else if (step === 6) {
-                    if (pricingMode === "free") setStep(4);
-                    else setStep(5);
+                else if (step === 10) {
+                    if (pricingMode === "free") setStep(8);
+                    else setStep(9);
                 }
-                else if (step === 5) setStep(4);
-                else if (step === 4) setShowPreview(true);
+                else if (step === 9) setStep(8);
+                else if (step === 8) setShowPreview(true);
                 else if (step > 1) setStep(step - 1);
                 else navigate("/onboarding");
             }}
@@ -195,7 +276,7 @@ const Signup = () => {
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (step === 3 && !showPreview) {
+        if (step === 7 && !showPreview) {
             setShowPreview(true);
             window.scrollTo(0, 0);
             return;
@@ -203,28 +284,28 @@ const Signup = () => {
 
         if (showPreview) {
             setShowPreview(false);
-            setStep(4);
+            setStep(8);
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step === 4) {
+        if (step === 8) {
             if (pricingMode === "free") {
-                setStep(6);
+                setStep(10);
             } else {
-                setStep(5);
+                setStep(9);
             }
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step < 6) { // Account creation is now step 6
+        if (step < 10) {
             setStep(step + 1);
             window.scrollTo(0, 0);
             return;
         }
 
-        // Step 4: Final Signup
+        // Step 10: Final Signup
         if (!firstName || !lastName || !email || !password) return;
         setLoading(true);
         try {
@@ -259,11 +340,30 @@ const Signup = () => {
                 gender: gender || null,
                 skin_type: skinType || null,
                 skin_problems: skinProblems.length > 0 ? skinProblems : null,
-                skin_goals: skinGoals.length > 0 ? skinGoals : null
+                skin_goals: skinGoals.length > 0 ? skinGoals : null,
+                carnation: carnation || null,
+                last_period_date: lastPeriodDate || null,
+                cycle_duration: cycleDuration,
+                manual_location: locationMode === "manual" ? manualCity || null : null,
             });
 
-            const baselinePromises: any[] = [];
+            if (selectedOnboardingProducts.length > 0) {
+                await (supabase as any).from("user_products").insert(
+                    selectedOnboardingProducts.map(p => ({
+                        product_name: p.product_name,
+                        brand: p.brand,
+                        photo_url: p.photo_url,
+                        product_type: p.product_type,
+                        user_id: userId,
+                        morning_use: true,
+                        evening_use: true,
+                        frequency: "daily",
+                        is_active: true,
+                    }))
+                );
+            }
 
+            const baselinePromises: any[] = [];
             await Promise.all(baselinePromises);
 
             if (profileError) {
@@ -445,7 +545,296 @@ const Signup = () => {
                             </>
                         )}
 
+                        {/* Step 3 — Carnation */}
                         {step === 3 && (
+                            <>
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Votre carnation</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation colorimétrique</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 flex-1">
+                                    {[
+                                        { value: "très_claire",   label: "Très claire",    color: "#F5E6D8" },
+                                        { value: "claire",        label: "Claire",          color: "#EAC9A8" },
+                                        { value: "beige_doré",    label: "Beige dorée",     color: "#C8924F" },
+                                        { value: "olive_caramel", label: "Olive-Caramel",   color: "#A0622A" },
+                                        { value: "foncée",        label: "Foncée",          color: "#6B3A1F" },
+                                        { value: "ébène",         label: "Ébène",           color: "#2C1810" },
+                                    ].map(swatch => (
+                                        <button
+                                            type="button"
+                                            key={swatch.value}
+                                            onClick={() => setCarnation(swatch.value)}
+                                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                                                carnation === swatch.value
+                                                    ? "border-primary bg-primary/5 premium-shadow"
+                                                    : "border-border/40 bg-background/40"
+                                            }`}
+                                        >
+                                            <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
+                                            <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">
+                                                {swatch.label}
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Step 4 — Cycle menstruel */}
+                        {step === 4 && (
+                            <>
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Établissons votre profil de peau</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Cycle menstruel</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-8 flex-1">
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Vos dernières règles</label>
+                                        <Input
+                                            type="date"
+                                            value={lastPeriodDate}
+                                            onChange={(e) => setLastPeriodDate(e.target.value)}
+                                            className="h-14 rounded-2xl font-mono"
+                                            max={new Date().toISOString().split("T")[0]}
+                                        />
+                                    </div>
+                                    <div className="space-y-6 pt-6 border-t border-border/40">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Durée du cycle</label>
+                                            <span className="text-sm font-bold text-primary">{cycleDuration} jours</span>
+                                        </div>
+                                        <Slider
+                                            value={[cycleDuration]}
+                                            min={21}
+                                            max={35}
+                                            step={1}
+                                            onValueChange={(v) => setCycleDuration(v[0])}
+                                        />
+                                        <p className="text-[10px] text-muted-foreground text-center italic">21 jours — 35 jours · Défaut : 28 jours</p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        {["Je ne sais pas", "Pas de règles"].map(opt => (
+                                            <button
+                                                key={opt}
+                                                type="button"
+                                                onClick={() => setLastPeriodDate("")}
+                                                className="flex-1 py-3 rounded-2xl border border-border/40 text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:border-primary transition-all"
+                                            >
+                                                {opt}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Step 5 — Localisation météo */}
+                        {step === 5 && (
+                            <>
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Votre météo au service de votre peau</h1>
+                                    </div>
+                                </div>
+                                <div className="space-y-8 flex-1">
+                                    <div className="space-y-3">
+                                        {[
+                                            { icon: "☀️", title: "Indice UV",    desc: "Adapte votre SPF en temps réel" },
+                                            { icon: "💨", title: "Pollution",     desc: "Protège votre barrière cutanée" },
+                                            { icon: "🌡️", title: "Température",  desc: "Ajuste l'hydratation recommandée" },
+                                        ].map(b => (
+                                            <div key={b.title} className="flex items-center gap-4 p-4 bg-muted/20 rounded-2xl">
+                                                <span className="text-2xl">{b.icon}</span>
+                                                <div>
+                                                    <p className="text-sm font-bold text-foreground">{b.title}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{b.desc}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        disabled={geoLoading}
+                                        onClick={() => {
+                                            setGeoLoading(true);
+                                            navigator.geolocation.getCurrentPosition(
+                                                () => { setLocationMode("geo"); setGeoLoading(false); },
+                                                () => { setGeoLoading(false); setLocationMode("manual"); }
+                                            );
+                                        }}
+                                        className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow disabled:opacity-60"
+                                    >
+                                        {geoLoading
+                                            ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            : <MapPin size={18} strokeWidth={1.5} />}
+                                        {geoLoading ? "Localisation..." : "Autoriser la localisation"}
+                                    </button>
+                                    {locationMode === "geo" && (
+                                        <p className="text-center text-sm text-primary font-semibold">✓ Localisation activée</p>
+                                    )}
+                                    {locationMode === "manual" ? (
+                                        <Input
+                                            value={manualCity}
+                                            onChange={(e) => setManualCity(e.target.value)}
+                                            placeholder="Ex: Paris"
+                                            className="h-14"
+                                        />
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setLocationMode("manual")}
+                                            className="w-full text-center text-[11px] text-muted-foreground underline underline-offset-4 hover:text-primary transition-colors"
+                                        >
+                                            Saisir ma ville manuellement
+                                        </button>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Step 6 — Ajout produits */}
+                        {step === 6 && (
+                            <>
+                                <div className="mb-6 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Ajouter vos produits</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre routine actuelle</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto pb-4 custom-scrollbar space-y-4 pr-1">
+                                    {/* Search card — même layout que Vanity */}
+                                    <div className="premium-card p-0 overflow-hidden">
+                                        <div className="p-5 bg-background/50 border-b border-border/50">
+                                            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Rechercher un produit</h2>
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                                    <Input
+                                                        value={productSearchQuery}
+                                                        onChange={(e) => setProductSearchQuery(e.target.value)}
+                                                        onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                                                        placeholder="Chercher un produit ou marque..."
+                                                        className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOnboardingScannerOpen(true)}
+                                                    className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
+                                                >
+                                                    <Scan size={18} strokeWidth={1.5} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="p-5 space-y-4">
+                                            {productCatalogResults.length > 0 ? (
+                                                <div className="grid gap-3">
+                                                    {productCatalogResults.map(p => {
+                                                        const isAdded = selectedOnboardingProducts.some(s => s.id === p.id);
+                                                        return (
+                                                            <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm">
+                                                                <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                                    {p.photo_url
+                                                                        ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                                                                        : <ImageOff size={18} className="text-muted-foreground/40" />}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
+                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                                                    {p.product_type && (
+                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleOnboardingProduct(p)}
+                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                                                                        isAdded
+                                                                            ? "bg-primary/10 text-primary cursor-default"
+                                                                            : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                                                                    }`}
+                                                                >
+                                                                    {isAdded ? <Check size={16} /> : <Plus size={16} />}
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="text-center text-[11px] text-muted-foreground italic py-2">
+                                                    Tapez le nom d'un produit ou d'une marque pour rechercher
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Selected products card */}
+                                    {selectedOnboardingProducts.length > 0 && (
+                                        <div className="premium-card p-5">
+                                            <p className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
+                                                {selectedOnboardingProducts.length} produit{selectedOnboardingProducts.length > 1 ? "s" : ""} sélectionné{selectedOnboardingProducts.length > 1 ? "s" : ""}
+                                            </p>
+                                            <div className="grid gap-2">
+                                                {selectedOnboardingProducts.map(p => (
+                                                    <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl shadow-sm">
+                                                        <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                            {p.photo_url
+                                                                ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                                                                : <ImageOff size={14} className="text-muted-foreground/40" />}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
+                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleOnboardingProduct(p)}
+                                                            className="w-7 h-7 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shrink-0"
+                                                        >
+                                                            <X size={13} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Scanner overlay */}
+                                {onboardingScannerOpen && (
+                                    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center gap-6">
+                                        <p className="text-white text-sm font-medium tracking-wide">Scannez un code-barres</p>
+                                        <div id="qr-reader-onboarding" className="w-72 rounded-2xl overflow-hidden" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setOnboardingScannerOpen(false)}
+                                            className="text-white/60 text-sm hover:text-white transition-colors"
+                                        >
+                                            Annuler
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Toast scan */}
+                                {onboardingScanMessage && (
+                                    <div className="fixed bottom-28 left-4 right-4 max-w-sm mx-auto bg-foreground text-background text-sm rounded-2xl px-4 py-3 text-center z-40">
+                                        {onboardingScanMessage}
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {step === 7 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -641,7 +1030,7 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step === 4 && (
+                        {step === 8 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
@@ -717,14 +1106,14 @@ const Signup = () => {
                                 <div className="space-y-3 pt-2 mt-auto">
                                     <button
                                         type="button"
-                                        onClick={() => { setStep(6); window.scrollTo(0, 0); }}
+                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
                                         className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
                                     >
                                         Passer premium
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => { setStep(6); window.scrollTo(0, 0); }}
+                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
                                         className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
                                     >
                                         Commencer mon essai gratuit
@@ -736,28 +1125,25 @@ const Signup = () => {
                             </div>
                         )}
 
-                        {step === 5 && (
+                        {step === 9 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-4 flex items-center gap-4">
                                     <BackButton />
-                                    <div>
-                                        <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em] mb-1">Votre essai est terminé</p>
-                                        <h2 className="text-2xl font-display text-foreground leading-tight">Continuez à prendre soin de vous</h2>
-                                    </div>
+                                    <h2 className="text-2xl font-display text-foreground italic">Choisissez votre abonnement</h2>
                                 </div>
 
-                                {/* Segmented Control — Annuel (-40%) left, Mensuel right */}
+                                {/* Segmented Control */}
                                 <div className="bg-muted/20 p-1.5 rounded-full flex mb-8 relative border border-border/40">
                                     <motion.div
                                         className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
-                                        animate={{ x: selectedPlan === 'monthly' ? '100%' : '0%' }}
+                                        animate={{ x: selectedPlan === 'yearly' ? '100%' : '0%' }}
                                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                                     />
-                                    <button type="button" onClick={() => setSelectedPlan("yearly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 relative ${selectedPlan === 'yearly' ? 'text-primary' : 'text-muted-foreground'}`}>
-                                        <Badge className="absolute -top-3 -left-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
-                                        Annuel
-                                    </button>
                                     <button type="button" onClick={() => setSelectedPlan("monthly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 ${selectedPlan === 'monthly' ? 'text-primary' : 'text-muted-foreground'}`}>Mensuel</button>
+                                    <button type="button" onClick={() => setSelectedPlan("yearly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 relative ${selectedPlan === 'yearly' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        Annuel
+                                        <Badge className="absolute -top-3 -right-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
+                                    </button>
                                 </div>
 
                                 {/* Price Display */}
@@ -775,50 +1161,40 @@ const Signup = () => {
                                                 <span className="text-5xl font-display text-foreground italic leading-none">{PLANS[selectedPlan].price}</span>
                                                 <span className="text-xl text-muted-foreground italic">{PLANS[selectedPlan].period}</span>
                                             </div>
-                                            <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
+                                            <div className="space-y-2">
+                                                <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
+                                            </div>
                                         </motion.div>
                                     </AnimatePresence>
                                 </motion.div>
 
-                                {/* Feature list matching Figma */}
                                 <div className="space-y-4 mb-8">
-                                    {[
-                                        { label: "Accès illimité", desc: "Toutes les fonctionnalités sans restriction" },
-                                        { label: "Sans engagement", desc: "Annulez à tout moment" },
-                                        { label: "Conseils personnalisés", desc: "Adaptés à votre cycle, météo et routine" },
-                                        { label: "Mémoire illimitée", desc: "Historique complet sans limite de temps" },
-                                    ].map((item, idx) => (
-                                        <div key={idx} className="flex items-start gap-4">
-                                            <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5"><Check size={11} strokeWidth={3} /></div>
-                                            <div>
-                                                <p className="text-[13px] font-semibold text-foreground">{item.label}</p>
-                                                <p className="text-[11px] text-muted-foreground italic leading-tight">{item.desc}</p>
-                                            </div>
+                                    {["Accès illimité", "Sans engagement", "Aucun débit maintenant"].map((text, idx) => (
+                                        <div key={idx} className="flex items-center gap-4">
+                                            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0"><Check size={12} strokeWidth={3} /></div>
+                                            <span className="text-[13px] font-medium text-foreground italic">{text}</span>
                                         </div>
                                     ))}
                                 </div>
 
-                                <div className="space-y-3 pt-4">
+                                <div className="space-y-4 pt-4">
                                     <Button
                                         type="submit"
                                         className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
                                     >
-                                        Passer premium
+                                        SOUSCRIRE À L'OFFRE
                                     </Button>
                                     <button
                                         type="submit"
-                                        className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
+                                        className="w-full text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] text-center hover:text-primary transition-colors py-2"
                                     >
-                                        Commencer mon essai gratuit
+                                        Continuer gratuitement
                                     </button>
-                                    <p className="text-center text-[10px] text-muted-foreground pt-1">
-                                        Renouvelé automatiquement à 9,99€/mois. Annulable à tout moment.
-                                    </p>
                                 </div>
                             </div>
                         )}
 
-                        {step === 6 && (
+                        {step === 10 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -882,7 +1258,7 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step !== 4 && step !== 5 && (
+                        {step !== 8 && step !== 9 && (
                             <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-20 flex flex-col gap-4">
                                 {step === 1 && (
                                     <button
@@ -900,12 +1276,13 @@ const Signup = () => {
                                         (loading) ||
                                         (step === 1 && usedChannels.includes('Autre') && !otherChannel) ||
                                         (step === 2 && (!age || !gender)) ||
-                                        (step === 3 && !showPreview && (!skinType || skinGoals.length === 0)) ||
-                                        (step === 6 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
+                                        (step === 3 && !carnation) ||
+                                        (step === 7 && !showPreview && (!skinType || skinGoals.length === 0)) ||
+                                        (step === 10 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                     }
                                     className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                                 >
-                                    {loading ? "ENREGISTREMENT..." : step === 6 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
+                                    {loading ? "ENREGISTREMENT..." : step === 10 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
                                 </button>
                             </div>
                         )}

@@ -4,60 +4,78 @@ import { Check, X, Search, Plus, Minus, ImageOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 
-const ALL_PRODUCTS = ["Nettoyant", "Lotion Tonique", "Sérum", "Hydratant", "SPF 50", "Contour yeux", "Rétinol", "Masque", "Huile de soin", "Exfoliant AHA/BHA", "Traitement local"];
+type CatalogProduct = {
+  id: string;
+  product_name: string;
+  brand: string;
+  photo_url: string | null;
+  product_type: string | null;
+  user_id: string | null;
+};
 
 const Routine = () => {
-  const [userProducts, setUserProducts] = useState<string[]>(() => {
-    const am = localStorage.getItem("local_am_routine");
-    const pm = localStorage.getItem("local_pm_routine");
-    const amList = am ? JSON.parse(am) : ["Nettoyant", "Hydratant", "SPF 50"];
-    const pmList = pm ? JSON.parse(pm) : ["Nettoyant", "Hydratant"];
-    return Array.from(new Set([...amList, ...pmList]));
-  });
-  
-  const [customProductInput, setCustomProductInput] = useState("");
-  const [userCustomProducts, setUserCustomProducts] = useState<string[]>([]);
-  const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
+  const [catalogResults, setCatalogResults] = useState<CatalogProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [productTypes, setProductTypes] = useState<string[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        // @ts-ignore
-        (supabase as any).from('profiles').select('*').eq('id', session.user.id).single()
-          .then(({ data, error }) => {
-            if (data && !error) {
-              const profile = data as any;
-              const am = profile.am_routine || [];
-              const pm = profile.pm_routine || [];
-              const combined = Array.from(new Set([...am, ...pm]));
-              setUserProducts(combined);
-
-              setUserCustomProducts(combined.filter((p: string) => !ALL_PRODUCTS.includes(p)));
-            }
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) {
+        (supabase as any)
+          .from("user_products")
+          .select("*")
+          .eq("user_id", uid)
+          .then(({ data }: any) => {
+            if (data) setUserProducts(data);
           });
       }
     });
+
+    (supabase as any)
+      .from("user_products")
+      .select("product_type")
+      .is("user_id", null)
+      .not("product_type", "is", null)
+      .then(({ data }: any) => {
+        if (data) {
+          const types = Array.from(
+            new Set(data.map((r: any) => r.product_type).filter(Boolean))
+          ) as string[];
+          setProductTypes(types.sort());
+        }
+      });
   }, []);
 
   useEffect(() => {
-    const searchProducts = async () => {
-      if (customProductInput.length < 2) {
-        setDbProducts([]);
+    const search = async () => {
+      if (searchQuery.length < 2 && !typeFilter) {
+        setCatalogResults([]);
         return;
       }
-
       setIsSearching(true);
       try {
-        const { data, error } = await (supabase as any)
-          .from('user_products')
-          .select('*')
-          .or(`product_name.ilike.%${customProductInput}%,brand.ilike.%${customProductInput}%`)
-          .limit(6);
+        let query = (supabase as any)
+          .from("user_products")
+          .select("*")
+          .is("user_id", null);
 
-        if (!error && data) {
-          setDbProducts(data);
+        if (searchQuery.length >= 2) {
+          query = query.or(
+            `product_name.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%`
+          );
         }
+        if (typeFilter) {
+          query = query.eq("product_type", typeFilter);
+        }
+
+        const { data, error } = await query.limit(8);
+        if (!error && data) setCatalogResults(data);
       } catch (e) {
         console.error(e);
       } finally {
@@ -65,70 +83,42 @@ const Routine = () => {
       }
     };
 
-    const timer = setTimeout(searchProducts, 300);
+    const timer = setTimeout(search, 300);
     return () => clearTimeout(timer);
-  }, [customProductInput]);
+  }, [searchQuery, typeFilter]);
 
-  const syncProductsToSupabase = async (products: string[]) => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session) {
-        // @ts-ignore
-        await (supabase as any).from("profiles").update({
-          am_routine: products,
-          pm_routine: products // Syncing both for now to avoid breaking other parts of the app
-        }).eq("id", sessionData.session.user.id);
-      }
-    } catch (e) {
-      console.error(e);
+  const addProductToRoutine = async (product: CatalogProduct) => {
+    if (!userId) return;
+    const alreadyAdded = userProducts.some(
+      (p) => p.product_name === product.product_name && p.brand === product.brand
+    );
+    if (alreadyAdded) return;
+
+    const { data, error } = await (supabase as any)
+      .from("user_products")
+      .insert({
+        product_name: product.product_name,
+        brand: product.brand,
+        photo_url: product.photo_url,
+        product_type: product.product_type,
+        user_id: userId,
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      setUserProducts((prev) => [...prev, data]);
     }
   };
 
-  const toggleProduct = (p: string) => {
-    const newList = userProducts.includes(p) ? userProducts.filter(x => x !== p) : [...userProducts, p];
-    setUserProducts(newList);
-    localStorage.setItem("local_am_routine", JSON.stringify(newList));
-    localStorage.setItem("local_pm_routine", JSON.stringify(newList));
-    syncProductsToSupabase(newList);
-  };
-
-  const addCustomProduct = () => {
-    if (!customProductInput.trim()) return;
-    const p = customProductInput.trim();
-    
-    if (!userProducts.includes(p)) {
-      const newList = [...userProducts, p];
-      setUserProducts(newList);
-      localStorage.setItem("local_am_routine", JSON.stringify(newList));
-      localStorage.setItem("local_pm_routine", JSON.stringify(newList));
-      syncProductsToSupabase(newList);
-    }
-
-    if (!ALL_PRODUCTS.includes(p) && !userCustomProducts.includes(p)) {
-      setUserCustomProducts(prev => [...prev, p]);
-    }
-
-    setCustomProductInput("");
-    setDbProducts([]);
-  };
-
-  const addProductFromDb = (pName: string, pBrand: string) => {
-    const p = `${pBrand} - ${pName}`;
-    
-    if (!userProducts.includes(p)) {
-      const newList = [...userProducts, p];
-      setUserProducts(newList);
-      localStorage.setItem("local_am_routine", JSON.stringify(newList));
-      localStorage.setItem("local_pm_routine", JSON.stringify(newList));
-      syncProductsToSupabase(newList);
-    }
-
-    if (!userCustomProducts.includes(p)) {
-      setUserCustomProducts(prev => [...prev, p]);
-    }
-
-    setCustomProductInput("");
-    setDbProducts([]);
+  const removeProductFromRoutine = async (productId: string) => {
+    if (!userId) return;
+    await (supabase as any)
+      .from("user_products")
+      .delete()
+      .eq("id", productId)
+      .eq("user_id", userId);
+    setUserProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
   return (
@@ -139,18 +129,17 @@ const Routine = () => {
       </div>
 
       <div className="space-y-8 flex flex-col">
-        {/* Configuration Section (Top) */}
+        {/* Search + Filter Section */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="premium-card p-0 overflow-hidden order-1">
           <div className="p-6 bg-background/50 border-b border-border/50">
             <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Ajouter des produits</h2>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                value={customProductInput} 
-                onChange={e => setCustomProductInput(e.target.value)} 
-                placeholder="Chercher un produit ou marque..." 
-                className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary" 
-                onKeyDown={e => { if (e.key === 'Enter') addCustomProduct() }} 
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Chercher un produit ou marque..."
+                className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
               />
               {isSearching && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -160,85 +149,136 @@ const Routine = () => {
             </div>
           </div>
 
-          <div className="p-6 space-y-8">
-            {/* Search Results */}
-            {dbProducts.length > 0 && (
+          <div className="p-6 space-y-6">
+            {/* Type filter pills */}
+            {productTypes.length > 0 && (
               <div className="space-y-3">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Résultats</p>
-                <div className="grid gap-3">
-                  {dbProducts.map((p) => (
-                    <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl group transition-all hover:border-primary/30 shadow-sm">
-                      <div className="w-14 h-14 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
-                        {p.photo_url ? (
-                          <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                        ) : (
-                          <ImageOff size={18} className="text-muted-foreground/40" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
-                      </div>
-                      <button 
-                        onClick={() => addProductFromDb(p.product_name, p.brand)}
-                        className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all shrink-0"
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Filtrer par type</p>
+                <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar -mx-1 px-1">
+                  {productTypes.map((type) => {
+                    const hasProductOfType = userProducts.some((p) => p.product_type === type);
+                    const isSelected = typeFilter === type;
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setTypeFilter(isSelected ? null : type)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-semibold whitespace-nowrap shrink-0 ${
+                          hasProductOfType
+                            ? "border-primary bg-primary/5 text-primary shadow-sm"
+                            : isSelected
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-card text-foreground/80 hover:bg-accent"
+                        }`}
                       >
-                        <Plus size={16} />
+                        {type}
+                        {hasProductOfType ? (
+                          <Check size={12} />
+                        ) : isSelected ? (
+                          <X size={12} />
+                        ) : (
+                          <Plus size={12} />
+                        )}
                       </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Generic Categories (Horizontal Scroll) */}
-            <div className="space-y-3">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Produits classiques</p>              
-              <div className="flex overflow-x-auto pb-4 gap-2 no-scrollbar -mx-1 px-1">
-                {Array.from(new Set([...ALL_PRODUCTS, ...userCustomProducts])).map(p => {
-                  const isActive = userProducts.includes(p);
-                  return (
-                    <div key={p} className="flex gap-1 shrink-0">
-                      <button 
-                        onClick={() => toggleProduct(p)} 
-                        className={`flex items-center gap-2 px-5 py-3 rounded-full border transition-all text-xs font-semibold whitespace-nowrap ${isActive ? 'border-primary bg-primary/5 text-primary shadow-sm' : 'border-border bg-card text-foreground/80 hover:bg-accent'}`}
+            {/* Catalog results */}
+            {catalogResults.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">
+                  {typeFilter && !searchQuery ? `Produits "${typeFilter}"` : "Résultats"}
+                </p>
+                <div className="grid gap-3">
+                  {catalogResults.map((p) => {
+                    const alreadyAdded = userProducts.some(
+                      (u) => u.product_name === p.product_name && u.brand === p.brand
+                    );
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm"
                       >
-                        {p}
-                        {isActive ? <Check size={14} /> : <Plus size={14} />}
-                      </button>
-                    </div>
-                  );
-                })}
+                        <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                          {p.photo_url ? (
+                            <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                          ) : (
+                            <ImageOff size={18} className="text-muted-foreground/40" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                          {p.product_type && (
+                            <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => addProductToRoutine(p)}
+                          disabled={alreadyAdded}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                            alreadyAdded
+                              ? "bg-primary/10 text-primary cursor-default"
+                              : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                          }`}
+                        >
+                          {alreadyAdded ? <Check size={16} /> : <Plus size={16} />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </motion.div>
- 
-        {/* My Routine Section (Bottom) */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="premium-card p-8 order-2">
+
+        {/* My Products Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="premium-card p-8 order-2"
+        >
           <p className="text-[10px] font-bold text-foreground/80 tracking-widest mb-6 uppercase">Mes Produits enregistrés</p>
           <div className="flex flex-col gap-3">
             <AnimatePresence mode="popLayout">
               {userProducts.length > 0 ? (
-                userProducts.map((p) =>
-                  <motion.div 
-                    key={p} 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }} 
+                userProducts.map((p) => (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 10 }}
-                    className="w-full flex items-center justify-between px-5 py-4 rounded-2xl text-sm font-semibold border border-border bg-background/40 hover:border-primary/30 transition-all shadow-sm"
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-border bg-background/40 hover:border-primary/30 transition-all shadow-sm"
                   >
-                    <span className="text-foreground/90">{p}</span>
-                    <button 
-                      onClick={() => toggleProduct(p)}
-                      className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm"
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                        {p.photo_url ? (
+                          <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                        ) : (
+                          <ImageOff size={14} className="text-muted-foreground/40" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeProductFromRoutine(p.id)}
+                      className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shadow-sm shrink-0"
                     >
                       <Minus size={16} />
                     </button>
                   </motion.div>
-                )
+                ))
               ) : (
-                <p className="text-xs text-muted-foreground italic py-6 text-center">Aucun produit dans votre inventaire pour le moment.</p>
+                <p className="text-xs text-muted-foreground italic py-6 text-center">
+                  Aucun produit dans votre inventaire pour le moment.
+                </p>
               )}
             </AnimatePresence>
           </div>

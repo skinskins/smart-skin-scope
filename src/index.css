@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,39 +6,59 @@
 
 @layer base {
   :root {
-    --background: 34 24% 95%; /* #F7F4F0 Ecru */
-    --foreground: 60 6% 10%; /* #1A1A18 Charcoal */
+    /* ── Figma Design System: Nacre ── */
 
-    --card: 37 18% 91%; /* #EDE9E3 Greige */
-    --card-foreground: 60 6% 10%;
+    /* Background */
+    --background: 0 0% 100%;     /* #FFFFFF – Background Primary */
+    --foreground: 0 0% 7%;       /* #111111 – Text Primary */
 
-    --popover: 34 24% 98%;
-    --popover-foreground: 60 6% 10%;
+    /* Card */
+    --card: 0 0% 100%;           /* #FFFFFF – Background Primary */
+    --card-foreground: 0 0% 7%;  /* #111111 */
 
-    --primary: 17 45% 59%; /* #C4846A Terracotta */
-    --primary-foreground: 34 24% 95%;
+    /* Popover */
+    --popover: 0 0% 100%;        /* #FFFFFF */
+    --popover-foreground: 0 0% 7%;
 
-    --secondary: 33 5% 46%; /* #7A7570 Gray */
-    --secondary-foreground: 34 24% 95%;
+    /* Action Primary – dark brown */
+    --primary: 19 49% 12%;       /* #2C180F */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF – Action Secondary */
 
-    --muted: 37 18% 82%;
-    --muted-foreground: 33 5% 30%; /* Darker for better contrast */
+    /* Background Secondary */
+    --secondary: 0 0% 96%;       /* #F5F5F5 */
+    --secondary-foreground: 0 0% 7%; /* #111111 */
 
-    --accent: 17 45% 95%;
-    --accent-foreground: 17 45% 40%;
+    /* Muted / disabled surfaces */
+    --muted: 0 0% 96%;           /* #F5F5F5 */
+    --muted-foreground: 0 0% 42%; /* #6B6B6B – Text Secondary */
 
-    --destructive: 0 50% 50%;
-    --destructive-foreground: 34 24% 95%;
+    /* Accent (light warm tone derived from action) */
+    --accent: 26 18% 90%;        /* #F9E4D4 */
+    --accent-foreground: 19 49% 12%; /* #2C180F */
 
-    --border: 35 12% 82%; /* #D8D3CB Subtle Warm Gray */
-    --input: 35 12% 82%;
-    --ring: 17 45% 59%;
+    /* System – Error */
+    --destructive: 0 84% 60%;    /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
 
-    --radius: 0.875rem; /* 14px */
+    /* Border */
+    --border: 0 0% 90%;          /* #E5E5E5 – Border Card */
+    --input: 0 0% 90%;           /* #E5E5E5 */
+    --ring: 19 49% 12%;          /* #2C180F */
 
-    /* Custom tokens */
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'DM Sans', sans-serif;
+    --radius: 0.875rem;
+
+    /* System – Success */
+    --success: 142 71% 45%;      /* #22C55E */
+    --success-foreground: 0 0% 100%;
+
+    /* Text scale */
+    --text-secondary: 0 0% 42%;  /* #6B6B6B */
+    --text-disabled: 0 0% 68%;   /* #ADADAD */
+
+    /* Fonts */
+    --font-display: 'DM Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-inter: 'Inter', sans-serif;
   }
 
   .dark {
@@ -74,24 +94,22 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-[0.03em] lowercase;
-    font-weight: 300;
-  }
-  
-  /* Sentence case for UI text, but headings often look better lowercase or sentence case in this aesthetic */
-  h1::first-letter, h2::first-letter, h3::first-letter {
-    text-transform: uppercase;
+    @apply font-display;
+    font-weight: 600;
   }
 }
 
 @layer utilities {
   .font-display {
     font-family: var(--font-display);
-    @apply tracking-[0.03em];
   }
 
   .font-body {
     font-family: var(--font-body);
+  }
+
+  .font-inter {
+    font-family: var(--font-inter);
   }
 
   .premium-shadow {
