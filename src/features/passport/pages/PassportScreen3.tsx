@@ -7,6 +7,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateCyclePhaseForDate } from "@/utils/cycle";
 
 interface DayData {
   date: string;
@@ -82,10 +83,10 @@ export default function PassportScreen3() {
       from.setDate(from.getDate() - 29);
       const fromStr = from.toISOString().split("T")[0];
 
-      const [{ data: checkins }, { data: symptoms }] = await Promise.all([
+      const [{ data: checkins }, { data: symptoms }, { data: profile }] = await Promise.all([
         (supabase as any)
           .from("daily_checkins")
-          .select("date, stress_level, sleep_hours, cycle_phase")
+          .select("date, stress_level, sleep_hours")
           .eq("user_id", session.user.id)
           .gte("date", fromStr)
           .order("date", { ascending: true }),
@@ -96,6 +97,11 @@ export default function PassportScreen3() {
           .eq("symptom", "acné")
           .gte("date", fromStr)
           .order("date", { ascending: true }),
+        (supabase as any)
+          .from("profiles")
+          .select("last_period_date, cycle_duration")
+          .eq("id", session.user.id)
+          .maybeSingle(),
       ]);
 
       const symptomMap: Record<string, string> = {};
@@ -103,7 +109,8 @@ export default function PassportScreen3() {
 
       const entries: DayData[] = (checkins ?? []).map((r: any) => {
         const rawAcne = symptomMap[r.date] ?? null;
-        const rawCycle = (r.cycle_phase ?? "").toLowerCase();
+        const rawCyclePhase = calculateCyclePhaseForDate(profile?.last_period_date ?? null, profile?.cycle_duration ?? 28, 5, r.date);
+        const rawCycle = (rawCyclePhase ?? "").toLowerCase();
         return {
           date: r.date,
           label: formatDateLabel(r.date),
@@ -113,7 +120,7 @@ export default function PassportScreen3() {
           cycle: cycleToNum[rawCycle] ?? null,
           rawSleep: r.sleep_hours ?? null,
           rawAcne,
-          rawCycle: r.cycle_phase ?? null,
+          rawCycle: rawCyclePhase ?? null,
         };
       });
 

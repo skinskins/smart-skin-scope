@@ -7,19 +7,23 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "./pages/Dashboard";
 import Diagnosis from "./pages/Diagnosis";
+import Suivi from "./pages/Suivi";
+import SuiviJour from "./pages/SuiviJour";
 import Tips from "./pages/Tips";
 import Progress from "./pages/Progress";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
-import Routine from "./pages/Routine";
+import Vanity from "./pages/Vanity";
 import Signup from "./pages/Signup";
 import BottomNav from "./components/BottomNav";
 import PricingValueScreen from "./pages/PricingValueScreen";
 import PricingPlanScreen from "./pages/PricingPlanScreen";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
 import ResetPassword from "./pages/ResetPassword";
+import RoutinePlayer from "./pages/RoutinePlayer";
+import DailyConversation from "./pages/DailyConversation";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import RGPD from "./pages/RGPD";
@@ -133,11 +137,15 @@ const App = () => (
           <Route path="/" element={<Navigate to="/onboarding" replace />} />
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/diagnosis" element={<AuthGuard><Diagnosis /></AuthGuard>} />
+          <Route path="/suivi" element={<AuthGuard><Suivi /></AuthGuard>} />
+          <Route path="/suivi/:date" element={<AuthGuard><SuiviJour /></AuthGuard>} />
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
           <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
-          <Route path="/routine" element={<AuthGuard><Routine /></AuthGuard>} />
+          <Route path="/vanity" element={<AuthGuard><Vanity /></AuthGuard>} />
           <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
+          <Route path="/routine-player" element={<AuthGuard><RoutinePlayer /></AuthGuard>} />
+          <Route path="/daily-conversation" element={<AuthGuard><DailyConversation /></AuthGuard>} />
 
           <Route path="/onboarding" element={<PublicOnlyGuard><Onboarding /></PublicOnlyGuard>} />
           <Route path="/login" element={<PublicOnlyGuard><Login /></PublicOnlyGuard>} />

@@ -25,7 +25,7 @@ const StravaConnect: React.FC<StravaConnectProps> = ({ compact }) => {
   const disconnectStrava = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      await (supabase as any).from("profiles").update({ did_sport: null }).eq("id", session.user.id);
+
     }
 
     localStorage.removeItem("athleteId");
