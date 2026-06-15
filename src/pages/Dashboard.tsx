@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { FactorsModal } from "@/components/FactorsModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
@@ -7,6 +7,7 @@ import { useSaveWeather } from "@/hooks/useSaveWeather";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid,
@@ -32,6 +33,96 @@ const DashboardSkeleton = () => (
   </div>
 );
 
+type Conseil = {
+  id: string;
+  advice_title: string;
+  advice_text: string;
+  advice_tip: string;
+  advice_group: string;
+  priority: string;
+};
+
+// Tri : groupe (warning > alerte > astuce > observation), puis priority en secondaire
+const GROUP_ORDER: Record<string, number> = { warning: 0, alerte: 1, astuce: 2, observation: 3 };
+
+const sortConseils = (list: Conseil[]) =>
+  [...list].sort((a, b) => {
+    const groupDiff = (GROUP_ORDER[a.advice_group] ?? 4) - (GROUP_ORDER[b.advice_group] ?? 4);
+    if (groupDiff !== 0) return groupDiff;
+    return (Number(a.priority) || 0) - (Number(b.priority) || 0);
+  });
+
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  observation: { label: "Observation", color: "text-blue-600", bg: "bg-blue-50" },
+  astuce: { label: "Astuce", color: "text-green-600", bg: "bg-green-50" },
+  alerte: { label: "Alerte", color: "text-orange-600", bg: "bg-orange-50" },
+  warning: { label: "Attention", color: "text-red-500", bg: "bg-red-50" },
+};
+
+const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
+  const [open, setOpen] = useState(false);
+  const typeConf = TYPE_CONFIG[conseil.advice_group] ?? TYPE_CONFIG["astuce"];
+
+  return (
+    <motion.div
+      layout
+      onClick={() => setOpen(!open)}
+      className="bg-white rounded-2xl p-3 cursor-pointer hover:bg-muted/5 transition-colors border border-border/10"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeConf.bg} ${typeConf.color}`}>
+              {typeConf.label}
+            </span>
+          </div>
+          <p className="text-[13px] font-semibold text-foreground leading-snug mb-0.5">
+            {conseil.advice_title}
+          </p>
+          <p className={`text-[12px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-1"}`}>
+            {conseil.advice_text}
+          </p>
+        </div>
+        <motion.div
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex-shrink-0 mt-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" />
+          </svg>
+        </motion.div>
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="pt-3 mt-3 border-t border-border/15">
+              <p className="text-[12px] text-muted-foreground leading-relaxed mb-3">
+                {conseil.advice_text}
+              </p>
+              {conseil.advice_tip && (
+                <div className="bg-primary/5 rounded-xl p-3">
+                  <p className="text-[11px] font-bold text-primary mb-1">Action suggérée</p>
+                  <p className="text-[12px] text-foreground/80 leading-relaxed">
+                    {conseil.advice_tip}
+                  </p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 const Dashboard = () => {
   const [checkinStatus, setCheckinStatus] = useState<"loading" | "done">("loading");
   const [userName, setUserName] = useState<string | null>(null);
@@ -45,7 +136,8 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [skinGoal, setSkinGoal] = useState<string | null>(null);
   const [streakLoaded, setStreakLoaded] = useState(false);
-  const [advice, setAdvice] = useState<{ advice_title: string; advice_text: string } | null>(null);
+  const [advices, setAdvices] = useState<Conseil[]>([]);
+  const [adviceLoading, setAdviceLoading] = useState(false);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [routineLogs, setRoutineLogs] = useState<RoutineLogRow[]>([]);
   const [symptomData, setSymptomData] = useState<SymptomRow[]>([]);
@@ -54,20 +146,22 @@ const Dashboard = () => {
 
   const { weather: liveWeather } = useSaveWeather(manualLocation || undefined);
 
-  // Guard : redirect to daily conversation if checkin not done yet today
+  // Guard : redirect to silent routine generation if today's routine isn't ready yet
   useEffect(() => {
-    const checkDailyCheckin = async () => {
+    const checkDailyRoutine = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         setCheckinStatus("done");
         return;
       }
       const today = new Date().toISOString().split("T")[0];
+      const isMorning = new Date().getHours() < 18;
       const { data } = await (supabase as any)
-        .from("daily_checkins")
+        .from("daily_routine_log")
         .select("id")
         .eq("user_id", session.user.id)
         .eq("date", today)
+        .eq("period", isMorning ? "morning" : "evening")
         .maybeSingle();
       if (!data) {
         navigate("/daily-conversation", { replace: true });
@@ -75,7 +169,7 @@ const Dashboard = () => {
         setCheckinStatus("done");
       }
     };
-    checkDailyCheckin();
+    checkDailyRoutine();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -171,16 +265,48 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
-      console.log("[AdviceDebug] querying for user_id:", session.user.id, "date:", today);
-      const { data, error } = await (supabase as any)
+      const ADVICE_FIELDS = "id, advice_title, advice_text, advice_tip, advice_group, priority";
+
+      // 1. Conseils déjà en base pour aujourd'hui
+      const { data } = await (supabase as any)
         .from("daily_advice_log")
-        .select("advice_title, advice_text")
+        .select(ADVICE_FIELDS)
         .eq("user_id", session.user.id)
-        .eq("date", today)
-        .maybeSingle();
-      console.log("[AdviceDebug] data:", JSON.stringify(data));
-      console.log("[AdviceDebug] error:", JSON.stringify(error));
-      if (data) setAdvice(data);
+        .eq("date", today);
+
+      if (data && data.length > 0) {
+        setAdvices(sortConseils(data));
+        return;
+      }
+
+      // 2. Pas de conseil → générer (filet de sécurité, en plus du flow silencieux)
+      setAdviceLoading(true);
+      try {
+        const { error, data: genData } = await (supabase as any).functions.invoke("generate-advice", {
+          body: { user_id: session.user.id },
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (error) return;
+
+        if (genData?.conseils?.length > 0) {
+          setAdvices(sortConseils(genData.conseils));
+          return;
+        }
+
+        // Fallback — relire depuis DB
+        const { data: fresh } = await (supabase as any)
+          .from("daily_advice_log")
+          .select(ADVICE_FIELDS)
+          .eq("user_id", session.user.id)
+          .eq("date", today);
+
+        if (fresh && fresh.length > 0) setAdvices(sortConseils(fresh));
+      } catch (err) {
+        console.error("[generate-advice] Dashboard:", err);
+      } finally {
+        setAdviceLoading(false);
+      }
     };
     fetchAdvice();
   }, []);
@@ -273,19 +399,29 @@ const Dashboard = () => {
           </div>
         ) : null}
 
-        {/* Conseil du jour */}
-        <div className="bg-white rounded-2xl p-4 flex items-start gap-3 mb-3">
-          <Sparkles size={16} strokeWidth={1.5} className="text-primary mt-0.5 flex-shrink-0" />
-          <div>
-            {advice ? (
-              <>
-                <p className="text-sm font-bold text-foreground mb-1">{advice.advice_title}</p>
-                <p className="text-[12px] text-muted-foreground leading-relaxed">{advice.advice_text}</p>
-              </>
-            ) : (
+        {/* Conseils du jour */}
+        <div className="flex flex-col gap-2 mb-3">
+          {adviceLoading ? (
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
+              />
+              <p className="text-[12px] text-muted-foreground">
+                Vos conseils personnalisés sont en cours de préparation...
+              </p>
+            </div>
+          ) : advices.length > 0 ? (
+            advices.map((conseil) => (
+              <AdviceCard key={conseil.id} conseil={conseil} />
+            ))
+          ) : (
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
+              <Sparkles size={16} strokeWidth={1.5} className="text-primary flex-shrink-0" />
               <p className="text-sm text-muted-foreground">Votre conseil arrive bientôt</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
       </div>
@@ -393,14 +529,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Bouton flottant IA */}
+      {/* Bouton flottant : régénérer la routine */}
       <button
         onClick={() => navigate("/daily-conversation")}
         className="fixed bottom-20 right-4 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-50 transition-transform active:scale-95"
         style={{ background: "#2C1810" }}
-        aria-label="Ouvrir la conversation"
+        aria-label="Régénérer ma routine"
       >
-        <MessageCircle size={22} strokeWidth={1.8} className="text-white" />
+        <RefreshCw size={22} strokeWidth={1.8} className="text-white" />
       </button>
 
     </div>

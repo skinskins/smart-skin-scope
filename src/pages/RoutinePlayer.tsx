@@ -66,6 +66,7 @@ const RoutinePlayer = () => {
   const goNextRef = useRef<() => Promise<void>>();
   const [steps, setSteps] = useState<Step[]>([]);
   const [stepsReady, setStepsReady] = useState(false);
+  const [inciMessage, setInciMessage] = useState<string | null>(null);
   const loading = !stepsReady;
 
   const morningSteps = useMemo(() =>
@@ -89,11 +90,13 @@ const RoutinePlayer = () => {
       // Priorité : routine générée par DailyConversation
       const { data: logData } = await (supabase as any)
         .from("daily_routine_log")
-        .select("product_ids")
+        .select("product_ids, inci_message")
         .eq("user_id", session.user.id)
         .eq("date", today)
         .eq("period", period)
         .maybeSingle();
+
+      if (logData?.inci_message) setInciMessage(logData.inci_message);
 
       if (logData?.product_ids?.length > 0) {
         const { data: products } = await (supabase as any)
@@ -400,6 +403,14 @@ const RoutinePlayer = () => {
           <p className="text-[11px] text-muted-foreground">{step.durationMin} min</p>
         </div>
       </div>
+
+      {inciMessage && (
+        <div className="px-5 mb-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white/60 rounded-2xl px-4 py-3">
+            <p className="text-xs text-muted-foreground leading-snug">{inciMessage}</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 px-5 flex flex-col">
         <AnimatePresence mode="wait">
