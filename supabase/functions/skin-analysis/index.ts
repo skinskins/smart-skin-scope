@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
@@ -12,186 +13,210 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, formData } = await req.json();
+    const { user_id, imageBase64, age: ageParam } = await req.json();
 
     if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "Image requise" }), {
+      return new Response(JSON.stringify({ error: "imageBase64 requis" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
 
-    const prompt = `Tu es un expert en dermatologie esthétique. Analyse cette photo de peau d'un point de vue ESTHÉTIQUE (pas médical).
-
-Données utilisateur:
-- Qualité sommeil: ${formData?.sleep ?? 7}/10
-- Hydratation: ${formData?.hydration ?? 7}/10
-- Cycle Menstruation: ${formData?.cycle ?? "non renseigné"}
-- Pollution: ${formData?.pollution ?? 5}/10
-- Humidité air: ${formData?.humidity ?? 50}%
-- Indice UV: ${formData?.uv ?? 3}/10
-
-IMPORTANT: Tu DOIS répondre UNIQUEMENT avec un objet JSON valide, sans texte avant ni après, respectant exactement cette structure:
-
-{
-  "globalScore": <nombre 0-100>,
-  "summary": "<résumé général en 1-2 phrases>",
-  "zones": [
-    {
-      "id": "forehead",
-      "label": "Front",
-      "score": <0-100>,
-      "status": "<good|warning|alert>",
-      "trend": "stable",
-      "summary": "<résumé court de la zone>",
-      "detail": "<analyse détaillée 2-3 phrases>",
-      "tips": ["<conseil 1>", "<conseil 2>", "<conseil 3>"]
-    },
-    {
-      "id": "left-cheek",
-      "label": "Joue gauche",
-      "score": <0-100>,
-      "status": "<good|warning|alert>",
-      "trend": "stable",
-      "summary": "<résumé>",
-      "detail": "<détail>",
-      "tips": ["<conseil>"]
-    },
-    {
-      "id": "right-cheek",
-      "label": "Joue droite",
-      "score": <0-100>,
-      "status": "<good|warning|alert>",
-      "trend": "stable",
-      "summary": "<résumé>",
-      "detail": "<détail>",
-      "tips": ["<conseil>"]
-    },
-    {
-      "id": "tzone",
-      "label": "Zone T / Nez",
-      "score": <0-100>,
-      "status": "<good|warning|alert>",
-      "trend": "stable",
-      "summary": "<résumé>",
-      "detail": "<détail>",
-      "tips": ["<conseil>"]
-    },
-    {
-      "id": "chin",
-      "label": "Menton",
-      "score": <0-100>,
-      "status": "<good|warning|alert>",
-      "trend": "stable",
-      "summary": "<résumé>",
-      "detail": "<détail>",
-      "tips": ["<conseil>"]
-    },
-    {
-      "id": "jaw",
-      "label": "Mâchoire",
-      "score": <0-100>,
-      "status": "<good|warning|alert>",
-      "trend": "stable",
-      "summary": "<résumé>",
-      "detail": "<détail>",
-      "tips": ["<conseil>"]
-    }
-  ],
-  "correlations": ["<corrélation sommeil/peau>", "<corrélation UV/peau>"],
-  "ingredients": ["<ingrédient recommandé 1>", "<ingrédient recommandé 2>", "<ingrédient recommandé 3>"]
-}
-
-Règles pour les scores:
-- good: score >= 70
-- warning: score 50-69
-- alert: score < 50
-- Sois honnête et précis dans l'évaluation visuelle
-- Les tips doivent être des recommandations concrètes avec des ingrédients spécifiques`;
-
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:image/jpeg;base64,${imageBase64}`,
-                  },
-                },
-                {
-                  type: "text",
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-          max_tokens: 2000,
-        }),
-      }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    const today = new Date().toISOString().split("T")[0];
+
+    // ── 1. Si user connecté : vérifier cache ──────────────────────────────
+    if (user_id) {
+      const { data: existing } = await supabase
+        .from("skin_photos")
+        .select("id, analysis_json")
+        .eq("user_id", user_id)
+        .eq("date", today)
+        .single();
+
+      if (existing?.analysis_json) {
+        console.log("[skin-analysis] Analyse déjà faite aujourd'hui ✅");
         return new Response(
-          JSON.stringify({ error: "Trop de requêtes, réessayez dans un instant." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ cached: true, analysis: existing.analysis_json }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Crédits IA épuisés. Rechargez dans Paramètres > Workspace > Usage." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const rawContent = data.choices?.[0]?.message?.content;
-
-    if (!rawContent) {
-      throw new Error("Réponse IA vide");
+    // ── 2. Récupérer l'âge ────────────────────────────────────────────────
+    let age = ageParam ?? "non renseigné";
+    if (user_id && age === "non renseigné") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("age")
+        .eq("id", user_id)
+        .single();
+      age = profile?.age ?? "non renseigné";
     }
 
-    // Parse the JSON from the AI response (strip markdown fences if present)
-    let jsonStr = rawContent.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-    }
+    // ── 3. Détecter le format de l'image ──────────────────────────────────
+    const mediaType = imageBase64.startsWith("/9j/")
+      ? "image/jpeg"
+      : imageBase64.startsWith("iVBORw0KGgo")
+        ? "image/png"
+        : "image/webp";
 
-    const analysisResult = JSON.parse(jsonStr);
+    // ── 4. Appel Claude Vision ─────────────────────────────────────────────
+    const prompt = `Tu es un expert en analyse cutanée clinique. Analyse cette photo de visage et génère UNIQUEMENT un diagnostic objectif de l'état de la peau, sans recommandations ni conseils.
 
-    return new Response(JSON.stringify(analysisResult), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("skin-analysis error:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Erreur inconnue",
+CONTEXTE :
+- Âge déclaré : ${age} ans
+
+INSTRUCTIONS QUALITÉ :
+Avant d'analyser, évalue la qualité de la photo :
+- Éclairage insuffisant → rejette
+- Visage flou ou trop loin → rejette
+- Maquillage épais visible → rejette
+- Angle de profil (pas de face) → rejette
+
+Si rejetée, réponds UNIQUEMENT :
+{"photo_quality":"rejected","rejection_reason":"message court en français avec conseil pratique"}
+
+Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
+{
+  "photo_quality": "ok",
+  "analyse": {
+    "fitzpatrick": "I | II | III | IV | V | VI",
+    "carnation_detectee": "très claire | claire | beige dorée | olive-caramel | foncée | ébène",
+    "type_peau_detecte": "normale | sèche | grasse | mixte | sensible",
+    "age_peau_estime": "nombre entier (peut différer de l'âge réel)",
+    "glogau": "I | II | III | IV",
+    "eclat_global": "1-10",
+    "texture": {
+      "pores_front": "1-4",
+      "pores_joues": "1-4",
+      "microrelief": "lisse | légèrement irrégulier | irrégulier | très irrégulier"
+    },
+    "rides": {
+      "periorbital": "0-5",
+      "front": "0-5",
+      "periorale": "0-5"
+    },
+    "pigmentation": {
+      "uniformite": "uniforme | légèrement inégale | inégale | très inégale",
+      "type": "aucune | taches solaires | hyperpigmentation post-inflammatoire | mélasma | mixte",
+      "zones": "description courte ou null"
+    },
+    "erytheme": {
+      "score": "0-4",
+      "zones": "description courte ou null"
+    },
+    "sebum": {
+      "zone_t": "1-5",
+      "zone_u": "1-5"
+    },
+    "hydratation": {
+      "score": "0-4",
+      "zones": "description courte ou null"
+    },
+    "acne": {
+      "score": "0-4",
+      "type": "aucune | comédons | papules | pustules | mixte",
+      "zones": "description courte ou null"
+    },
+    "points_forts": ["point positif 1", "point positif 2"],
+    "points_attention": ["observation clinique 1", "observation clinique 2"],
+    "observations_libres": "2-3 phrases cliniques objectives et bienveillantes"
+  }
+}`;
+
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1500,
+        messages: [{
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mediaType, data: imageBase64 },
+            },
+            { type: "text", text: prompt },
+          ],
+        }],
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+    });
+
+    if (!claudeRes.ok) {
+      const err = await claudeRes.text();
+      throw new Error(`Claude API error: ${claudeRes.status} ${err}`);
+    }
+
+    const claudeData = await claudeRes.json();
+    const raw = claudeData.content?.[0]?.text?.trim() ?? "";
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("Réponse Claude invalide");
+    const parsed = JSON.parse(raw.slice(start, end + 1));
+
+    // ── 5. Photo rejetée ──────────────────────────────────────────────────
+    if (parsed.photo_quality === "rejected") {
+      return new Response(
+        JSON.stringify({ rejected: true, reason: parsed.rejection_reason }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── 6. Sauvegarde (seulement si user connecté) ────────────────────────
+    if (user_id) {
+      const photoBytes = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
+      const storagePath = `${user_id}/${today}.jpg`;
+
+      await supabase.storage
+        .from("skin-photos")
+        .upload(storagePath, photoBytes, { contentType: "image/jpeg", upsert: true });
+
+      const { error: insertError } = await supabase
+        .from("skin_photos")
+        .upsert({
+          user_id,
+          date: today,
+          storage_path: storagePath,
+          analysis_json: parsed.analyse,
+        }, { onConflict: "user_id,date" });
+
+      if (insertError) throw new Error(`Insert error: ${insertError.message}`);
+
+      const usage = claudeData.usage;
+      await supabase.from("api_usage").insert({
+        user_id,
+        input_tokens: usage?.input_tokens ?? 0,
+        output_tokens: usage?.output_tokens ?? 0,
+        total_tokens: (usage?.input_tokens ?? 0) + (usage?.output_tokens ?? 0),
+        fonction: "skin-analysis",
+      });
+
+      console.log("[skin-analysis] Analyse sauvegardée ✅");
+    }
+
+    return new Response(
+      JSON.stringify({ cached: false, analysis: parsed.analyse }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error("[skin-analysis] error:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inconnue" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
