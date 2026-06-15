@@ -6,6 +6,20 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const OBF_USER_AGENT = "SmartSkinScope/1.0 (contact@smartskinscope.app)";
+
+function significantWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[\s\-_,./()]+/)
+    .filter((w) => w.length >= 3);
+}
+
+function sharesSignificantWord(a: string, b: string): boolean {
+  const wordsA = new Set(significantWords(a));
+  return significantWords(b).some((w) => wordsA.has(w));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -80,7 +94,84 @@ Les ingredients ne sont à extraire que s'ils sont clairement lisibles sur le pa
 
     const result = JSON.parse(jsonStr);
 
-    return new Response(JSON.stringify(result), {
+    const claudeIngredients = Array.isArray(result.ingredients) && result.ingredients.length > 0
+      ? result.ingredients.join(", ")
+      : null;
+
+    const fallback = {
+      status: "active",
+      product_name: result.product_name,
+      brand: result.brand,
+      product_type: result.product_type,
+      ingredients: claudeIngredients,
+      open_beauty_facts_id: null,
+      photo_url: null,
+    };
+
+    // ── Recherche Open Beauty Facts ─────────────────────────────────────────
+    let filtered: any[] = [];
+    if (result.product_name) {
+      const searchTerms = [result.brand, result.product_name].filter(Boolean).join(" ");
+      try {
+        const obfRes = await fetch(
+          `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchTerms)}&search_simple=1&action=process&json=1&page_size=5`,
+          { headers: { "User-Agent": OBF_USER_AGENT } }
+        );
+        if (obfRes.ok) {
+          const obfData = await obfRes.json();
+          const obfProducts = Array.isArray(obfData.products) ? obfData.products : [];
+          filtered = obfProducts.filter((p: any) =>
+            sharesSignificantWord(result.product_name, p.product_name ?? "")
+          );
+          console.log("[product-scan] OBF candidates:", obfProducts.length, "→ filtrés:", filtered.length);
+        } else {
+          console.error("[product-scan] OBF status:", obfRes.status);
+        }
+      } catch (e) {
+        console.error("[product-scan] OBF error:", e);
+      }
+    }
+
+    if (filtered.length === 1) {
+      const match = filtered[0];
+      return new Response(
+        JSON.stringify({
+          status: "active",
+          product_name: result.product_name,
+          brand: result.brand,
+          product_type: result.product_type,
+          ingredients: match.ingredients_text_fr || match.ingredients_text || claudeIngredients,
+          open_beauty_facts_id: match.code ?? null,
+          photo_url: match.image_url ?? match.image_front_url ?? null,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (filtered.length >= 2) {
+      return new Response(
+        JSON.stringify({
+          status: "to_confirm",
+          fallback: {
+            product_name: result.product_name,
+            brand: result.brand,
+            product_type: result.product_type,
+            ingredients: claudeIngredients,
+          },
+          candidates: filtered.map((p: any) => ({
+            product_name: p.product_name ?? null,
+            brand: p.brands ?? null,
+            ingredients: p.ingredients_text_fr || p.ingredients_text || null,
+            open_beauty_facts_id: p.code ?? null,
+            photo_url: p.image_url ?? p.image_front_url ?? null,
+          })),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 0 candidat OBF retenu → on garde les infos extraites par Claude
+    return new Response(JSON.stringify(fallback), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

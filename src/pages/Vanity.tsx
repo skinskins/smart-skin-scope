@@ -19,6 +19,21 @@ type CatalogProduct = {
   frequency?: string | null;
 };
 
+type ScanFallback = {
+  product_name: string;
+  brand: string | null;
+  product_type: string | null;
+  ingredients: string | null;
+};
+
+type ScanCandidate = {
+  product_name: string | null;
+  brand: string | null;
+  ingredients: string | null;
+  open_beauty_facts_id: string | null;
+  photo_url: string | null;
+};
+
 const FREQ_OPTIONS = [
   { value: "daily",   label: "Quotidienne",   sub: "Utilisé chaque jour" },
   { value: "weekly",  label: "Hebdomadaire",  sub: "Quelques fois par semaine" },
@@ -29,6 +44,7 @@ const Vanity = () => {
   const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [scanCandidates, setScanCandidates] = useState<{ fallback: ScanFallback; candidates: ScanCandidate[] } | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
@@ -160,6 +176,39 @@ const Vanity = () => {
     setFrequencyModal(null);
   };
 
+  const insertScannedProduct = async (product: {
+    product_name: string;
+    brand: string | null;
+    product_type: string | null;
+    ingredients: string | null;
+    open_beauty_facts_id: string | null;
+    photo_url: string | null;
+  }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("Non connecté");
+    const { data: inserted, error: dbError } = await (supabase as any)
+      .from("user_products")
+      .insert({
+        product_name: product.product_name,
+        brand: product.brand,
+        product_type: product.product_type,
+        ingredients: product.ingredients,
+        open_beauty_facts_id: product.open_beauty_facts_id,
+        photo_url: product.photo_url,
+        user_id: session.user.id,
+        morning_use: true,
+        evening_use: true,
+        status: "active",
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (dbError) throw dbError;
+    if (inserted) setUserProducts(prev => [...prev, inserted]);
+    setScanMessage(`${product.product_name} ajouté ✓`);
+    setTimeout(() => setScanMessage(null), 4000);
+  };
+
   const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -181,31 +230,52 @@ const Vanity = () => {
           : error.message;
         throw new Error(errorText);
       }
-      if (!data?.product_name) throw new Error(`Réponse invalide : ${JSON.stringify(data)}`);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Non connecté");
-      const { data: inserted, error: dbError } = await (supabase as any)
-        .from("user_products")
-        .insert({
-          product_name: data.product_name,
-          brand:        data.brand        ?? null,
-          product_type: data.product_type ?? null,
-          user_id:      session.user.id,
-          morning_use:  true,
-          evening_use:  true,
-          status:       "pending",
-          is_active:    false,
-        })
-        .select()
-        .single();
-      if (dbError) throw dbError;
-      if (inserted) setUserProducts(prev => [...prev, inserted]);
-      setScanMessage(`${data.product_name} ajouté — en attente de validation ✓`);
-      setTimeout(() => setScanMessage(null), 4000);
+      if (!data?.status) throw new Error(`Réponse invalide : ${JSON.stringify(data)}`);
+
+      if (data.status === "to_confirm") {
+        setScanCandidates({ fallback: data.fallback, candidates: data.candidates });
+        setScanMessage(null);
+        return;
+      }
+
+      await insertScannedProduct({
+        product_name: data.product_name,
+        brand: data.brand ?? null,
+        product_type: data.product_type ?? null,
+        ingredients: data.ingredients ?? null,
+        open_beauty_facts_id: data.open_beauty_facts_id ?? null,
+        photo_url: data.photo_url ?? null,
+      });
     } catch (err: any) {
       setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
       setTimeout(() => setScanMessage(null), 4000);
     }
+  };
+
+  const confirmScanCandidate = async (candidate: ScanCandidate | null) => {
+    if (!scanCandidates) return;
+    const { fallback } = scanCandidates;
+    try {
+      await insertScannedProduct(candidate ? {
+        product_name: candidate.product_name ?? fallback.product_name,
+        brand: candidate.brand ?? fallback.brand,
+        product_type: fallback.product_type,
+        ingredients: candidate.ingredients ?? fallback.ingredients,
+        open_beauty_facts_id: candidate.open_beauty_facts_id,
+        photo_url: candidate.photo_url,
+      } : {
+        product_name: fallback.product_name,
+        brand: fallback.brand,
+        product_type: fallback.product_type,
+        ingredients: fallback.ingredients,
+        open_beauty_facts_id: null,
+        photo_url: null,
+      });
+    } catch (err: any) {
+      setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
+      setTimeout(() => setScanMessage(null), 4000);
+    }
+    setScanCandidates(null);
   };
 
   const confirmRemove = async () => {
@@ -670,6 +740,56 @@ const Vanity = () => {
               Annuler
             </button>
           </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Bottom sheet sélection produit (Open Beauty Facts) */}
+      <Drawer
+        open={!!scanCandidates}
+        onOpenChange={(open) => { if (!open) setScanCandidates(null); }}
+      >
+        <DrawerContent className="px-6 pb-10">
+          <DrawerHeader className="text-left px-0 pt-2 pb-4">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              {scanCandidates?.fallback.brand}
+            </p>
+            <DrawerTitle className="text-xl font-display text-foreground">
+              Quel produit avez-vous scanné ?
+            </DrawerTitle>
+          </DrawerHeader>
+
+          <p className="text-sm font-bold text-foreground mb-4">
+            Plusieurs produits correspondent à « {scanCandidates?.fallback.product_name} »
+          </p>
+
+          <div className="space-y-3 mb-6 max-h-[50vh] overflow-y-auto">
+            {scanCandidates?.candidates.map((c, i) => (
+              <button
+                key={i}
+                onClick={() => confirmScanCandidate(c)}
+                className="w-full flex items-center gap-3 p-3 bg-card border-2 border-border/40 rounded-2xl text-left transition-all hover:border-primary/50"
+              >
+                <div className="w-12 h-12 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                  {c.photo_url ? (
+                    <img src={c.photo_url} alt={c.product_name ?? ""} className="w-full h-full object-contain" />
+                  ) : (
+                    <ImageOff size={16} className="text-muted-foreground/40" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground truncate">{c.product_name}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{c.brand}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => confirmScanCandidate(null)}
+            className="w-full h-12 text-muted-foreground text-sm font-medium"
+          >
+            Aucun de ceux-ci, garder mes informations
+          </button>
         </DrawerContent>
       </Drawer>
 
