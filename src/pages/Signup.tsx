@@ -180,7 +180,33 @@ const Signup = () => {
                 .is("user_id", null)
                 .or(`product_name.ilike.%${productSearchQuery}%,brand.ilike.%${productSearchQuery}%`)
                 .limit(8);
-            if (data) setProductCatalogResults(data);
+            if (data && data.length > 0) {
+                setProductCatalogResults(data);
+                return;
+            }
+            // Fallback OBF when Supabase catalog has no match
+            if (productSearchQuery.length >= 3) {
+                try {
+                    const res = await fetch(
+                        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(productSearchQuery)}&search_simple=1&action=process&json=1&page_size=8`
+                    );
+                    const json = await res.json();
+                    const obfResults = (json.products ?? [])
+                        .filter((p: any) => p.product_name || p.product_name_fr)
+                        .map((p: any) => ({
+                            id: `obf_${p.code}`,
+                            product_name: p.product_name || p.product_name_fr,
+                            brand: p.brands ?? null,
+                            photo_url: p.image_front_small_url || p.image_url || null,
+                            product_type: null,
+                        }));
+                    setProductCatalogResults(obfResults);
+                } catch {
+                    setProductCatalogResults([]);
+                }
+            } else {
+                setProductCatalogResults([]);
+            }
         }, 300);
         return () => clearTimeout(timer);
     }, [productSearchQuery]);
