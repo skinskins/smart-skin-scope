@@ -935,7 +935,7 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step === 7 && (
+                        {step === 7 && !showDiagnostic && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
