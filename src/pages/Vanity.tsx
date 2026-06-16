@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan } from "lucide-react";
+import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan, FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
@@ -34,6 +34,29 @@ type ScanCandidate = {
   photo_url: string | null;
 };
 
+type DiagnosticResult = {
+  source: string | null;
+  raw_metrics: Record<string, any>;
+  summary: string;
+};
+
+const renderDiagnosticMetrics = (metrics: Record<string, any>) => {
+  const rows: { label: string; value: string }[] = [];
+  if (metrics?.hydratation?.score != null) rows.push({ label: "Hydratation", value: `${metrics.hydratation.score}/4` });
+  if (metrics?.sebum) {
+    const parts: string[] = [];
+    if (metrics.sebum.zone_t != null) parts.push(`Zone T ${metrics.sebum.zone_t}/5`);
+    if (metrics.sebum.zone_u != null) parts.push(`Zone U ${metrics.sebum.zone_u}/5`);
+    if (parts.length) rows.push({ label: "Sébum", value: parts.join(" · ") });
+  }
+  if (metrics?.pores?.score != null) rows.push({ label: "Pores", value: `${metrics.pores.score}/4` });
+  if (metrics?.taches?.score != null) rows.push({ label: "Taches", value: `${metrics.taches.score}/4` });
+  if (metrics?.rougeurs?.score != null) rows.push({ label: "Rougeurs", value: `${metrics.rougeurs.score}/4` });
+  if (metrics?.rides?.score != null) rows.push({ label: "Rides", value: `${metrics.rides.score}/5` });
+  if (metrics?.eclat_global != null) rows.push({ label: "Éclat global", value: `${metrics.eclat_global}/10` });
+  return rows;
+};
+
 const FREQ_OPTIONS = [
   { value: "daily",   label: "Quotidienne",   sub: "Utilisé chaque jour" },
   { value: "weekly",  label: "Hebdomadaire",  sub: "Quelques fois par semaine" },
@@ -46,6 +69,9 @@ const Vanity = () => {
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanCandidates, setScanCandidates] = useState<{ fallback: ScanFallback; candidates: ScanCandidate[] } | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
+  const diagnosticFileRef = useRef<HTMLInputElement>(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
   const [frequencyModal, setFrequencyModal] = useState<{ product: CatalogProduct; mode: "add" | "edit" } | null>(null);
@@ -276,6 +302,60 @@ const Vanity = () => {
       setTimeout(() => setScanMessage(null), 4000);
     }
     setScanCandidates(null);
+  };
+
+  const handleDiagnosticFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (file.type !== "application/pdf") {
+      setScanMessage("Le fichier doit être un PDF");
+      setTimeout(() => setScanMessage(null), 4000);
+      return;
+    }
+    setDiagnosticLoading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data, error } = await supabase.functions.invoke("diagnostic-import", {
+        body: { pdfBase64: base64 },
+      });
+      if (error) {
+        const errorText = error.context
+          ? await (error.context as Response).text().catch(() => error.message)
+          : error.message;
+        throw new Error(errorText);
+      }
+      if (!data?.raw_metrics) throw new Error(`Réponse invalide : ${JSON.stringify(data)}`);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Non connecté");
+
+      const { error: dbError } = await (supabase as any)
+        .from("professional_diagnostics")
+        .insert({
+          user_id: session.user.id,
+          source: data.source ?? null,
+          raw_metrics: data.raw_metrics,
+          summary: data.summary ?? null,
+        });
+      if (dbError) throw dbError;
+
+      setDiagnosticResult({
+        source: data.source ?? null,
+        raw_metrics: data.raw_metrics,
+        summary: data.summary ?? "",
+      });
+    } catch (err: any) {
+      setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
+      setTimeout(() => setScanMessage(null), 4000);
+    } finally {
+      setDiagnosticLoading(false);
+    }
   };
 
   const confirmRemove = async () => {
@@ -550,6 +630,45 @@ const Vanity = () => {
             </div>
           )}
         </motion.div>
+
+        {/* Import diagnostic professionnel */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="premium-card p-6 order-3"
+        >
+          <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
+            Importer mon diagnostic professionnel
+          </h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Importe le rapport PDF de ton dernier diagnostic en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
+          </p>
+          <button
+            onClick={() => diagnosticFileRef.current?.click()}
+            disabled={diagnosticLoading}
+            className="w-full h-12 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center gap-2 text-sm font-semibold text-foreground/80 hover:bg-muted/40 transition-colors disabled:opacity-60"
+          >
+            {diagnosticLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                Analyse en cours…
+              </>
+            ) : (
+              <>
+                <FileUp size={16} strokeWidth={1.5} />
+                Importer un PDF
+              </>
+            )}
+          </button>
+          <input
+            ref={diagnosticFileRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handleDiagnosticFile}
+          />
+        </motion.div>
       </div>
       ) : (
         <div>
@@ -789,6 +908,52 @@ const Vanity = () => {
             className="w-full h-12 text-muted-foreground text-sm font-medium"
           >
             Aucun de ceux-ci, garder mes informations
+          </button>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Bottom sheet confirmation diagnostic professionnel */}
+      <Drawer
+        open={!!diagnosticResult}
+        onOpenChange={(open) => { if (!open) setDiagnosticResult(null); }}
+      >
+        <DrawerContent className="px-6 pb-10">
+          <DrawerHeader className="text-left px-0 pt-2 pb-4">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              {diagnosticResult?.source ?? "Diagnostic professionnel"}
+            </p>
+            <DrawerTitle className="text-xl font-display text-foreground">
+              Ton diagnostic est prêt
+            </DrawerTitle>
+          </DrawerHeader>
+
+          {diagnosticResult?.summary && (
+            <p className="text-sm text-foreground/80 mb-4">{diagnosticResult.summary}</p>
+          )}
+
+          <div className="space-y-2 mb-6">
+            {renderDiagnosticMetrics(diagnosticResult?.raw_metrics ?? {}).map((row) => (
+              <div
+                key={row.label}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl border border-border/40 bg-background/40"
+              >
+                <p className="text-sm font-medium text-foreground">{row.label}</p>
+                <p className="text-sm font-bold text-primary">{row.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 mb-6">
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              Cette analyse devient ta référence (J0). Nacre va suivre l'évolution de ta peau à partir de cette baseline.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setDiagnosticResult(null)}
+            className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest transition-all active:scale-95"
+          >
+            Compris, c'est ma baseline
           </button>
         </DrawerContent>
       </Drawer>
