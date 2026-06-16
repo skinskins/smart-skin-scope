@@ -354,14 +354,45 @@ const Signup = () => {
         return { adjective, dateLabel };
     }, [skinGoals]);
 
-    const productsByType = useMemo(() => {
-        const map = new Map<string, any[]>();
+    // Inferred timing from product type for AHA preview
+    const AHA_TIMING: Record<string, "morning" | "evening" | "both" | "weekly" | "monthly"> = {
+        "nettoyant":     "both",
+        "cleanser":      "both",
+        "tonique":       "both",
+        "toner":         "both",
+        "sérum":         "both",
+        "serum":         "both",
+        "hydratant":     "morning",
+        "crème":         "morning",
+        "spf":           "morning",
+        "solaire":       "morning",
+        "contour-yeux":  "both",
+        "eye cream":     "both",
+        "huile":         "evening",
+        "oil":           "evening",
+        "baume":         "evening",
+        "masque":        "weekly",
+        "mask":          "weekly",
+        "gommage":       "weekly",
+        "exfoliant":     "weekly",
+        "peeling":       "monthly",
+        "acide":         "evening",
+    };
+
+    const ahaRoutine = useMemo(() => {
+        const morning: any[] = [];
+        const evening: any[] = [];
+        const weekly: any[] = [];
         for (const p of selectedOnboardingProducts) {
-            const type: string = p.product_type ?? "Soin";
-            if (!map.has(type)) map.set(type, []);
-            map.get(type)!.push(p);
+            const t = (p.product_type ?? "autre").toLowerCase().trim();
+            const key = Object.keys(AHA_TIMING).find(k => t.includes(k));
+            const slot = key ? AHA_TIMING[key] : "both";
+            if (slot === "weekly" || slot === "monthly") weekly.push(p);
+            else if (slot === "morning") morning.push(p);
+            else if (slot === "evening") evening.push(p);
+            else { morning.push(p); evening.push(p); }
         }
-        return Array.from(map.entries());
+        return { morning, evening, weekly };
     }, [selectedOnboardingProducts]);
 
     const BackButton = () => (
@@ -1415,57 +1446,129 @@ const Signup = () => {
                                         className="grid grid-cols-2 gap-3 mb-6 shrink-0"
                                     >
                                         <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
-                                            <p className="text-2xl font-display text-foreground font-bold">2</p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">routines / jour</p>
+                                            <p className="text-2xl font-display text-foreground font-bold">
+                                                {(ahaRoutine.morning.length > 0 ? 1 : 0) + (ahaRoutine.evening.length > 0 ? 1 : 0) || 1}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">routine{((ahaRoutine.morning.length > 0 ? 1 : 0) + (ahaRoutine.evening.length > 0 ? 1 : 0)) > 1 ? "s" : ""} / jour</p>
                                         </div>
                                         <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
-                                            <p className="text-2xl font-display text-foreground font-bold">{productsByType.length}</p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">gestes clés</p>
+                                            <p className="text-2xl font-display text-foreground font-bold">{selectedOnboardingProducts.length}</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">produits sélectionnés</p>
                                         </div>
                                     </motion.div>
                                 )}
 
-                                {/* Produits — préview routine du matin */}
+                                {/* Préview routine — matin / soir / hebdo */}
                                 {selectedOnboardingProducts.length > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.2 }}
-                                        className="mb-5"
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <p className="text-[14px] font-semibold text-foreground">Ma routine du matin</p>
-                                            <p className="text-[11px] text-muted-foreground">{selectedOnboardingProducts.length} produits</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {productsByType.map(([type, prods], i) => (
-                                                <motion.div
-                                                    key={type}
-                                                    initial={{ opacity: 0, x: -8 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    transition={{ delay: 0.25 + 0.06 * i }}
-                                                    className="bg-white rounded-2xl border border-border/20 overflow-hidden"
-                                                >
-                                                    <div className="px-4 pt-3 pb-1.5">
-                                                        <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{type}</p>
-                                                    </div>
-                                                    {prods.map((p: any) => (
-                                                        <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                                    <div className="space-y-4 mb-5">
+                                        {/* Matin */}
+                                        {ahaRoutine.morning.length > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.2 }}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-[13px] font-semibold text-foreground">☀️ Ma routine du matin</p>
+                                                    <p className="text-[11px] text-muted-foreground">{ahaRoutine.morning.length} produit{ahaRoutine.morning.length > 1 ? "s" : ""}</p>
+                                                </div>
+                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden divide-y divide-border/10">
+                                                    {ahaRoutine.morning.map((p: any, i: number) => (
+                                                        <motion.div
+                                                            key={p.id ?? `m-${i}`}
+                                                            initial={{ opacity: 0, x: -6 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: 0.22 + 0.05 * i }}
+                                                            className="flex items-center gap-3 px-4 py-2.5"
+                                                        >
                                                             {p.photo_url ? (
-                                                                <img src={p.photo_url} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0 bg-muted/20" />
+                                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 bg-muted/20" />
                                                             ) : (
-                                                                <div className="w-10 h-10 rounded-xl bg-muted/20 shrink-0" />
+                                                                <div className="w-9 h-9 rounded-xl bg-muted/20 shrink-0" />
                                                             )}
                                                             <div className="min-w-0">
-                                                                <p className="text-[13px] font-medium text-foreground leading-snug line-clamp-2">{p.product_name}</p>
-                                                                {p.brand && <p className="text-[11px] text-muted-foreground mt-0.5">{p.brand}</p>}
+                                                                <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
+                                                                {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
                                                             </div>
-                                                        </div>
+                                                            {p.product_type && <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider ml-auto shrink-0">{p.product_type}</span>}
+                                                        </motion.div>
                                                     ))}
-                                                </motion.div>
-                                            ))}
-                                        </div>
-                                    </motion.div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+
+                                        {/* Soir */}
+                                        {ahaRoutine.evening.length > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.28 }}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-[13px] font-semibold text-foreground">🌙 Ma routine du soir</p>
+                                                    <p className="text-[11px] text-muted-foreground">{ahaRoutine.evening.length} produit{ahaRoutine.evening.length > 1 ? "s" : ""}</p>
+                                                </div>
+                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden divide-y divide-border/10">
+                                                    {ahaRoutine.evening.map((p: any, i: number) => (
+                                                        <motion.div
+                                                            key={p.id ?? `e-${i}`}
+                                                            initial={{ opacity: 0, x: -6 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: 0.3 + 0.05 * i }}
+                                                            className="flex items-center gap-3 px-4 py-2.5"
+                                                        >
+                                                            {p.photo_url ? (
+                                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 bg-muted/20" />
+                                                            ) : (
+                                                                <div className="w-9 h-9 rounded-xl bg-muted/20 shrink-0" />
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
+                                                                {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
+                                                            </div>
+                                                            {p.product_type && <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider ml-auto shrink-0">{p.product_type}</span>}
+                                                        </motion.div>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        )}
+
+                                        {/* Soins hebdo / ponctuels */}
+                                        {ahaRoutine.weekly.length > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.36 }}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-[13px] font-semibold text-foreground">✨ Soins ponctuels</p>
+                                                    <p className="text-[11px] text-muted-foreground">{ahaRoutine.weekly.length} produit{ahaRoutine.weekly.length > 1 ? "s" : ""}</p>
+                                                </div>
+                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden divide-y divide-border/10">
+                                                    {ahaRoutine.weekly.map((p: any, i: number) => (
+                                                        <motion.div
+                                                            key={p.id ?? `w-${i}`}
+                                                            initial={{ opacity: 0, x: -6 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: 0.38 + 0.05 * i }}
+                                                            className="flex items-center gap-3 px-4 py-2.5"
+                                                        >
+                                                            {p.photo_url ? (
+                                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 bg-muted/20" />
+                                                            ) : (
+                                                                <div className="w-9 h-9 rounded-xl bg-muted/20 shrink-0" />
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
+                                                                {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
+                                                            </div>
+                                                            {p.product_type && <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider ml-auto shrink-0">{p.product_type}</span>}
+                                                        </motion.div>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </div>
                                 )}
 
                                 {/* Insight cycle (si disponible) */}
