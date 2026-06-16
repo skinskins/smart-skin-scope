@@ -345,6 +345,14 @@ const Vanity = () => {
         });
       if (dbError) throw dbError;
 
+      await (supabase as any)
+        .from("profiles")
+        .update({
+          skin_diagnostic_baseline: data.raw_metrics,
+          skin_diagnostic_source: data.source ?? null,
+        })
+        .eq("id", session.user.id);
+
       setDiagnosticResult({
         source: data.source ?? null,
         raw_metrics: data.raw_metrics,

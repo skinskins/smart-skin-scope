@@ -51,7 +51,7 @@ serve(async (req) => {
     // ── 2. Récupérer le profil ──────────────────────────────────────────────
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("age, cycle_phase, stress_level, skin_type, skin_problems, skin_goals, carnation, manual_location, last_period_date, cycle_duration, default_factors")
+      .select("age, cycle_phase, stress_level, skin_type, skin_problems, skin_goals, carnation, manual_location, last_period_date, cycle_duration, default_factors, skin_diagnostic_baseline, skin_diagnostic_source")
       .eq("id", user_id)
       .single();
 
@@ -177,6 +177,18 @@ serve(async (req) => {
 - Phototype (Fitzpatrick) : ${skinAnalysis.fitzpatrick ?? "non renseigné"} — Photovieillissement (Glogau) : ${skinAnalysis.glogau ?? "non renseigné"}${skinAnalysis.points_attention?.length ? `\n- Points d'attention observés : ${skinAnalysis.points_attention.join(", ")}` : ""}`
       : "- Aucune analyse de peau récente disponible";
 
+    const diag = profile.skin_diagnostic_baseline as Record<string, any> | null;
+    const diagBlock = diag
+      ? `## DIAGNOSTIC PROFESSIONNEL (baseline J0)
+- Hydratation : ${diag.hydratation?.score ?? "n/a"}/4
+- Sébum zone T : ${diag.sebum?.zone_t ?? "n/a"}/5
+- Pores : ${diag.pores?.score ?? "n/a"}/4
+- Taches : ${diag.taches?.score ?? "n/a"}/4
+- Rougeurs : ${diag.rougeurs?.score ?? "n/a"}/4
+- Éclat global : ${diag.eclat_global ?? "n/a"}/10
+- Source : ${profile.skin_diagnostic_source ?? "machine pro"}`
+      : "## DIAGNOSTIC PROFESSIONNEL\n- Aucun diagnostic professionnel disponible";
+
     const productsBlock = products && products.length > 0
       ? products.map((p) =>
           `- ${p.product_name} (${p.brand}) — ${p.product_type}${p.ingredients ? `\n  INCI : ${p.ingredients}` : ""}`
@@ -207,6 +219,8 @@ ${weatherBlock}
 
 ## ÉTAT DE PEAU OBSERVÉ${lastPhoto?.date ? ` (analyse du ${lastPhoto.date})` : ""}
 ${skinStateBlock}
+
+${diagBlock}
 
 ## PRODUITS EN ROUTINE ACTIVE
 ${productsBlock}
