@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Sparkles } from "lucide-react";
+import { Sparkles, ImageOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
@@ -35,7 +35,8 @@ const DashboardSkeleton = () => (
 import { AdviceCard, Conseil, sortConseils } from "@/components/AdviceCard";
 
 const Dashboard = () => {
-  const [checkinStatus, setCheckinStatus] = useState<"loading" | "done">("loading");
+  const [checkinStatus] = useState<"loading" | "done">("done");
+  const [routineProducts, setRoutineProducts] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -56,29 +57,22 @@ const Dashboard = () => {
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
-  // Guard : redirect to daily conversation if checkin not done yet today
   useEffect(() => {
-    const checkDailyCheckin = async () => {
+    const fetchRoutineProducts = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setCheckinStatus("done");
-        return;
-      }
-      const today = new Date().toISOString().split("T")[0];
+      if (!session?.user) return;
+      const isMorning = new Date().getHours() < 15;
       const { data } = await (supabase as any)
-        .from("daily_checkins")
-        .select("id")
+        .from("user_products")
+        .select("id, product_name, brand, photo_url, product_type")
         .eq("user_id", session.user.id)
-        .eq("date", today)
-        .maybeSingle();
-      if (!data) {
-        navigate("/daily-conversation", { replace: true });
-      } else {
-        setCheckinStatus("done");
-      }
+        .eq("is_active", true)
+        .eq(isMorning ? "morning_use" : "evening_use", true)
+        .limit(8);
+      if (data) setRoutineProducts(data);
     };
-    checkDailyCheckin();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchRoutineProducts();
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -364,6 +358,35 @@ const Dashboard = () => {
           </div>
         ) : null}
 
+        {/* Routine du jour */}
+        {routineProducts.length > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {new Date().getHours() < 15 ? "Routine du matin" : "Routine du soir"}
+              </p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              {routineProducts.map(p => (
+                <div key={p.id} className="flex flex-col items-center gap-1 shrink-0 w-14">
+                  <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
+                    {p.photo_url
+                      ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                      : <ImageOff size={14} className="text-muted-foreground/40" />}
+                  </div>
+                  <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.brand || p.product_name}</p>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => navigate("/routine-player")}
+              className="w-full mt-3 py-3 rounded-2xl bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase transition active:scale-95"
+            >
+              Commencer la routine
+            </button>
+          </div>
+        )}
+
         {/* Conseil du jour — 1 seul, le plus prioritaire */}
         <div className="flex flex-col gap-2 mb-3">
           {adviceLoading ? (
@@ -501,16 +524,6 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-
-      {/* Bouton flottant IA */}
-      <button
-        onClick={() => navigate("/daily-conversation")}
-        className="fixed bottom-20 right-4 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-50 transition-transform active:scale-95"
-        style={{ background: "#2C1810" }}
-        aria-label="Ouvrir la conversation"
-      >
-        <MessageCircle size={22} strokeWidth={1.8} className="text-white" />
-      </button>
 
     </div>
   );
