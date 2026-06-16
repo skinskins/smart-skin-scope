@@ -2,7 +2,7 @@ import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,7 +124,6 @@ const Signup = () => {
     const [correctedSkinType, setCorrectedSkinType] = useState("");
     const [correctedProblems, setCorrectedProblems] = useState<string[]>([]);
     const [showPreview, setShowPreview] = useState(false);
-    const [pricingMode, setPricingMode] = useState<"free" | "premium">("premium");
     const [loading, setLoading] = useState(false);
 
     const PLANS = {
@@ -284,6 +283,49 @@ const Signup = () => {
         else setSelectedOnboardingProducts(prev => [...prev, product]);
     };
 
+    const ahaInsights = useMemo(() => {
+        const insights: Array<{ emoji: string; text: string }> = [];
+
+        // Cycle phase
+        if (lastPeriodDate) {
+            const daysSince = Math.floor((Date.now() - new Date(lastPeriodDate).getTime()) / 86400000);
+            const dayInCycle = ((daysSince % cycleDuration) + cycleDuration) % cycleDuration + 1;
+            let phase: string, advice: string;
+            if (dayInCycle <= 5)       { phase = "menstruelle";  advice = "ta peau peut être plus sensible — Nacre privilégiera les soins apaisants"; }
+            else if (dayInCycle <= 13) { phase = "folliculaire"; advice = "c'est le meilleur moment pour les actifs ciblés comme la vitamine C"; }
+            else if (dayInCycle <= 16) { phase = "ovulatoire";   advice = "ta peau est à son pic d'éclat naturel"; }
+            else                       { phase = "lutéale";      advice = "Nacre surveillera les signes de congestion hormonale"; }
+            insights.push({ emoji: "🌙", text: `Tu es actuellement en phase ${phase} — ${advice}.` });
+        }
+
+        // Skin type + first goal
+        if (skinType && skinGoals.length > 0) {
+            insights.push({
+                emoji: "✨",
+                text: `Basé sur ta peau ${skinType.toLowerCase()} et ton objectif "${skinGoals[0].toLowerCase()}", Nacre va adapter ta routine chaque jour selon la météo, ton cycle et tes produits.`,
+            });
+        } else if (skinType) {
+            insights.push({
+                emoji: "✨",
+                text: `Nacre va analyser ta peau ${skinType.toLowerCase()} au quotidien et affiner ses conseils au fil du temps.`,
+            });
+        }
+
+        // First problem
+        if (skinProblems.length > 0) {
+            insights.push({
+                emoji: "🎯",
+                text: `Tes ${skinProblems[0].toLowerCase()} seront suivis semaine après semaine pour mesurer ta progression réelle.`,
+            });
+        }
+
+        if (insights.length === 0) {
+            insights.push({ emoji: "✨", text: "Nacre va apprendre à connaître ta peau et adapter tes conseils chaque jour." });
+        }
+
+        return insights.slice(0, 3);
+    }, [lastPeriodDate, cycleDuration, skinType, skinGoals, skinProblems]);
+
     const BackButton = () => (
         <motion.button
             type="button"
@@ -294,12 +336,9 @@ const Signup = () => {
             onClick={(e) => {
                 e.preventDefault();
                 if (showPreview) setShowPreview(false);
-                else if (step === 11) {
-                    if (pricingMode === "free") setStep(9);
-                    else setStep(10);
-                }
+                else if (step === 11) setStep(10);
                 else if (step === 10) setStep(9);
-                else if (step === 9) setShowPreview(true);
+                else if (step === 9) setStep(8);
                 else if (step > 2) setStep(step - 1);
                 else if (step === 2) navigate("/onboarding");
                 else navigate("/onboarding");
@@ -345,16 +384,6 @@ const Signup = () => {
         if (showDiagnostic) {
             setShowDiagnostic(false);
             setStep(9);
-            window.scrollTo(0, 0);
-            return;
-        }
-
-        if (step === 9) {
-            if (pricingMode === "free") {
-                setStep(11);
-            } else {
-                setStep(10);
-            }
             window.scrollTo(0, 0);
             return;
         }
@@ -1242,7 +1271,45 @@ const Signup = () => {
                                 )}
                             </div>
                         )}
+                        {/* Step 9 — AHA moment */}
                         {step === 9 && (
+                            <div className="flex flex-col h-full">
+                                <div className="mb-10 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight">Voici ce que Nacre va faire pour toi</h1>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 space-y-4">
+                                    {ahaInsights.map((insight, i) => (
+                                        <motion.div
+                                            key={i}
+                                            initial={{ opacity: 0, y: 14 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.18 * i, ease: "easeOut" }}
+                                            className="bg-primary/5 border border-primary/10 rounded-[24px] p-6"
+                                        >
+                                            <span className="text-2xl mb-3 block">{insight.emoji}</span>
+                                            <p className="text-[14px] text-foreground leading-relaxed">{insight.text}</p>
+                                        </motion.div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-8 pb-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
+                                        className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+                                    >
+                                        Commencer avec Nacre <ChevronRight size={18} strokeWidth={2.5} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 10 — Pricing */}
+                        {step === 10 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
@@ -1318,7 +1385,7 @@ const Signup = () => {
                                 <div className="space-y-3 pt-2 mt-auto">
                                     <button
                                         type="button"
-                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
+                                        onClick={() => { setStep(11); window.scrollTo(0, 0); }}
                                         className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
                                     >
                                         Passer premium
@@ -1326,88 +1393,6 @@ const Signup = () => {
                                     <button
                                         type="button"
                                         onClick={() => { setStep(11); window.scrollTo(0, 0); }}
-                                        className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
-                                    >
-                                        Commencer mon essai gratuit
-                                    </button>
-                                    <p className="text-center text-[10px] text-muted-foreground pt-1">
-                                        Renouvelé automatiquement à 9,99€/mois. Annulable à tout moment.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        {step === 10 && (
-                            <div className="space-y-8 h-full flex flex-col">
-                                <div className="mb-4 flex items-center gap-4">
-                                    <BackButton />
-                                    <div>
-                                        <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em] mb-1">Votre essai est terminé</p>
-                                        <h2 className="text-2xl font-display text-foreground leading-tight">Continuez à prendre soin de vous</h2>
-                                    </div>
-                                </div>
-
-                                {/* Segmented Control — Annuel (-40%) left, Mensuel right */}
-                                <div className="bg-muted/20 p-1.5 rounded-full flex mb-8 relative border border-border/40">
-                                    <motion.div
-                                        className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
-                                        animate={{ x: selectedPlan === 'monthly' ? '100%' : '0%' }}
-                                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                    />
-                                    <button type="button" onClick={() => setSelectedPlan("yearly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 relative ${selectedPlan === 'yearly' ? 'text-primary' : 'text-muted-foreground'}`}>
-                                        <Badge className="absolute -top-3 -left-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
-                                        Annuel
-                                    </button>
-                                    <button type="button" onClick={() => setSelectedPlan("monthly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 ${selectedPlan === 'monthly' ? 'text-primary' : 'text-muted-foreground'}`}>Mensuel</button>
-                                </div>
-
-                                {/* Price Display */}
-                                <motion.div layout className="bg-primary/5 p-8 rounded-[40px] border border-primary/10 text-center mb-6 relative overflow-hidden shadow-sm">
-                                    <AnimatePresence mode="wait">
-                                        <motion.div key={selectedPlan} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="space-y-5">
-                                            {selectedPlan === 'yearly' && (
-                                                <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full mb-2 shadow-sm">
-                                                    <span>-40%</span>
-                                                    <span className="w-1 h-1 bg-white/40 rounded-full" />
-                                                    <span>Offre de lancement</span>
-                                                </div>
-                                            )}
-                                            <div className="flex items-baseline justify-center gap-2">
-                                                <span className="text-5xl font-display text-foreground italic leading-none">{PLANS[selectedPlan].price}</span>
-                                                <span className="text-xl text-muted-foreground italic">{PLANS[selectedPlan].period}</span>
-                                            </div>
-                                            <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
-                                        </motion.div>
-                                    </AnimatePresence>
-                                </motion.div>
-
-                                {/* Feature list matching Figma */}
-                                <div className="space-y-4 mb-8">
-                                    {[
-                                        { label: "Accès illimité", desc: "Toutes les fonctionnalités sans restriction" },
-                                        { label: "Sans engagement", desc: "Annulez à tout moment" },
-                                        { label: "Conseils personnalisés", desc: "Adaptés à votre cycle, météo et routine" },
-                                        { label: "Mémoire illimitée", desc: "Historique complet sans limite de temps" },
-                                    ].map((item, idx) => (
-                                        <div key={idx} className="flex items-start gap-4">
-                                            <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5"><Check size={11} strokeWidth={3} /></div>
-                                            <div>
-                                                <p className="text-[13px] font-semibold text-foreground">{item.label}</p>
-                                                <p className="text-[11px] text-muted-foreground italic leading-tight">{item.desc}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="space-y-3 pt-4">
-                                    <Button
-                                        type="submit"
-                                        className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
-                                    >
-                                        Passer premium
-                                    </Button>
-                                    <button
-                                        type="submit"
                                         className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
                                     >
                                         Commencer mon essai gratuit
