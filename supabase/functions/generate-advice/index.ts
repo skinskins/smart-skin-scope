@@ -51,7 +51,7 @@ serve(async (req) => {
     // ── 2. Récupérer le profil ──────────────────────────────────────────────
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("age, cycle_phase, stress_level, skin_type, skin_problems, skin_goals, carnation, manual_location, last_period_date, cycle_duration")
+      .select("age, cycle_phase, stress_level, skin_type, skin_problems, skin_goals, carnation, manual_location, last_period_date, cycle_duration, default_factors")
       .eq("id", user_id)
       .single();
 
@@ -62,10 +62,21 @@ serve(async (req) => {
     const { data: weather } = await supabase
       .from("daily_weather")
       .select("temp_c, humidity, uv_index, aqi_score, pollution_label, location")
+      .eq("user_id", user_id)
       .eq("date", today)
-      .single();
+      .maybeSingle();
 
     console.log("[generate-advice] Météo:", weather ? "✅" : "❌ absente");
+
+    // ── 3b. Récupérer le check-in du jour (si disponible) ──────────────────
+    const { data: checkin } = await supabase
+      .from("daily_checkins")
+      .select("stress_level, sleep_hours, food_quality, alcohol_drinks, extra_factors")
+      .eq("user_id", user_id)
+      .eq("date", today)
+      .maybeSingle();
+
+    console.log("[generate-advice] Check-in:", checkin ? "✅" : "absent — fallback default_factors");
 
     // ── 4. Récupérer les produits actifs ────────────────────────────────────
     const { data: products } = await supabase
@@ -99,6 +110,52 @@ serve(async (req) => {
       .order("date", { ascending: false });
 
     // ── 7. Construire le prompt ─────────────────────────────────────────────
+
+    // Bloc mode de vie : check-in du jour en priorité, sinon default_factors
+    const DEFAULT_FACTOR_LABELS: Record<string, string> = {
+      poor_sleep: "manque de sommeil habituel", good_sleep: "dors bien en général",
+      high_stress: "niveau de stress élevé habituellement", serene: "plutôt sereine habituellement",
+      high_sugar: "alimentation sucrée/grasse habituelle", low_water: "hydratation insuffisante habituelle",
+      balanced_diet: "alimentation équilibrée habituelle", sport: "sport régulier",
+      sedentary: "mode de vie sédentaire", sun: "exposition solaire fréquente",
+      screens: "beaucoup d'écrans", smoking: "fumeuse", hormonal: "contraception hormonale",
+    };
+
+    let lifestyleBlock: string;
+    if (checkin) {
+      const factors: string[] = [];
+      if (checkin.stress_level !== null) {
+        if (checkin.stress_level >= 4) factors.push("stress très élevé aujourd'hui");
+        else if (checkin.stress_level === 3) factors.push("stress modéré");
+        else if (checkin.stress_level === 1) factors.push("sereine");
+      }
+      if (checkin.sleep_hours !== null) {
+        if (checkin.sleep_hours <= 5) factors.push(`sommeil insuffisant (${checkin.sleep_hours}h)`);
+        else if (checkin.sleep_hours >= 7) factors.push(`bon sommeil (${checkin.sleep_hours}h)`);
+      }
+      if (checkin.food_quality === "Grasses / Sucrées") factors.push("alimentation grasse/sucrée");
+      else if (checkin.food_quality === "Équilibrée") factors.push("alimentation équilibrée");
+      if ((checkin.alcohol_drinks ?? 0) >= 1) factors.push("consommation d'alcool");
+      if (checkin.extra_factors?.sun_exposure) factors.push("exposition solaire");
+      if (checkin.extra_factors?.medication) factors.push("prise de médicament");
+      if (checkin.extra_factors?.travel) factors.push("voyage/changement d'environnement");
+      lifestyleBlock = factors.length > 0
+        ? `Données du jour (check-in réel) : ${factors.join(", ")}`
+        : "Check-in effectué — aucun facteur particulier noté aujourd'hui";
+    } else {
+      const defaultFactors = profile.default_factors as Record<string, boolean> | null;
+      if (defaultFactors) {
+        const active = Object.entries(defaultFactors)
+          .filter(([, v]) => v)
+          .map(([k]) => DEFAULT_FACTOR_LABELS[k] ?? k);
+        lifestyleBlock = active.length > 0
+          ? `Mode de vie habituel déclaré : ${active.join(", ")}`
+          : "Mode de vie déclaré sans facteur particulier";
+      } else {
+        lifestyleBlock = "Données de mode de vie non disponibles";
+      }
+    }
+
     const weatherBlock = weather
       ? `- Température : ${weather.temp_c}°C
 - Humidité : ${weather.humidity}%
@@ -141,6 +198,9 @@ Tu génères des conseils personnalisés, bienveillants et experts pour des util
 - Problèmes de peau : ${Array.isArray(profile.skin_problems) ? profile.skin_problems.join(", ") : profile.skin_problems ?? "non renseignés"}
 - Objectifs : ${Array.isArray(profile.skin_goals) ? profile.skin_goals.join(", ") : profile.skin_goals ?? "non renseignés"}
 - Niveau de stress : ${profile.stress_level ?? "non renseigné"}
+
+## FACTEURS QUOTIDIENS & MODE DE VIE
+- ${lifestyleBlock}
 
 ## DONNÉES MÉTÉO (aujourd'hui — ${today})
 ${weatherBlock}

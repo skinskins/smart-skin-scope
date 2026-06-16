@@ -18,38 +18,45 @@ serve(async (req) => {
   }
 
   try {
-    const { eveningProducts, morningProducts, cyclePhase, uvIndex } = await req.json() as {
-      eveningProducts: ProductInput[];
-      morningProducts: ProductInput[];
-      cyclePhase: string | null;
-      uvIndex: number | null;
-    };
+    const body = await req.json();
+    const cyclePhase: string | null = body.cyclePhase ?? null;
+    const uvIndex: number | null = body.uvIndex ?? null;
+
+    // Nouveau format : { products, period } — rétrocompatible avec l'ancien
+    let products: ProductInput[];
+    let period: "morning" | "evening";
+    if (body.products) {
+      products = body.products as ProductInput[];
+      period = body.period === "morning" ? "morning" : "evening";
+    } else {
+      // ancien format
+      const isMorning = (body.morningProducts ?? []).length > 0;
+      products = isMorning ? body.morningProducts : body.eveningProducts;
+      period = isMorning ? "morning" : "evening";
+    }
 
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    const eveningList = eveningProducts
+    const periodLabel = period === "morning" ? "matin" : "soir";
+
+    const productList = products
       .map(p => {
         const line = `- ${p.product_name}${p.brand ? ` (${p.brand})` : ""}`;
         return p.ingredients ? `${line}\n  INCI : ${p.ingredients}` : line;
       })
-      .join("\n");
-
-    const morningList =
-      morningProducts.length > 0
-        ? morningProducts.map(p => `- ${p.product_name}${p.brand ? ` (${p.brand})` : ""}`).join("\n")
-        : "Aucun produit utilisé ce matin";
+      .join("\n") || "Aucun produit";
 
     const prompt = `Tu es un expert en cosmétologie et dermatologie.
-Voici les produits que cette utilisatrice va appliquer ce soir :
-${eveningList}
+Voici les produits que cette utilisatrice va appliquer ce ${periodLabel} :
+${productList}
 
 Contexte :
 - Phase cycle : ${cyclePhase ?? "non renseignée"}
 - UV aujourd'hui : ${uvIndex != null ? uvIndex : "non disponible"}
-- Produits utilisés ce matin : ${morningList}
+- Moment de la journée : ${periodLabel}
 
-Analyse les incompatibilités (actifs antagonistes, risques liés à la phase cycle ou aux UV) et retourne UNIQUEMENT ce JSON :
+Analyse les incompatibilités (actifs antagonistes, risques liés à la phase cycle, aux UV ou à l'ordre d'application) et retourne UNIQUEMENT ce JSON :
 {
   "incompatibilities": [
     {
