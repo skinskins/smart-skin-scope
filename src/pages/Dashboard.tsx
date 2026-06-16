@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ImageOff, Camera } from "lucide-react";
+import { Sparkles, ImageOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
@@ -24,14 +24,6 @@ const DashboardSkeleton = () => (
 );
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-
-const delta = (now: number | null | undefined, prev: number | null | undefined, unit: string) => {
-  if (now == null) return null;
-  if (prev == null) return `${now}${unit}`;
-  if (now > prev) return `${now}${unit} ↑ vs ${prev} hier`;
-  if (now < prev) return `${now}${unit} ↓ vs ${prev} hier`;
-  return `${now}${unit} → stable`;
-};
 
 const nextCycleEvent = (cycleDay: number, cycleDuration: number): string => {
   const ovDay  = Math.max(1, cycleDuration - 14);
@@ -274,8 +266,6 @@ const Dashboard = () => {
     ?? (skinPhotos.length > 1 && skinPhotos[0].date !== today ? skinPhotos[1] : null)
     ?? (skinPhotos.length > 1 ? skinPhotos[1] : null);
 
-  const anaToday = photoToday?.analysis_json as Record<string, any> | undefined;
-  const anaYest  = photoYest?.analysis_json  as Record<string, any> | undefined;
 
   if (checkinStatus === "loading") return <DashboardSkeleton />;
 
@@ -441,47 +431,7 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Carte 4 — Score peau */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-[#F8F6F2] rounded-2xl p-4"
-        >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Score peau</p>
-          {anaToday ? (
-            <div className="space-y-2">
-              {[
-                { label: "Éclat",       val: anaToday.eclat_global,          prevVal: anaYest?.eclat_global,           unit: "/10" },
-                { label: "Hydratation", val: anaToday.hydratation?.score,    prevVal: anaYest?.hydratation?.score,     unit: "/4" },
-                { label: "Acné",        val: anaToday.acne?.score,           prevVal: anaYest?.acne?.score,            unit: "/4" },
-              ].map(({ label, val, prevVal, unit }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <p className="text-[12px] text-muted-foreground">{label}</p>
-                  <p className="text-[13px] font-semibold text-foreground">
-                    {delta(val, prevVal, unit) ?? "—"}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Camera size={16} className="text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-[13px] text-foreground font-medium">Prends ta première photo</p>
-                <p className="text-[11px] text-muted-foreground">Pour voir ton score peau évoluer</p>
-              </div>
-              <button
-                onClick={() => navigate("/diagnosis")}
-                className="ml-auto text-[11px] text-primary font-semibold shrink-0"
-              >
-                Photo →
-              </button>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Carte 5 — Comparaison photos */}
+        {/* Carte 4 — Comparaison photos */}
         {skinPhotos.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
