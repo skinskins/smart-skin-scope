@@ -51,6 +51,36 @@ const professions = [
 
 const channels = ["Instagram", "LinkedIn", "TikTok", "Facebook", "Twitter/X", "Bouche à oreille", "Recherche Google", "Autre"];
 
+const AHA_TIMING: Record<string, "morning" | "evening" | "both" | "weekly" | "monthly"> = {
+    "nettoyant":    "both",
+    "cleanser":     "both",
+    "tonique":      "both",
+    "toner":        "both",
+    "sérum":        "both",
+    "serum":        "both",
+    "hydratant":    "morning",
+    "crème":        "morning",
+    "spf":          "morning",
+    "solaire":      "morning",
+    "contour-yeux": "both",
+    "eye cream":    "both",
+    "huile":        "evening",
+    "oil":          "evening",
+    "baume":        "evening",
+    "acide":        "evening",
+    "masque":       "weekly",
+    "mask":         "weekly",
+    "gommage":      "weekly",
+    "exfoliant":    "weekly",
+    "peeling":      "monthly",
+};
+
+const resolveProductTiming = (productType: string | null) => {
+    const t = (productType ?? "autre").toLowerCase().trim();
+    const key = Object.keys(AHA_TIMING).find(k => t.includes(k));
+    return key ? AHA_TIMING[key] : "both";
+};
+
 const BASELINE_MAP: Record<string, string> = {
     "Légère": "moins", "Légères": "moins",
     "Modérée": "pareil", "Modérées": "pareil",
@@ -354,39 +384,12 @@ const Signup = () => {
         return { adjective, dateLabel };
     }, [skinGoals]);
 
-    // Inferred timing from product type for AHA preview
-    const AHA_TIMING: Record<string, "morning" | "evening" | "both" | "weekly" | "monthly"> = {
-        "nettoyant":     "both",
-        "cleanser":      "both",
-        "tonique":       "both",
-        "toner":         "both",
-        "sérum":         "both",
-        "serum":         "both",
-        "hydratant":     "morning",
-        "crème":         "morning",
-        "spf":           "morning",
-        "solaire":       "morning",
-        "contour-yeux":  "both",
-        "eye cream":     "both",
-        "huile":         "evening",
-        "oil":           "evening",
-        "baume":         "evening",
-        "masque":        "weekly",
-        "mask":          "weekly",
-        "gommage":       "weekly",
-        "exfoliant":     "weekly",
-        "peeling":       "monthly",
-        "acide":         "evening",
-    };
-
     const ahaRoutine = useMemo(() => {
         const morning: any[] = [];
         const evening: any[] = [];
         const weekly: any[] = [];
         for (const p of selectedOnboardingProducts) {
-            const t = (p.product_type ?? "autre").toLowerCase().trim();
-            const key = Object.keys(AHA_TIMING).find(k => t.includes(k));
-            const slot = key ? AHA_TIMING[key] : "both";
+            const slot = resolveProductTiming(p.product_type);
             if (slot === "weekly" || slot === "monthly") weekly.push(p);
             else if (slot === "morning") morning.push(p);
             else if (slot === "evening") evening.push(p);
@@ -520,17 +523,20 @@ const Signup = () => {
 
             if (selectedOnboardingProducts.length > 0) {
                 await (supabase as any).from("user_products").insert(
-                    selectedOnboardingProducts.map(p => ({
-                        product_name: p.product_name,
-                        brand: p.brand,
-                        photo_url: p.photo_url,
-                        product_type: p.product_type,
-                        user_id: userId,
-                        morning_use: true,
-                        evening_use: true,
-                        frequency: "daily",
-                        is_active: true,
-                    }))
+                    selectedOnboardingProducts.map(p => {
+                        const slot = resolveProductTiming(p.product_type);
+                        return {
+                            product_name: p.product_name,
+                            brand: p.brand,
+                            photo_url: p.photo_url,
+                            product_type: p.product_type,
+                            user_id: userId,
+                            morning_use: slot === "morning" || slot === "both",
+                            evening_use: slot === "evening" || slot === "both" || slot === "weekly" || slot === "monthly",
+                            frequency: slot === "weekly" ? "weekly" : slot === "monthly" ? "monthly" : "daily",
+                            is_active: true,
+                        };
+                    })
                 );
             }
 
