@@ -52,27 +52,57 @@ const professions = [
 const channels = ["Instagram", "LinkedIn", "TikTok", "Facebook", "Twitter/X", "Bouche à oreille", "Recherche Google", "Autre"];
 
 const AHA_TIMING: Record<string, "morning" | "evening" | "both" | "weekly" | "monthly"> = {
-    "nettoyant":    "both",
-    "cleanser":     "both",
-    "tonique":      "both",
-    "toner":        "both",
-    "sérum":        "both",
-    "serum":        "both",
-    "hydratant":    "morning",
-    "crème":        "morning",
-    "spf":          "morning",
-    "solaire":      "morning",
-    "contour-yeux": "both",
-    "eye cream":    "both",
-    "huile":        "evening",
-    "oil":          "evening",
-    "baume":        "evening",
-    "acide":        "evening",
-    "masque":       "weekly",
-    "mask":         "weekly",
-    "gommage":      "weekly",
-    "exfoliant":    "weekly",
-    "peeling":      "monthly",
+    // Nettoyants
+    "démaquillant":     "evening",
+    "demaquillant":     "evening",
+    "micellaire":       "evening",
+    "micellar":         "evening",
+    "double cleansing": "evening",
+    "huile nettoyante": "evening",
+    "cleansing oil":    "evening",
+    "nettoyant":        "both",
+    "cleanser":         "both",
+    // Toniques & actifs eau
+    "tonique":          "both",
+    "toner":            "both",
+    "lotion":           "both",
+    // Sérums & ampoules
+    "sérum":            "both",
+    "serum":            "both",
+    "ampoule":          "both",
+    "essence":          "both",
+    // Actifs réservés au soir
+    "rétinol":          "evening",
+    "retinol":          "evening",
+    "rétinoïde":        "evening",
+    "retinoide":        "evening",
+    "acide":            "evening",
+    "aha":              "evening",
+    "bha":              "evening",
+    "peeling":          "monthly",
+    // Hydratants & crèmes
+    "hydratant":        "morning",
+    "crème":            "morning",
+    "moisturizer":      "morning",
+    // SPF — matin uniquement
+    "spf":              "morning",
+    "solaire":          "morning",
+    "sunscreen":        "morning",
+    // Contour yeux
+    "contour-yeux":     "both",
+    "eye cream":        "both",
+    "yeux":             "both",
+    // Huiles & baumes (hors nettoyage) — soir
+    "huile":            "evening",
+    "oil":              "evening",
+    "baume":            "evening",
+    "balm":             "evening",
+    // Soins ponctuels
+    "masque":           "weekly",
+    "mask":             "weekly",
+    "gommage":          "weekly",
+    "exfoliant":        "weekly",
+    "scrub":            "weekly",
 };
 
 const resolveProductTiming = (productType: string | null) => {
@@ -135,6 +165,10 @@ const Signup = () => {
     const [productCatalogResults, setProductCatalogResults] = useState<any[]>([]);
     const [selectedOnboardingProducts, setSelectedOnboardingProducts] = useState<any[]>([]);
     const [selectedOnboardingDevices, setSelectedOnboardingDevices] = useState<string[]>([]);
+
+    // Step 9 — INCI analysis (produits à déplacer au soir)
+    const [inciWarnings, setInciWarnings] = useState<Set<string>>(new Set());
+    const [inciLoading, setInciLoading] = useState(false);
     const [activeProductTab, setActiveProductTab] = useState<"produits" | "accessoires">("produits");
     const [onboardingScanMessage, setOnboardingScanMessage] = useState<string | null>(null);
     const onboardingScanFileRef = useRef<HTMLInputElement>(null);
@@ -390,13 +424,52 @@ const Signup = () => {
         const weekly: any[] = [];
         for (const p of selectedOnboardingProducts) {
             const slot = resolveProductTiming(p.product_type);
-            if (slot === "weekly" || slot === "monthly") weekly.push(p);
-            else if (slot === "morning") morning.push(p);
-            else if (slot === "evening") evening.push(p);
-            else { morning.push(p); evening.push(p); }
+            const forcedEvening = inciWarnings.has(p.product_name);
+            if (slot === "weekly" || slot === "monthly") {
+                weekly.push(p);
+            } else if (slot === "evening" || (slot === "morning" && forcedEvening)) {
+                evening.push(p);
+            } else if (slot === "morning") {
+                morning.push(p);
+            } else { // both
+                if (forcedEvening) evening.push(p);
+                else { morning.push(p); evening.push(p); }
+            }
         }
         return { morning, evening, weekly };
-    }, [selectedOnboardingProducts]);
+    }, [selectedOnboardingProducts, inciWarnings]);
+
+    // Appel inci-analysis dès que l'utilisatrice arrive à l'AHA moment
+    useEffect(() => {
+        if (step !== 9 || selectedOnboardingProducts.length === 0) return;
+        const morningCandidates = selectedOnboardingProducts.filter(p => {
+            const slot = resolveProductTiming(p.product_type);
+            return slot === "morning" || slot === "both";
+        });
+        if (morningCandidates.length === 0) return;
+        setInciLoading(true);
+        supabase.functions.invoke("inci-analysis", {
+            body: {
+                products: morningCandidates.map((p: any) => ({
+                    product_name: p.product_name,
+                    brand: p.brand ?? null,
+                    ingredients: p.ingredients ?? null,
+                })),
+                period: "morning",
+                cyclePhase: null,
+                uvIndex: null,
+            },
+        }).then(({ data }) => {
+            if (data?.incompatibilities?.length > 0) {
+                setInciWarnings(new Set<string>(
+                    data.incompatibilities
+                        .filter((i: any) => i.verdict === "danger")
+                        .map((i: any) => i.product_name as string)
+                ));
+            }
+        }).catch(() => { /* silent — fallback AHA_TIMING */ })
+          .finally(() => setInciLoading(false));
+    }, [step]);
 
     const BackButton = () => (
         <motion.button
@@ -525,15 +598,19 @@ const Signup = () => {
                 await (supabase as any).from("user_products").insert(
                     selectedOnboardingProducts.map(p => {
                         const slot = resolveProductTiming(p.product_type);
+                        const forcedEvening = inciWarnings.has(p.product_name);
+                        const morning = !forcedEvening && (slot === "morning" || slot === "both");
+                        const evening = forcedEvening || slot === "evening" || slot === "both" || slot === "weekly" || slot === "monthly";
+                        const frequency = slot === "weekly" ? "weekly" : slot === "monthly" ? "monthly" : "daily";
                         return {
                             product_name: p.product_name,
                             brand: p.brand,
                             photo_url: p.photo_url,
                             product_type: p.product_type,
                             user_id: userId,
-                            morning_use: slot === "morning" || slot === "both",
-                            evening_use: slot === "evening" || slot === "both" || slot === "weekly" || slot === "monthly",
-                            frequency: slot === "weekly" ? "weekly" : slot === "monthly" ? "monthly" : "daily",
+                            morning_use: morning,
+                            evening_use: evening,
+                            frequency,
                             is_active: true,
                         };
                     })
@@ -1449,7 +1526,7 @@ const Signup = () => {
                                         initial={{ opacity: 0, y: 8 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.12 }}
-                                        className="grid grid-cols-2 gap-3 mb-6 shrink-0"
+                                        className="grid grid-cols-2 gap-3 mb-4 shrink-0"
                                     >
                                         <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
                                             <p className="text-2xl font-display text-foreground font-bold">
@@ -1464,118 +1541,94 @@ const Signup = () => {
                                     </motion.div>
                                 )}
 
-                                {/* Préview routine — matin / soir / hebdo */}
+                                {/* Bannière INCI — analyse en cours ou résultat */}
                                 {selectedOnboardingProducts.length > 0 && (
-                                    <div className="space-y-4 mb-5">
-                                        {/* Matin */}
-                                        {ahaRoutine.morning.length > 0 && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 8 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.2 }}
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <p className="text-[13px] font-semibold text-foreground">☀️ Ma routine du matin</p>
-                                                    <p className="text-[11px] text-muted-foreground">{ahaRoutine.morning.length} produit{ahaRoutine.morning.length > 1 ? "s" : ""}</p>
-                                                </div>
-                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden divide-y divide-border/10">
-                                                    {ahaRoutine.morning.map((p: any, i: number) => (
-                                                        <motion.div
-                                                            key={p.id ?? `m-${i}`}
-                                                            initial={{ opacity: 0, x: -6 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            transition={{ delay: 0.22 + 0.05 * i }}
-                                                            className="flex items-center gap-3 px-4 py-2.5"
-                                                        >
-                                                            {p.photo_url ? (
-                                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 bg-muted/20" />
-                                                            ) : (
-                                                                <div className="w-9 h-9 rounded-xl bg-muted/20 shrink-0" />
-                                                            )}
-                                                            <div className="min-w-0">
-                                                                <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
-                                                                {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
-                                                            </div>
-                                                            {p.product_type && <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider ml-auto shrink-0">{p.product_type}</span>}
-                                                        </motion.div>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        )}
-
-                                        {/* Soir */}
-                                        {ahaRoutine.evening.length > 0 && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 8 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.28 }}
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <p className="text-[13px] font-semibold text-foreground">🌙 Ma routine du soir</p>
-                                                    <p className="text-[11px] text-muted-foreground">{ahaRoutine.evening.length} produit{ahaRoutine.evening.length > 1 ? "s" : ""}</p>
-                                                </div>
-                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden divide-y divide-border/10">
-                                                    {ahaRoutine.evening.map((p: any, i: number) => (
-                                                        <motion.div
-                                                            key={p.id ?? `e-${i}`}
-                                                            initial={{ opacity: 0, x: -6 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            transition={{ delay: 0.3 + 0.05 * i }}
-                                                            className="flex items-center gap-3 px-4 py-2.5"
-                                                        >
-                                                            {p.photo_url ? (
-                                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 bg-muted/20" />
-                                                            ) : (
-                                                                <div className="w-9 h-9 rounded-xl bg-muted/20 shrink-0" />
-                                                            )}
-                                                            <div className="min-w-0">
-                                                                <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
-                                                                {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
-                                                            </div>
-                                                            {p.product_type && <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider ml-auto shrink-0">{p.product_type}</span>}
-                                                        </motion.div>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        )}
-
-                                        {/* Soins hebdo / ponctuels */}
-                                        {ahaRoutine.weekly.length > 0 && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 8 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.36 }}
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <p className="text-[13px] font-semibold text-foreground">✨ Soins ponctuels</p>
-                                                    <p className="text-[11px] text-muted-foreground">{ahaRoutine.weekly.length} produit{ahaRoutine.weekly.length > 1 ? "s" : ""}</p>
-                                                </div>
-                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden divide-y divide-border/10">
-                                                    {ahaRoutine.weekly.map((p: any, i: number) => (
-                                                        <motion.div
-                                                            key={p.id ?? `w-${i}`}
-                                                            initial={{ opacity: 0, x: -6 }}
-                                                            animate={{ opacity: 1, x: 0 }}
-                                                            transition={{ delay: 0.38 + 0.05 * i }}
-                                                            className="flex items-center gap-3 px-4 py-2.5"
-                                                        >
-                                                            {p.photo_url ? (
-                                                                <img src={p.photo_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0 bg-muted/20" />
-                                                            ) : (
-                                                                <div className="w-9 h-9 rounded-xl bg-muted/20 shrink-0" />
-                                                            )}
-                                                            <div className="min-w-0">
-                                                                <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
-                                                                {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
-                                                            </div>
-                                                            {p.product_type && <span className="text-[9px] font-bold text-primary/60 uppercase tracking-wider ml-auto shrink-0">{p.product_type}</span>}
-                                                        </motion.div>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </div>
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.15 }}
+                                        className="mb-5"
+                                    >
+                                        {inciLoading ? (
+                                            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted/20 border border-border/20">
+                                                <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
+                                                <p className="text-[11px] text-muted-foreground">Nacre analyse tes ingrédients actifs…</p>
+                                            </div>
+                                        ) : inciWarnings.size > 0 ? (
+                                            <div className="flex items-start gap-2 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100">
+                                                <span className="text-sm shrink-0">🧪</span>
+                                                <p className="text-[11px] text-amber-800 leading-relaxed">
+                                                    Nacre a déplacé {inciWarnings.size === 1 ? "1 actif photosensibilisant" : `${inciWarnings.size} actifs photosensibilisants`} au soir pour protéger ta peau du soleil.
+                                                </p>
+                                            </div>
+                                        ) : null}
+                                    </motion.div>
                                 )}
+
+                                {/* Préview routine — matin / soir / soins ponctuels */}
+                                {selectedOnboardingProducts.length > 0 && (() => {
+                                    const renderSection = (
+                                        label: string,
+                                        products: any[],
+                                        baseDelay: number,
+                                        prefix: string
+                                    ) => {
+                                        if (products.length === 0) return null;
+                                        // Grouper par type
+                                        const groups = new Map<string, any[]>();
+                                        for (const p of products) {
+                                            const k = p.product_type ?? "Autre";
+                                            if (!groups.has(k)) groups.set(k, []);
+                                            groups.get(k)!.push(p);
+                                        }
+                                        return (
+                                            <motion.div
+                                                key={prefix}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: baseDelay }}
+                                            >
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-[13px] font-semibold text-foreground">{label}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{products.length} produit{products.length > 1 ? "s" : ""}</p>
+                                                </div>
+                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden">
+                                                    {Array.from(groups.entries()).map(([type, prods]) => (
+                                                        <div key={type} className="border-b border-border/10 last:border-b-0">
+                                                            <p className="text-[9px] font-bold text-primary/50 uppercase tracking-widest px-4 pt-2.5 pb-1">{type}</p>
+                                                            {prods.slice(0, 2).map((p: any, i: number) => (
+                                                                <div key={p.id ?? `${prefix}-${type}-${i}`} className="flex items-center gap-3 px-4 py-2">
+                                                                    {p.photo_url ? (
+                                                                        <img src={p.photo_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0 bg-muted/20" />
+                                                                    ) : (
+                                                                        <div className="w-8 h-8 rounded-lg bg-muted/20 shrink-0" />
+                                                                    )}
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
+                                                                        {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
+                                                                    </div>
+                                                                    {inciWarnings.has(p.product_name) && (
+                                                                        <span className="text-[9px] text-amber-600 font-bold shrink-0">→ soir</span>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                            {prods.length > 2 && (
+                                                                <p className="text-[10px] text-muted-foreground px-4 pb-2.5">+{prods.length - 2} autre{prods.length - 2 > 1 ? "s" : ""}</p>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    };
+                                    return (
+                                        <div className="space-y-4 mb-5">
+                                            {renderSection("☀️ Ma routine du matin", ahaRoutine.morning, 0.2, "m")}
+                                            {renderSection("🌙 Ma routine du soir",  ahaRoutine.evening, 0.28, "e")}
+                                            {renderSection("✨ Soins ponctuels",     ahaRoutine.weekly,  0.36, "w")}
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Insight cycle (si disponible) */}
                                 {ahaInsights[0] && (
