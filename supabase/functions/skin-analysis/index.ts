@@ -69,7 +69,7 @@ serve(async (req) => {
         : "image/webp";
 
     // ── 4. Appel Claude Vision ─────────────────────────────────────────────
-    const prompt = `Tu es un expert en analyse cutanée clinique. Analyse cette photo de visage et génère UNIQUEMENT un diagnostic objectif de l'état de la peau, sans recommandations ni conseils.
+    const prompt = `Tu es un expert en analyse cutanée clinique et dermatologie. Analyse cette photo de visage et génère UNIQUEMENT un diagnostic objectif de l'état de la peau, sans recommandations ni conseils.
 
 CONTEXTE :
 - Âge déclaré : ${age} ans
@@ -126,11 +126,23 @@ Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
       "type": "aucune | comédons | papules | pustules | mixte",
       "zones": "description courte ou null"
     },
+    "conditions_detectees": {
+      "eczema": "Cherche activement : plaques sèches délimitées, desquamation, lichénification (peau épaissie), rougeurs localisées différentes de l'acné, zones affectées typiques (joues, contour yeux, cou). Retourne true si présent, false sinon.",
+      "eczema_zones": "zones visibles ou null",
+      "rosacea": "Cherche : rougeur diffuse centro-faciale, télangiectasies (petits vaisseaux visibles), papules sans comédons, flush chronique. true | false",
+      "rosacea_zones": "zones visibles ou null",
+      "dermite_seborrheique": "Cherche : squames jaunâtres front/ailes du nez/sourcils, peau grasse localisée. true | false",
+      "perioral_dermatitis": "Cherche : petites papules/pustules regroupées autour de la bouche ou du nez. true | false",
+      "milium": "Cherche : petits kystes blancs 1-2mm, souvent contour yeux. true | false",
+      "hypersensibilite_reactive": "Peau visiblement réactive, capillaires dilatés, aspect fragile généralisé. true | false"
+    },
     "points_forts": ["point positif 1", "point positif 2"],
     "points_attention": ["observation clinique 1", "observation clinique 2"],
     "observations_libres": "2-3 phrases cliniques objectives et bienveillantes"
   }
-}`;
+}
+
+IMPORTANT pour conditions_detectees : sois précis et n'hésite pas à détecter même une légère manifestation. Une plaque sèche localisée sur la joue avec contours nets = eczéma probable. Mieux vaut signaler et laisser l'utilisatrice confirmer que de passer à côté d'une condition importante pour sa routine.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

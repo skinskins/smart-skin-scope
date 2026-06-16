@@ -835,6 +835,16 @@ const Signup = () => {
                                                     if (data?.analysis) {
                                                         setOnboardingAnalysis(data.analysis);
                                                         setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
+                                                        // Auto-populate skin problems from detected conditions
+                                                        const autoProblems: string[] = [];
+                                                        const cond = data.analysis.conditions_detectees ?? {};
+                                                        if (cond.eczema === true) autoProblems.push("Eczéma");
+                                                        if (cond.rosacea === true) autoProblems.push("Rougeurs");
+                                                        if ((data.analysis.acne?.score ?? 0) >= 2) autoProblems.push("Acné");
+                                                        if ((data.analysis.pigmentation?.type ?? "aucune") !== "aucune") autoProblems.push("Taches");
+                                                        if ((data.analysis.rides?.periorbital ?? 0) >= 3) autoProblems.push("Rides");
+                                                        if ((data.analysis.hydratation?.score ?? 0) <= 1) autoProblems.push("Sécheresse");
+                                                        if (autoProblems.length > 0) setCorrectedProblems(prev => [...new Set([...prev, ...autoProblems])]);
                                                     }
                                                     setAnalysisLoading(false);
                                                 }).catch(() => setAnalysisLoading(false));
