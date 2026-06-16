@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import matrixData from "@/data/skincare_matrix.json";
+import { PRESET_DEVICES } from "@/data/presetDevices";
 
 const matrix = (matrixData as any).skincare_matrix;
 
@@ -103,6 +104,8 @@ const Signup = () => {
     const [productSearchQuery, setProductSearchQuery] = useState("");
     const [productCatalogResults, setProductCatalogResults] = useState<any[]>([]);
     const [selectedOnboardingProducts, setSelectedOnboardingProducts] = useState<any[]>([]);
+    const [selectedOnboardingDevices, setSelectedOnboardingDevices] = useState<string[]>([]);
+    const [activeProductTab, setActiveProductTab] = useState<"produits" | "accessoires">("produits");
     const [onboardingScannerOpen, setOnboardingScannerOpen] = useState(false);
     const [onboardingScanMessage, setOnboardingScanMessage] = useState<string | null>(null);
     const onboardingScannerRef = useRef<any>(null);
@@ -488,6 +491,21 @@ const Signup = () => {
                         morning_use: true,
                         evening_use: true,
                         frequency: "daily",
+                        is_active: true,
+                    }))
+                );
+            }
+
+            if (selectedOnboardingDevices.length > 0) {
+                await (supabase as any).from("user_products").insert(
+                    selectedOnboardingDevices.map(label => ({
+                        product_name: label,
+                        brand: null,
+                        photo_url: null,
+                        product_type: "device",
+                        user_id: userId,
+                        morning_use: false,
+                        evening_use: false,
                         is_active: true,
                     }))
                 );
@@ -1025,8 +1043,67 @@ const Signup = () => {
                                     </div>
                                 </div>
 
+                                {/* Onglets Produits / Accessoires */}
+                                <div className="flex border-b border-border/20 mb-4">
+                                    {(["produits", "accessoires"] as const).map(tab => (
+                                        <button
+                                            key={tab}
+                                            type="button"
+                                            onClick={() => setActiveProductTab(tab)}
+                                            className={`flex-1 py-2.5 text-xs font-semibold transition-all relative ${
+                                                activeProductTab === tab ? "text-foreground" : "text-muted-foreground"
+                                            }`}
+                                        >
+                                            {tab === "produits" ? "Cosmétiques" : "Accessoires"}
+                                            {activeProductTab === tab && (
+                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+
                                 <div className="flex-1 overflow-y-auto pb-4 custom-scrollbar space-y-4 pr-1">
-                                    {/* Search card — même layout que Vanity */}
+
+                                {/* Onglet Accessoires */}
+                                {activeProductTab === "accessoires" && (
+                                    <div className="premium-card p-5">
+                                        <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-3">
+                                            Mes accessoires beauté
+                                        </h2>
+                                        <p className="text-xs text-muted-foreground mb-4">
+                                            Sélectionne les appareils que tu utilises.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {PRESET_DEVICES.map(({ emoji, label }) => {
+                                                const active = selectedOnboardingDevices.includes(label);
+                                                return (
+                                                    <button
+                                                        key={label}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setSelectedOnboardingDevices(prev =>
+                                                                active ? prev.filter(d => d !== label) : [...prev, label]
+                                                            )
+                                                        }
+                                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${
+                                                            active
+                                                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                                                : "bg-card border-border text-foreground/70 hover:border-primary/50"
+                                                        }`}
+                                                    >
+                                                        <span>{emoji}</span>
+                                                        <span>{label}</span>
+                                                        {active && <Check size={11} />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Onglet Cosmétiques */}
+                                {activeProductTab === "produits" && (
+                                    <>
                                     <div className="premium-card p-0 overflow-hidden">
                                         <div className="p-5 bg-background/50 border-b border-border/50">
                                             <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Rechercher un produit</h2>
@@ -1121,6 +1198,8 @@ const Signup = () => {
                                             </div>
                                         </div>
                                     )}
+                                    </>
+                                )}
                                 </div>
 
                                 {/* Scanner overlay */}

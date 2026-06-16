@@ -233,7 +233,7 @@ const Profile = () => {
         <SectionTitle>CONNEXIONS</SectionTitle>
         <div>
           <Row label="Cycle (Flo / Clue)"  value="Non connecté" />
-          <Row label="Accessoires beauté"  value="Non connecté" />
+          <Row label="Accessoires beauté"  value="Gérer →" onClick={() => navigate("/vanity")} />
           <Row label="Diagnostic pro"      value="Importer un PDF" onClick={() => navigate("/vanity")} />
         </div>
 

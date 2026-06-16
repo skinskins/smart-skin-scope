@@ -85,7 +85,10 @@ serve(async (req) => {
       .eq("user_id", user_id)
       .eq("is_active", true);
 
-    console.log("[generate-advice] Produits:", products?.length ?? 0);
+    const cosmetics = (products ?? []).filter((p) => p.product_type !== "device");
+    const devices = (products ?? []).filter((p) => p.product_type === "device");
+
+    console.log("[generate-advice] Produits:", cosmetics.length, "cosmétiques,", devices.length, "accessoires");
 
     // ── 5. Récupérer la dernière analyse de peau (skin-analysis) ────────────
     const { data: lastPhoto } = await supabase
@@ -189,11 +192,15 @@ serve(async (req) => {
 - Source : ${profile.skin_diagnostic_source ?? "machine pro"}`
       : "## DIAGNOSTIC PROFESSIONNEL\n- Aucun diagnostic professionnel disponible";
 
-    const productsBlock = products && products.length > 0
-      ? products.map((p) =>
+    const productsBlock = cosmetics.length > 0
+      ? cosmetics.map((p) =>
           `- ${p.product_name} (${p.brand}) — ${p.product_type}${p.ingredients ? `\n  INCI : ${p.ingredients}` : ""}`
         ).join("\n")
       : "- Aucun produit enregistré";
+
+    const devicesBlock = devices.length > 0
+      ? devices.map((p) => `- ${p.product_name}`).join("\n")
+      : "- Aucun accessoire enregistré";
 
     const historyBlock = history && history.length > 0
       ? history.map((h) => `- ${h.date} : ${h.advice_title}`).join("\n")
@@ -224,6 +231,9 @@ ${diagBlock}
 
 ## PRODUITS EN ROUTINE ACTIVE
 ${productsBlock}
+
+## ACCESSOIRES DISPONIBLES
+${devicesBlock}
 
 ## HISTORIQUE CONSEILS (7 derniers jours)
 ${historyBlock}

@@ -8,6 +8,7 @@ import { useRoutineProducts } from "@/hooks/useRoutineProducts";
 import { RoutineCard } from "@/components/RoutineCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { PRESET_DEVICES } from "@/data/presetDevices";
 
 type CatalogProduct = {
   id: string;
@@ -117,6 +118,11 @@ const Vanity = () => {
         }
       });
   }, []);
+
+  const cosmetics = userProducts.filter(p => (p as any).product_type !== "device");
+  const userDeviceLabels = new Set(
+    userProducts.filter(p => (p as any).product_type === "device").map(p => p.product_name)
+  );
 
   const dailyProducts   = routineProducts.filter(p => p.frequency === "daily");
   const weeklyProducts  = routineProducts.filter(p => p.frequency === "weekly");
@@ -366,6 +372,32 @@ const Vanity = () => {
     }
   };
 
+  const toggleDevice = async (label: string) => {
+    if (!userId) return;
+    const existing = userProducts.find(
+      p => p.product_name === label && (p as any).product_type === "device"
+    );
+    if (existing) {
+      await (supabase as any).from("user_products").delete().eq("id", existing.id);
+      setUserProducts(prev => prev.filter(p => p.id !== existing.id));
+    } else {
+      const { data, error } = await (supabase as any)
+        .from("user_products")
+        .insert({
+          product_name: label,
+          brand: null,
+          product_type: "device",
+          user_id: userId,
+          is_active: true,
+          morning_use: false,
+          evening_use: false,
+        })
+        .select()
+        .single();
+      if (!error && data) setUserProducts(prev => [...prev, data]);
+    }
+  };
+
   const confirmRemove = async () => {
     if (!removeModalProduct || !removeReason || !userId) return;
     const today = new Date().toISOString().split("T")[0];
@@ -548,7 +580,7 @@ const Vanity = () => {
               <Trash2 size={15} strokeWidth={1.8} />
             </button>
           </div>
-          {userProducts.length === 0 ? (
+          {cosmetics.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-6 text-center">
               Aucun produit dans votre inventaire pour le moment.
             </p>
@@ -556,7 +588,7 @@ const Vanity = () => {
             <div className="flex flex-col gap-6">
               {(() => {
                 const groups: Record<string, CatalogProduct[]> = {};
-                userProducts.forEach(p => {
+                cosmetics.forEach(p => {
                   const key = (p as any).product_type || "Autres";
                   if (!groups[key]) groups[key] = [];
                   groups[key].push(p);
@@ -639,12 +671,47 @@ const Vanity = () => {
           )}
         </motion.div>
 
+        {/* Mes accessoires beauté */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="premium-card p-6 order-3"
+        >
+          <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
+            Mes accessoires beauté
+          </h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Sélectionne les appareils que tu utilises pour que ton assistant en tienne compte dans tes conseils.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PRESET_DEVICES.map(({ emoji, label }) => {
+              const active = userDeviceLabels.has(label);
+              return (
+                <button
+                  key={label}
+                  onClick={() => toggleDevice(label)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card border-border text-foreground/70 hover:border-primary/50 hover:bg-muted/20"
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                  {active && <Check size={11} />}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
         {/* Import diagnostic professionnel */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="premium-card p-6 order-3"
+          className="premium-card p-6 order-4"
         >
           <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
             Importer mon diagnostic professionnel
