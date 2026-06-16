@@ -24,16 +24,21 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    const prompt = `Analyse cette photo de produit cosmétique et extrais les informations suivantes.
+    const prompt = `Tu es un expert en produits cosmétiques. Regarde cette photo de packaging et identifie le produit.
+
 Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ni après :
 {
-  "product_name": "<nom exact du produit>",
+  "recognized": true,
+  "product_name": "<nom exact du produit tel qu'il apparaît sur le packaging>",
   "brand": "<marque>",
-  "product_type": "<nettoyant|sérum|hydratant|spf|contour-yeux|masque|tonique|huile|autre>",
-  "ingredients": ["<ingrédient INCI 1>", "<ingrédient INCI 2>"]
+  "product_type": "<nettoyant|sérum|hydratant|spf|contour-yeux|masque|tonique|huile|baume|gommage|autre>",
+  "ingredients": "<liste INCI en texte brut, uniquement si clairement lisible, sinon null>"
 }
-Si une information n'est pas visible sur la photo, utilise null.
-Les ingredients ne sont à extraire que s'ils sont clairement lisibles sur le packaging.`;
+
+Si le packaging n'est pas visible, illisible ou s'il ne s'agit pas d'un produit cosmétique, renvoie :
+{ "recognized": false }
+
+Le nom et la marque sont les informations les plus importantes — concentre-toi sur ce qui est écrit sur le produit.`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -80,9 +85,23 @@ Les ingredients ne sont à extraire que s'ils sont clairement lisibles sur le pa
 
     const result = JSON.parse(jsonStr);
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (!result.recognized || !result.product_name) {
+      return new Response(
+        JSON.stringify({ status: "unrecognized" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        product_name: result.product_name,
+        brand: result.brand ?? null,
+        product_type: result.product_type ?? null,
+        ingredients: result.ingredients ?? null,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("product-scan error:", error);
     return new Response(

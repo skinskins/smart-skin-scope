@@ -106,9 +106,8 @@ const Signup = () => {
     const [selectedOnboardingProducts, setSelectedOnboardingProducts] = useState<any[]>([]);
     const [selectedOnboardingDevices, setSelectedOnboardingDevices] = useState<string[]>([]);
     const [activeProductTab, setActiveProductTab] = useState<"produits" | "accessoires">("produits");
-    const [onboardingScannerOpen, setOnboardingScannerOpen] = useState(false);
     const [onboardingScanMessage, setOnboardingScanMessage] = useState<string | null>(null);
-    const onboardingScannerRef = useRef<any>(null);
+    const onboardingScanFileRef = useRef<HTMLInputElement>(null);
 
     // Step 5 — Ton quotidien (default_factors)
     const [onboardingDefaultFactors, setOnboardingDefaultFactors] = useState<string[]>([]);
@@ -240,45 +239,53 @@ const Signup = () => {
         return () => clearTimeout(timer);
     }, [productSearchQuery]);
 
-    const processOnboardingBarcode = async (barcode: string) => {
-        const { data: catalogProduct } = await (supabase as any)
-            .from("user_products")
-            .select("*")
-            .is("user_id", null)
-            .eq("barcode", barcode)
-            .maybeSingle();
-        if (catalogProduct) {
-            const isAlready = selectedOnboardingProducts.some(p => p.id === catalogProduct.id);
-            if (!isAlready) setSelectedOnboardingProducts(prev => [...prev, catalogProduct]);
-            setOnboardingScanMessage("Produit trouvé et ajouté ✓");
-        } else {
-            setOnboardingScanMessage("Produit non reconnu — introuvable dans le catalogue");
+    const handleOnboardingScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        setOnboardingScanMessage("Identification du produit en cours…");
+        try {
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve((reader.result as string).split(",")[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const { data, error } = await supabase.functions.invoke("product-scan", {
+                body: { imageBase64: base64 },
+            });
+            if (error) {
+                const errorText = error.context
+                    ? await (error.context as Response).text().catch(() => error.message)
+                    : error.message;
+                throw new Error(errorText);
+            }
+            if (data?.status === "unrecognized" || !data?.product_name) {
+                setOnboardingScanMessage("Produit non reconnu — essaie une photo plus nette du packaging");
+                setTimeout(() => setOnboardingScanMessage(null), 4000);
+                return;
+            }
+            const tempProduct = {
+                id: `scan-${Date.now()}`,
+                product_name: data.product_name,
+                brand: data.brand ?? null,
+                product_type: data.product_type ?? null,
+                photo_url: null,
+                ingredients: data.ingredients ?? null,
+            };
+            setSelectedOnboardingProducts(prev => {
+                const exists = prev.some(
+                    p => p.product_name === data.product_name && p.brand === data.brand
+                );
+                return exists ? prev : [...prev, tempProduct];
+            });
+            setOnboardingScanMessage(`${data.product_name} ajouté ✓`);
+            setTimeout(() => setOnboardingScanMessage(null), 4000);
+        } catch (err: any) {
+            setOnboardingScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
+            setTimeout(() => setOnboardingScanMessage(null), 4000);
         }
-        setTimeout(() => setOnboardingScanMessage(null), 4000);
     };
-
-    useEffect(() => {
-        if (!onboardingScannerOpen) return;
-        let scanner: any;
-        const init = async () => {
-            const { Html5Qrcode } = await import("html5-qrcode");
-            scanner = new Html5Qrcode("qr-reader-onboarding");
-            onboardingScannerRef.current = scanner;
-            await scanner.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 120 } },
-                async (code: string) => {
-                    await scanner.stop().catch(() => { });
-                    onboardingScannerRef.current = null;
-                    setOnboardingScannerOpen(false);
-                    await processOnboardingBarcode(code);
-                },
-                undefined
-            );
-        };
-        init().catch(() => setOnboardingScannerOpen(false));
-        return () => { onboardingScannerRef.current?.stop().catch(() => { }); };
-    }, [onboardingScannerOpen]);
 
     const toggleOnboardingProduct = (product: any) => {
         const isAdded = selectedOnboardingProducts.some(p => p.id === product.id);
@@ -1120,11 +1127,19 @@ const Signup = () => {
                                                 </div>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setOnboardingScannerOpen(true)}
+                                                    onClick={() => onboardingScanFileRef.current?.click()}
                                                     className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
                                                 >
                                                     <Scan size={18} strokeWidth={1.5} />
                                                 </button>
+                                                <input
+                                                    ref={onboardingScanFileRef}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    capture="environment"
+                                                    className="hidden"
+                                                    onChange={handleOnboardingScan}
+                                                />
                                             </div>
                                         </div>
                                         <div className="p-5 space-y-4">
@@ -1201,21 +1216,6 @@ const Signup = () => {
                                     </>
                                 )}
                                 </div>
-
-                                {/* Scanner overlay */}
-                                {onboardingScannerOpen && (
-                                    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center gap-6">
-                                        <p className="text-white text-sm font-medium tracking-wide">Scannez un code-barres</p>
-                                        <div id="qr-reader-onboarding" className="w-72 rounded-2xl overflow-hidden" />
-                                        <button
-                                            type="button"
-                                            onClick={() => setOnboardingScannerOpen(false)}
-                                            className="text-white/60 text-sm hover:text-white transition-colors"
-                                        >
-                                            Annuler
-                                        </button>
-                                    </div>
-                                )}
 
                                 {/* Toast scan */}
                                 {onboardingScanMessage && (
