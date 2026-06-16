@@ -326,6 +326,34 @@ const Signup = () => {
         return insights.slice(0, 3);
     }, [lastPeriodDate, cycleDuration, skinType, skinGoals, skinProblems]);
 
+    const ahaGoal = useMemo(() => {
+        const GOAL_MAP: Array<[string, string]> = [
+            ["éclat", "radieuse"], ["lumino", "lumineuse"], ["tache", "lumineuse"],
+            ["âge", "jeune"], ["ferme", "tonifiée"], ["hydrat", "hydratée"],
+            ["imperfection", "nette"], ["acné", "nette"], ["pore", "affinée"],
+            ["sensib", "apaisée"], ["unifo", "lumineuse"],
+        ];
+        let adjective = "radieuse";
+        for (const goal of skinGoals) {
+            const found = GOAL_MAP.find(([key]) => goal.toLowerCase().includes(key));
+            if (found) { adjective = found[1]; break; }
+        }
+        const target = new Date();
+        target.setDate(target.getDate() + 28);
+        const dateLabel = target.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+        return { adjective, dateLabel };
+    }, [skinGoals]);
+
+    const productsByType = useMemo(() => {
+        const map = new Map<string, any[]>();
+        for (const p of selectedOnboardingProducts) {
+            const type: string = p.product_type ?? "Soin";
+            if (!map.has(type)) map.set(type, []);
+            map.get(type)!.push(p);
+        }
+        return Array.from(map.entries());
+    }, [selectedOnboardingProducts]);
+
     const BackButton = () => (
         <motion.button
             type="button"
@@ -1278,30 +1306,104 @@ const Signup = () => {
                         )}
                         {/* Step 9 — AHA moment */}
                         {step === 9 && (
-                            <div className="flex flex-col h-full">
-                                <div className="mb-10 flex items-start gap-4">
+                            <div className="flex flex-col h-full overflow-y-auto">
+                                {/* Back */}
+                                <div className="mb-6 shrink-0">
                                     <BackButton />
-                                    <div>
-                                        <h1 className="text-2xl font-display text-foreground leading-tight">Voici ce que Nacre va faire pour toi</h1>
-                                    </div>
                                 </div>
 
-                                <div className="flex-1 space-y-4">
-                                    {ahaInsights.map((insight, i) => (
-                                        <motion.div
-                                            key={i}
-                                            initial={{ opacity: 0, y: 14 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: 0.18 * i, ease: "easeOut" }}
-                                            className="bg-primary/5 border border-primary/10 rounded-[24px] p-6"
-                                        >
-                                            <span className="text-2xl mb-3 block">{insight.emoji}</span>
-                                            <p className="text-[14px] text-foreground leading-relaxed">{insight.text}</p>
-                                        </motion.div>
-                                    ))}
-                                </div>
+                                {/* Hero — objectif + date cible */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mb-6 shrink-0"
+                                >
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em] mb-2">Ton objectif avec Nacre</p>
+                                    <h1 className="text-[26px] font-display text-foreground leading-tight">
+                                        Une peau <span className="text-primary italic">{ahaGoal.adjective}</span>
+                                    </h1>
+                                    <h1 className="text-[26px] font-display text-foreground leading-tight">
+                                        pour le <span className="text-primary">{ahaGoal.dateLabel}</span>
+                                    </h1>
+                                </motion.div>
 
-                                <div className="mt-8 pb-2">
+                                {/* Stats */}
+                                {selectedOnboardingProducts.length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.12 }}
+                                        className="grid grid-cols-2 gap-3 mb-6 shrink-0"
+                                    >
+                                        <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
+                                            <p className="text-2xl font-display text-foreground font-bold">2</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">routines / jour</p>
+                                        </div>
+                                        <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
+                                            <p className="text-2xl font-display text-foreground font-bold">{productsByType.length}</p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">gestes clés</p>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* Produits — préview routine du matin */}
+                                {selectedOnboardingProducts.length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.2 }}
+                                        className="mb-5"
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-[14px] font-semibold text-foreground">Ma routine du matin</p>
+                                            <p className="text-[11px] text-muted-foreground">{selectedOnboardingProducts.length} produits</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {productsByType.map(([type, prods], i) => (
+                                                <motion.div
+                                                    key={type}
+                                                    initial={{ opacity: 0, x: -8 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: 0.25 + 0.06 * i }}
+                                                    className="bg-white rounded-2xl border border-border/20 overflow-hidden"
+                                                >
+                                                    <div className="px-4 pt-3 pb-1.5">
+                                                        <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{type}</p>
+                                                    </div>
+                                                    {prods.map((p: any) => (
+                                                        <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                                                            {p.photo_url ? (
+                                                                <img src={p.photo_url} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0 bg-muted/20" />
+                                                            ) : (
+                                                                <div className="w-10 h-10 rounded-xl bg-muted/20 shrink-0" />
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <p className="text-[13px] font-medium text-foreground leading-snug line-clamp-2">{p.product_name}</p>
+                                                                {p.brand && <p className="text-[11px] text-muted-foreground mt-0.5">{p.brand}</p>}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* Insight cycle (si disponible) */}
+                                {ahaInsights[0] && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: selectedOnboardingProducts.length > 0 ? 0.35 : 0.15 }}
+                                        className="bg-primary/5 border border-primary/10 rounded-[20px] p-5 mb-6"
+                                    >
+                                        <span className="text-xl mb-2 block">{ahaInsights[0].emoji}</span>
+                                        <p className="text-[13px] text-foreground/80 leading-relaxed">{ahaInsights[0].text}</p>
+                                    </motion.div>
+                                )}
+
+                                {/* CTA */}
+                                <div className="pt-2 pb-2 shrink-0">
                                     <button
                                         type="button"
                                         onClick={() => { setStep(10); window.scrollTo(0, 0); }}
