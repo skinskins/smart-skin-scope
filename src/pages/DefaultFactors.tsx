@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Tag = {
@@ -27,9 +28,9 @@ const TAGS: Tag[] = [
 ];
 
 const ORB_CONFIG = {
-  positive: { gradient: "radial-gradient(circle, #EEE5D5 0%, #D9C8A8 100%)", brightness: 1.08 },
-  neutral:  { gradient: "radial-gradient(circle, #F0EBE3 0%, #D4C4B0 100%)", brightness: 1.0  },
-  negative: { gradient: "radial-gradient(circle, #F0EBE3 0%, #DDB8B8 100%)", brightness: 0.94 },
+  positive: { gradient: "radial-gradient(circle at 38% 35%, #EEE5D5 0%, #D9C8A8 60%, #C4A882 100%)", shadow: "0 20px 60px rgba(196,168,130,0.5)" },
+  neutral:  { gradient: "radial-gradient(circle at 38% 35%, #F0EBE3 0%, #D4C4B0 60%, #BFB09A 100%)", shadow: "0 20px 60px rgba(192,176,154,0.4)" },
+  negative: { gradient: "radial-gradient(circle at 38% 35%, #F5ECEC 0%, #E8C8C8 60%, #D4A8A8 100%)", shadow: "0 20px 60px rgba(212,168,168,0.45)" },
 };
 
 type OrbState = "positive" | "neutral" | "negative";
@@ -39,8 +40,8 @@ export default function DefaultFactors() {
   const orbRef   = useRef<HTMLDivElement>(null);
   const orbAnim  = useAnimation();
 
-  const [absorbed, setAbsorbed]   = useState<string[]>([]);
-  const [saving,   setSaving]     = useState(false);
+  const [absorbed, setAbsorbed] = useState<string[]>([]);
+  const [saving,   setSaving]   = useState(false);
 
   const wellbeingScore = absorbed.reduce((sum, key) => {
     const t = TAGS.find(t => t.key === key);
@@ -51,20 +52,13 @@ export default function DefaultFactors() {
     wellbeingScore >=  2 ? "positive" :
     wellbeingScore <= -2 ? "negative" : "neutral";
 
-  const { gradient, brightness } = ORB_CONFIG[orbState];
+  const { gradient, shadow } = ORB_CONFIG[orbState];
 
-  // Pulse loop selon l'état
   useEffect(() => {
     if (orbState === "positive") {
-      orbAnim.start({
-        scale: [1, 1.04, 1],
-        transition: { duration: 3, repeat: Infinity, ease: "easeInOut" },
-      });
+      orbAnim.start({ scale: [1, 1.04, 1], transition: { duration: 3, repeat: Infinity, ease: "easeInOut" } });
     } else if (orbState === "negative") {
-      orbAnim.start({
-        scale: [1, 1.02, 1],
-        transition: { duration: 5, repeat: Infinity, ease: "easeInOut" },
-      });
+      orbAnim.start({ scale: [1, 1.02, 1], transition: { duration: 5, repeat: Infinity, ease: "easeInOut" } });
     } else {
       orbAnim.stop();
       orbAnim.start({ scale: 1 });
@@ -72,10 +66,7 @@ export default function DefaultFactors() {
   }, [orbState, orbAnim]);
 
   const pulseOrb = () => {
-    orbAnim.start({
-      scale: [1, 1.08, 1],
-      transition: { duration: 0.4, ease: "easeOut" },
-    });
+    orbAnim.start({ scale: [1, 1.08, 1], transition: { duration: 0.4, ease: "easeOut" } });
   };
 
   const absorbTag = (key: string) => {
@@ -100,7 +91,7 @@ export default function DefaultFactors() {
           .eq("id", session.user.id);
       }
     } catch (_) {
-      // non-bloquant — on navigue quand même
+      // non-bloquant
     }
     navigate("/dashboard");
   };
@@ -108,90 +99,97 @@ export default function DefaultFactors() {
   const visibleTags = TAGS.filter(t => !absorbed.includes(t.key));
 
   return (
-    <div className="min-h-screen bg-[#F8F6F2] flex flex-col items-center pb-10 pt-8 px-5 overflow-hidden max-w-lg mx-auto">
+    <div className="min-h-screen bg-background flex flex-col overflow-hidden max-w-lg mx-auto px-5 pt-8 pb-10">
 
       {/* Header */}
-      <div className="w-full text-center mb-8">
-        <h1 className="text-2xl font-serif text-[#2C1810] mb-2">Ton quotidien</h1>
-        <p className="text-[13px] text-muted-foreground leading-relaxed">
-          Glisse vers Nacre ce qui façonne ta peau au quotidien
-        </p>
+      <div className="flex items-start gap-4 mb-8">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 flex items-center justify-center rounded-full border border-border/40 bg-white/50 hover:bg-white transition-all shadow-sm shrink-0 mt-1"
+        >
+          <ArrowLeft size={18} strokeWidth={1.8} className="text-foreground" />
+        </button>
+        <div>
+          <h1 className="text-2xl font-display text-foreground leading-tight mb-1">Ton quotidien</h1>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+            Glisse vers Nacre ce qui façonne ta peau
+          </p>
+        </div>
       </div>
 
       {/* Orbe drop zone */}
-      <motion.div
-        ref={orbRef}
-        animate={orbAnim}
-        className="relative flex items-center justify-center mb-6 select-none"
-        style={{ width: 160, height: 160 }}
-      >
+      <div className="flex justify-center mb-6">
         <motion.div
-          className="w-full h-full rounded-full shadow-xl"
-          animate={{ background: gradient, filter: `brightness(${brightness})` }}
-          transition={{ duration: 0.6, ease: "easeInOut" }}
-        />
-        {absorbed.length === 0 && (
+          ref={orbRef}
+          animate={orbAnim}
+          className="relative flex items-center justify-center select-none"
+          style={{ width: 160, height: 160 }}
+        >
+          <motion.div
+            className="w-full h-full rounded-full"
+            animate={{ background: gradient, boxShadow: shadow }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+          />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-[11px] text-[#8B7355]/70 text-center leading-snug px-4">
-              Glisse ici
-            </p>
+            {absorbed.length === 0 ? (
+              <p className="text-[11px] text-foreground/30 text-center leading-snug px-4 font-medium">
+                Glisse ici
+              </p>
+            ) : (
+              <span className="text-3xl font-bold text-foreground/30">
+                {absorbed.length}
+              </span>
+            )}
           </div>
-        )}
-        {absorbed.length > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-2xl font-bold text-[#2C1810]/40">
-              {absorbed.length}
-            </span>
-          </div>
-        )}
-      </motion.div>
+        </motion.div>
+      </div>
 
       {/* Tags absorbés */}
-      {absorbed.length > 0 && (
-        <div className="w-full mb-5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 text-center">
-            Ce que tu as partagé
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            {absorbed.map(key => {
-              const t = TAGS.find(t => t.key === key)!;
-              return (
-                <button
-                  key={key}
-                  onClick={() => removeTag(key)}
-                  className="flex items-center gap-1 text-[12px] bg-white border border-border/20 rounded-full px-3 py-1 text-foreground/70 hover:bg-red-50 hover:border-red-200 transition-colors"
-                >
-                  {t.emoji} {t.label}
-                  <span className="ml-1 text-muted-foreground/60 text-[10px]">×</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {absorbed.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-5"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 text-center">
+              Ce que tu as partagé
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {absorbed.map(key => {
+                const t = TAGS.find(t => t.key === key)!;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => removeTag(key)}
+                    className="flex items-center gap-1 text-[12px] bg-muted/30 border border-border/30 rounded-full px-3 py-1.5 text-foreground/70 hover:bg-red-50 hover:border-red-200 transition-colors"
+                  >
+                    {t.emoji} {t.label}
+                    <span className="ml-1 text-muted-foreground/50 text-[10px]">×</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Nuage de tags draggables */}
-      <div className="w-full flex-1 relative">
+      <div className="flex-1 relative">
         <AnimatePresence>
           {visibleTags.length > 0 ? (
-            <motion.div
-              layout
-              className="flex flex-wrap gap-2.5 justify-center"
-            >
+            <motion.div layout className="flex flex-wrap gap-2.5 justify-center">
               {visibleTags.map(tag => (
-                <DraggableTag
-                  key={tag.key}
-                  tag={tag}
-                  orbRef={orbRef}
-                  onAbsorb={absorbTag}
-                />
+                <DraggableTag key={tag.key} tag={tag} orbRef={orbRef} onAbsorb={absorbTag} />
               ))}
             </motion.div>
           ) : (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center text-[13px] text-muted-foreground py-4"
+              className="text-center text-sm text-muted-foreground py-4"
             >
               Tu as tout partagé avec Nacre 🌿
             </motion.p>
@@ -200,26 +198,22 @@ export default function DefaultFactors() {
       </div>
 
       {/* Footer */}
-      <div className="w-full mt-8 flex flex-col items-center gap-3">
+      <div className="mt-8 flex flex-col gap-3">
         <button
           onClick={handleSave}
           disabled={absorbed.length === 0 || saving}
-          className="w-full max-w-xs h-12 rounded-2xl font-semibold text-[14px] tracking-wide transition-all"
-          style={{
-            background: absorbed.length === 0 ? "#D4C4B0" : "#2C1810",
-            color: "#F8F6F2",
-            cursor: absorbed.length === 0 ? "not-allowed" : "pointer",
-          }}
+          className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {saving ? "Enregistrement…" : "C'est parti →"}
         </button>
         <button
           onClick={() => navigate("/dashboard")}
-          className="text-[12px] text-muted-foreground hover:underline underline-offset-2"
+          className="text-[12px] text-muted-foreground hover:underline underline-offset-2 text-center py-1"
         >
           Passer cette étape
         </button>
       </div>
+
     </div>
   );
 }
@@ -255,8 +249,8 @@ function DraggableTag({ tag, orbRef, onAbsorb }: DraggableTagProps) {
       dragTransition={{ bounceStiffness: 300, bounceDamping: 20 }}
       onDragEnd={handleDragEnd}
       whileDrag={{ scale: 1.1, zIndex: 50, cursor: "grabbing" }}
-      whileHover={{ scale: 1.05 }}
-      className="flex items-center gap-1.5 bg-white border border-border/20 rounded-full px-3.5 py-2 text-[13px] text-foreground shadow-sm cursor-grab select-none touch-none"
+      whileHover={{ scale: 1.03 }}
+      className="flex items-center gap-1.5 bg-white border border-border/30 rounded-full px-3.5 py-2 text-[13px] text-foreground shadow-sm cursor-grab select-none touch-none hover:border-primary/30 transition-colors"
       style={{ position: "relative", zIndex: 10 }}
     >
       <span>{tag.emoji}</span>
