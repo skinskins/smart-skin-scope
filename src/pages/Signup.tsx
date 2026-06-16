@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,28 @@ import { supabase } from "@/integrations/supabase/client";
 import matrixData from "@/data/skincare_matrix.json";
 
 const matrix = (matrixData as any).skincare_matrix;
+
+// ── Ton quotidien — constantes partagées avec DefaultFactors ─────────────────
+const ONBOARDING_TAGS = [
+    { key: "poor_sleep",    emoji: "😴", label: "Manque de sommeil",       score: -1 as const },
+    { key: "good_sleep",    emoji: "🌙", label: "Je dors bien",            score:  1 as const },
+    { key: "high_stress",   emoji: "😤", label: "Stress élevé",            score: -1 as const },
+    { key: "serene",        emoji: "😌", label: "Plutôt sereine",          score:  1 as const },
+    { key: "high_sugar",    emoji: "🍬", label: "Beaucoup de sucre",       score: -1 as const },
+    { key: "low_water",     emoji: "💧", label: "Je bois peu d'eau",       score: -1 as const },
+    { key: "balanced_diet", emoji: "🥗", label: "Alimentation équilibrée", score:  1 as const },
+    { key: "sport",         emoji: "🏃", label: "Sport régulier",          score:  1 as const },
+    { key: "sedentary",     emoji: "🛋️", label: "Sédentaire",              score: -1 as const },
+    { key: "sun",           emoji: "☀️", label: "Soleil fréquent",         score: -1 as const },
+    { key: "screens",       emoji: "📱", label: "Beaucoup d'écrans",       score: -1 as const },
+    { key: "smoking",       emoji: "🚬", label: "Je fume",                 score: -1 as const },
+    { key: "hormonal",      emoji: "💊", label: "Contraception hormonale", score: -1 as const },
+];
+const ONBOARDING_ORB = {
+    positive: { gradient: "radial-gradient(circle at 38% 35%, #EEE5D5 0%, #D9C8A8 60%, #C4A882 100%)", shadow: "0 20px 60px rgba(196,168,130,0.5)" },
+    neutral:  { gradient: "radial-gradient(circle at 38% 35%, #F0EBE3 0%, #D4C4B0 60%, #BFB09A 100%)", shadow: "0 20px 60px rgba(192,176,154,0.4)" },
+    negative: { gradient: "radial-gradient(circle at 38% 35%, #F5ECEC 0%, #E8C8C8 60%, #D4A8A8 100%)", shadow: "0 20px 60px rgba(212,168,168,0.45)" },
+};
 
 const professions = [
     "Étudiant(e)",
@@ -84,6 +106,11 @@ const Signup = () => {
     const [onboardingScannerOpen, setOnboardingScannerOpen] = useState(false);
     const [onboardingScanMessage, setOnboardingScanMessage] = useState<string | null>(null);
     const onboardingScannerRef = useRef<any>(null);
+
+    // Step 5 — Ton quotidien (default_factors)
+    const [onboardingDefaultFactors, setOnboardingDefaultFactors] = useState<string[]>([]);
+    const onboardingOrbRef  = useRef<HTMLDivElement>(null);
+    const onboardingOrbAnim = useAnimation();
 
     // Pricing Step State
     const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
@@ -267,12 +294,12 @@ const Signup = () => {
             onClick={(e) => {
                 e.preventDefault();
                 if (showPreview) setShowPreview(false);
-                else if (step === 10) {
-                    if (pricingMode === "free") setStep(8);
-                    else setStep(9);
+                else if (step === 11) {
+                    if (pricingMode === "free") setStep(9);
+                    else setStep(10);
                 }
-                else if (step === 9) setStep(8);
-                else if (step === 8) setShowPreview(true);
+                else if (step === 10) setStep(9);
+                else if (step === 9) setShowPreview(true);
                 else if (step > 2) setStep(step - 1);
                 else if (step === 2) navigate("/onboarding");
                 else navigate("/onboarding");
@@ -310,29 +337,29 @@ const Signup = () => {
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (step === 7 && onboardingPhotoBase64 && !showDiagnostic) {
+        if (step === 8 && onboardingPhotoBase64 && !showDiagnostic) {
             setShowDiagnostic(true);
             window.scrollTo(0, 0);
             return;
         }
         if (showDiagnostic) {
             setShowDiagnostic(false);
-            setStep(8);
+            setStep(9);
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step === 8) {
+        if (step === 9) {
             if (pricingMode === "free") {
-                setStep(10);
+                setStep(11);
             } else {
-                setStep(9);
+                setStep(10);
             }
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step < 10) {
+        if (step < 11) {
             // Si photo prise et on est au step 2, sauter carnation (step 3)
             if (step === 2 && onboardingPhotoBase64) {
                 setStep(4);
@@ -343,7 +370,7 @@ const Signup = () => {
             return;
         }
 
-        // Step 10: Final Signup
+        // Step 11: Final Signup
         if (!firstName || !lastName || !email || !password) return;
         setLoading(true);
         try {
@@ -383,6 +410,9 @@ const Signup = () => {
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
                 manual_location: locationMode === "manual" ? manualCity || null : null,
+                default_factors: onboardingDefaultFactors.length > 0
+                    ? Object.fromEntries(ONBOARDING_TAGS.map(t => [t.key, onboardingDefaultFactors.includes(t.key)]))
+                    : null,
             });
 
             if (selectedOnboardingProducts.length > 0) {
@@ -440,7 +470,7 @@ const Signup = () => {
 
             setLoading(false);
             localStorage.removeItem("guestProfile");
-            navigate("/onboarding/factors");
+            navigate("/dashboard");
         } catch (error) {
             console.error("Signup error:", error);
             toast.error("Une erreur est survenue lors de l'inscription.");
@@ -737,8 +767,128 @@ const Signup = () => {
                             </>
                         )}
 
-                        {/* Step 5 — Localisation météo */}
+                        {/* Step 5 — Ton quotidien (default_factors) */}
                         {step === 5 && (
+                            <div className="flex flex-col h-full">
+                                <div className="mb-8 flex items-start gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-1">Ton quotidien</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+                                            Glisse vers Nacre ce qui façonne ta peau
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Orbe drop zone */}
+                                <div className="flex justify-center mb-6">
+                                    <motion.div
+                                        ref={onboardingOrbRef}
+                                        animate={onboardingOrbAnim}
+                                        className="relative flex items-center justify-center select-none"
+                                        style={{ width: 160, height: 160 }}
+                                    >
+                                        <motion.div
+                                            className="w-full h-full rounded-full"
+                                            animate={{
+                                                background: (
+                                                    onboardingDefaultFactors.reduce((s, k) => {
+                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
+                                                        return s + (t?.score ?? 0);
+                                                    }, 0) >= 2 ? ONBOARDING_ORB.positive.gradient :
+                                                    onboardingDefaultFactors.reduce((s, k) => {
+                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
+                                                        return s + (t?.score ?? 0);
+                                                    }, 0) <= -2 ? ONBOARDING_ORB.negative.gradient :
+                                                    ONBOARDING_ORB.neutral.gradient
+                                                ),
+                                                boxShadow: (
+                                                    onboardingDefaultFactors.reduce((s, k) => {
+                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
+                                                        return s + (t?.score ?? 0);
+                                                    }, 0) >= 2 ? ONBOARDING_ORB.positive.shadow :
+                                                    onboardingDefaultFactors.reduce((s, k) => {
+                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
+                                                        return s + (t?.score ?? 0);
+                                                    }, 0) <= -2 ? ONBOARDING_ORB.negative.shadow :
+                                                    ONBOARDING_ORB.neutral.shadow
+                                                ),
+                                            }}
+                                            transition={{ duration: 0.6, ease: "easeInOut" }}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                            {onboardingDefaultFactors.length === 0 ? (
+                                                <p className="text-[11px] text-foreground/30 text-center leading-snug px-4 font-medium">Glisse ici</p>
+                                            ) : (
+                                                <span className="text-3xl font-bold text-foreground/30">{onboardingDefaultFactors.length}</span>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                </div>
+
+                                {/* Tags absorbés */}
+                                <AnimatePresence>
+                                    {onboardingDefaultFactors.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0 }}
+                                            className="mb-5"
+                                        >
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 text-center">Ce que tu as partagé</p>
+                                            <div className="flex flex-wrap gap-2 justify-center">
+                                                {onboardingDefaultFactors.map(key => {
+                                                    const t = ONBOARDING_TAGS.find(t => t.key === key)!;
+                                                    return (
+                                                        <button
+                                                            key={key}
+                                                            type="button"
+                                                            onClick={() => setOnboardingDefaultFactors(prev => prev.filter(k => k !== key))}
+                                                            className="flex items-center gap-1 text-[12px] bg-muted/30 border border-border/30 rounded-full px-3 py-1.5 text-foreground/70 hover:bg-red-50 hover:border-red-200 transition-colors"
+                                                        >
+                                                            {t.emoji} {t.label}
+                                                            <span className="ml-1 text-muted-foreground/50 text-[10px]">×</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                {/* Nuage de tags draggables */}
+                                <div className="flex-1 relative">
+                                    <AnimatePresence>
+                                        {ONBOARDING_TAGS.filter(t => !onboardingDefaultFactors.includes(t.key)).length > 0 ? (
+                                            <motion.div layout className="flex flex-wrap gap-2.5 justify-center">
+                                                {ONBOARDING_TAGS.filter(t => !onboardingDefaultFactors.includes(t.key)).map(tag => (
+                                                    <OnboardingDraggableTag
+                                                        key={tag.key}
+                                                        tag={tag}
+                                                        orbRef={onboardingOrbRef}
+                                                        onAbsorb={(key) => {
+                                                            setOnboardingDefaultFactors(prev => [...prev, key]);
+                                                            onboardingOrbAnim.start({ scale: [1, 1.08, 1], transition: { duration: 0.4, ease: "easeOut" } });
+                                                        }}
+                                                    />
+                                                ))}
+                                            </motion.div>
+                                        ) : (
+                                            <motion.p
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="text-center text-sm text-muted-foreground py-4"
+                                            >
+                                                Tu as tout partagé avec Nacre 🌿
+                                            </motion.p>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 6 — Localisation météo */}
+                        {step === 6 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -802,8 +952,8 @@ const Signup = () => {
                             </>
                         )}
 
-                        {/* Step 6 — Ajout produits */}
-                        {step === 6 && (
+                        {/* Step 7 — Ajout produits */}
+                        {step === 7 && (
                             <>
                                 <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
@@ -935,7 +1085,7 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step === 7 && !showDiagnostic && (
+                        {step === 8 && !showDiagnostic && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -1092,7 +1242,7 @@ const Signup = () => {
                                 )}
                             </div>
                         )}
-                        {step === 8 && (
+                        {step === 9 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
@@ -1175,7 +1325,7 @@ const Signup = () => {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
+                                        onClick={() => { setStep(11); window.scrollTo(0, 0); }}
                                         className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
                                     >
                                         Commencer mon essai gratuit
@@ -1187,7 +1337,7 @@ const Signup = () => {
                             </div>
                         )}
 
-                        {step === 9 && (
+                        {step === 10 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-4 flex items-center gap-4">
                                     <BackButton />
@@ -1269,7 +1419,7 @@ const Signup = () => {
                             </div>
                         )}
 
-                        {step === 10 && (
+                        {step === 11 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -1333,12 +1483,22 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step !== 8 && step !== 9 && (
+                        {step !== 9 && step !== 10 && (
                             <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-20 flex flex-col gap-4">
                                 {step === 1 && (
                                     <button
                                         type="button"
                                         onClick={() => setStep(step + 1)}
+                                        className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
+                                    >
+                                        Passer cette étape
+                                    </button>
+                                )}
+
+                                {step === 5 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setOnboardingDefaultFactors([]); setStep(6); window.scrollTo(0, 0); }}
                                         className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
                                     >
                                         Passer cette étape
@@ -1352,12 +1512,12 @@ const Signup = () => {
 
                                         (step === 2 && (!age || !gender)) ||
                                         (step === 3 && !carnation) ||
-                                        (step === 7 && skinGoals.length === 0) ||
-                                        (step === 10 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
+                                        (step === 8 && skinGoals.length === 0) ||
+                                        (step === 11 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                     }
                                     className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                                 >
-                                    {loading ? "ENREGISTREMENT..." : step === 10 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
+                                    {loading ? "ENREGISTREMENT..." : step === 11 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
                                 </button>
                             </div>
                         )}
@@ -1367,5 +1527,45 @@ const Signup = () => {
         </div>
     );
 };
+
+type OnboardingDraggableTagProps = {
+    tag: { key: string; emoji: string; label: string };
+    orbRef: React.RefObject<HTMLDivElement>;
+    onAbsorb: (key: string) => void;
+};
+
+function OnboardingDraggableTag({ tag, orbRef, onAbsorb }: OnboardingDraggableTagProps) {
+    const [absorbed, setAbsorbed] = useState(false);
+
+    const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: { point: { x: number; y: number } }) => {
+        const orb = orbRef.current?.getBoundingClientRect();
+        if (!orb) return;
+        const { x, y } = info.point;
+        const hit = x >= orb.left && x <= orb.right && y >= orb.top && y <= orb.bottom;
+        if (hit) {
+            setAbsorbed(true);
+            onAbsorb(tag.key);
+        }
+    };
+
+    if (absorbed) return null;
+
+    return (
+        <motion.button
+            type="button"
+            drag
+            dragSnapToOrigin
+            dragTransition={{ bounceStiffness: 300, bounceDamping: 20 }}
+            onDragEnd={handleDragEnd}
+            whileDrag={{ scale: 1.1, zIndex: 50, cursor: "grabbing" }}
+            whileHover={{ scale: 1.03 }}
+            className="flex items-center gap-1.5 bg-white border border-border/30 rounded-full px-3.5 py-2 text-[13px] text-foreground shadow-sm cursor-grab select-none touch-none hover:border-primary/30 transition-colors"
+            style={{ position: "relative", zIndex: 10 }}
+        >
+            <span>{tag.emoji}</span>
+            <span>{tag.label}</span>
+        </motion.button>
+    );
+}
 
 export default Signup;
