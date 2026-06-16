@@ -71,9 +71,6 @@ export const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
             className="overflow-hidden"
           >
             <div className="pt-3 mt-3 border-t border-border/15">
-              <p className="text-[12px] text-muted-foreground leading-relaxed mb-3">
-                {conseil.advice_text}
-              </p>
               {conseil.advice_tip && (
                 <div className="bg-primary/5 rounded-xl p-3">
                   <p className="text-[11px] font-bold text-primary mb-1">Action suggérée</p>

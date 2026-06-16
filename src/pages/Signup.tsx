@@ -442,6 +442,11 @@ const Signup = () => {
                 default_factors: onboardingDefaultFactors.length > 0
                     ? Object.fromEntries(ONBOARDING_TAGS.map(t => [t.key, onboardingDefaultFactors.includes(t.key)]))
                     : null,
+                device_type: /iPhone|iPad|iPod/i.test(navigator.userAgent)
+                    ? "iOS"
+                    : /Android/i.test(navigator.userAgent)
+                    ? "Android"
+                    : "Web",
             });
 
             if (selectedOnboardingProducts.length > 0) {
