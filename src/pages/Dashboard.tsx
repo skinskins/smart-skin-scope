@@ -248,10 +248,14 @@ const Dashboard = () => {
         .order("date", { ascending: false })
         .limit(2);
       if (!data?.length) return;
-      const withUrls: SkinPhotoRow[] = data.map((row: SkinPhotoRow) => ({
-        ...row,
-        publicUrl: supabase.storage.from("skin-photos").getPublicUrl(row.storage_path).data.publicUrl,
-      }));
+      const withUrls: SkinPhotoRow[] = await Promise.all(
+        data.map(async (row: SkinPhotoRow) => {
+          const { data: signed } = await supabase.storage
+            .from("skin-photos")
+            .createSignedUrl(row.storage_path, 3600);
+          return { ...row, publicUrl: signed?.signedUrl ?? undefined };
+        })
+      );
       setSkinPhotos(withUrls);
     };
     fetchSkinPhotos();
@@ -468,7 +472,7 @@ const Dashboard = () => {
                 <p className="text-[11px] text-muted-foreground">Pour voir ton score peau évoluer</p>
               </div>
               <button
-                onClick={() => navigate("/scan")}
+                onClick={() => navigate("/diagnosis")}
                 className="ml-auto text-[11px] text-primary font-semibold shrink-0"
               >
                 Photo →
