@@ -214,31 +214,38 @@ export function PearlHero({
       >
             {/* Pearl */}
             <div style={{ padding: "20px 20px 4px", textAlign: "center" }}>
-              <motion.div
-                onClick={handlePress}
-                whileTap={{ scale: 0.94 }}
-                style={{
-                  width: 130, height: 130,
-                  borderRadius: "50%",
-                  margin: "0 auto 12px",
-                  cursor: "pointer",
-                  position: "relative",
-                }}
-                aria-label="Voir le détail du jour"
-                role="button"
-              >
-                {/* Pulse ring */}
+              {!hideTitle && (
+                <p style={{ fontFamily: "var(--font-inter)", fontSize: 14, color: "#111111", fontWeight: 400, margin: "0 0 12px" }}>
+                  {todayLabel}
+                </p>
+              )}
+
+              {/* pearl-wrap: anchor for floating chips */}
+              <div style={{ position: "relative", width: 130, height: 130, margin: "0 auto 12px" }}>
                 <motion.div
-                  animate={{ scale: [1, 1.22], opacity: [0.32, 0] }}
-                  transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut" }}
+                  onClick={handlePress}
+                  whileTap={{ scale: 0.94 }}
                   style={{
-                    position: "absolute",
-                    inset: -8,
+                    width: 130, height: 130,
                     borderRadius: "50%",
-                    background: uvCritical ? "#E06010" : hasFac ? "#7040C0" : cfg.pulseColor,
-                    pointerEvents: "none",
+                    cursor: "pointer",
+                    position: "relative",
                   }}
-                />
+                  aria-label="Voir le détail du jour"
+                  role="button"
+                >
+                  {/* Pulse ring */}
+                  <motion.div
+                    animate={{ scale: [1, 1.22], opacity: [0.32, 0] }}
+                    transition={{ duration: 2.6, repeat: Infinity, ease: "easeOut" }}
+                    style={{
+                      position: "absolute",
+                      inset: -8,
+                      borderRadius: "50%",
+                      background: uvCritical ? "#E06010" : hasFac ? "#7040C0" : cfg.pulseColor,
+                      pointerEvents: "none",
+                    }}
+                  />
 
                   {/* Pearl layers */}
                   <div style={{ width: "100%", height: "100%", borderRadius: "50%", overflow: "hidden", position: "relative" }}>
@@ -270,42 +277,87 @@ export function PearlHero({
                   </div>
                 </motion.div>
 
-              {!hideTitle && (
-                <>
-                  <p className="text-xl font-bold text-foreground" style={{ margin: "0 0 2px" }}>
-                    {cfg.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground" style={{ margin: "0 0 4px" }}>
-                    {cfg.subtitle}
-                  </p>
-                </>
-              )}
+                {/* Chip cycle — gauche */}
+                <div style={{
+                  position: "absolute", left: -44, top: "50%", transform: "translateY(-50%)",
+                  background: "rgba(255,255,255,0.92)",
+                  border: "0.5px solid rgba(0,0,0,0.1)",
+                  borderRadius: 20,
+                  padding: "5px 10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                }}>
+                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 9, fontWeight: 400, color: "#8B7355", letterSpacing: "0.06em", textTransform: "uppercase" }}>Cycle</span>
+                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>{cfg.label}</span>
+                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>J{cycleDay}/{cycleDuration}</span>
+                </div>
+
+                {/* Chip UV — droite */}
+                <div style={{
+                  position: "absolute", right: -48, top: "28%",
+                  background: "rgba(255,255,255,0.92)",
+                  border: "0.5px solid rgba(0,0,0,0.1)",
+                  borderRadius: 20,
+                  padding: "5px 10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                }}>
+                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 9, fontWeight: 400, color: "#8B7355", letterSpacing: "0.06em", textTransform: "uppercase" }}>UV</span>
+                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>Indice {Math.round(weather?.uv_index ?? 0)}</span>
+                </div>
+
+                {/* Chip facteurs — bas droite */}
+                {hasFac && (
+                  <div style={{
+                    position: "absolute", right: -44, bottom: "8%",
+                    background: "rgba(255,255,255,0.92)",
+                    border: "0.5px solid rgba(0,0,0,0.1)",
+                    borderRadius: 20,
+                    padding: "5px 10px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  }}>
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 9, fontWeight: 400, color: "#8B7355", letterSpacing: "0.06em", textTransform: "uppercase" }}>Facteurs</span>
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>{factors.length} actif{factors.length > 1 ? "s" : ""}</span>
+                  </div>
+                )}
+              </div>
 
               {!hidePhotoButton && (
                 photoUploaded ? (
-                  <div className="flex items-center gap-2 text-sm text-primary mt-2">
-                    <Check size={15} />
-                    <span>Photo enregistrée</span>
+                  <div className="flex items-center gap-2 justify-center mt-2 py-2">
+                    <Check size={14} className="text-primary" />
+                    <span className="text-sm font-semibold text-primary">Photo enregistrée</span>
                   </div>
                 ) : (
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-full px-4 py-2 mt-2 mx-auto cursor-pointer">
-                    {camUploading ? (
-                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    ) : (
-                      <>
+                  <>
+                    <label className="flex items-center gap-2 text-sm text-muted-foreground border border-border rounded-full px-4 py-2 mt-2 mx-auto cursor-pointer w-fit">
+                      {camUploading ? (
+                        <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                      ) : (
                         <Camera size={16} />
-                        Prendre une photo
-                        {camError && <span className="text-destructive text-xs ml-1">{camError}</span>}
-                      </>
+                      )}
+                      {camUploading ? "Envoi…" : "Prendre une photo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="user"
+                        className="hidden"
+                        onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
+                      />
+                    </label>
+                    {camError && (
+                      <p style={{ fontSize: 11, color: "#E53E3E", marginTop: 6, textAlign: "center", padding: "0 16px" }}>
+                        {camError}
+                      </p>
                     )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="user"
-                      className="hidden"
-                      onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
-                    />
-                  </label>
+                  </>
                 )
               )}
             </div>

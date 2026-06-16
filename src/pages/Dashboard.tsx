@@ -1,9 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Sparkles } from "lucide-react";
-import { FactorsModal } from "@/components/FactorsModal";
+import { MessageCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
-import { useSaveWeather } from "@/hooks/useSaveWeather";
+import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
@@ -13,7 +12,6 @@ import {
   XAxis, YAxis, CartesianGrid,
   ResponsiveContainer, Tooltip,
 } from "recharts";
-import { AdviceCard, Conseil, sortConseils } from "@/components/AdviceCard";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
 type SymptomRow    = { date: string; symptom: string; trend: string };
@@ -34,6 +32,8 @@ const DashboardSkeleton = () => (
   </div>
 );
 
+import { AdviceCard, Conseil, sortConseils } from "@/components/AdviceCard";
+
 const Dashboard = () => {
   const [checkinStatus, setCheckinStatus] = useState<"loading" | "done">("loading");
   const [userName, setUserName] = useState<string | null>(null);
@@ -49,30 +49,27 @@ const Dashboard = () => {
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advices, setAdvices] = useState<Conseil[]>([]);
   const [adviceLoading, setAdviceLoading] = useState(false);
-  const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [routineLogs, setRoutineLogs] = useState<RoutineLogRow[]>([]);
   const [symptomData, setSymptomData] = useState<SymptomRow[]>([]);
   const [checkinData, setCheckinData] = useState<CheckinRow[]>([]);
   const navigate = useNavigate();
 
-  const { weather: liveWeather } = useSaveWeather(manualLocation || undefined);
+  const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
-  // Guard : redirect to silent routine generation if today's routine isn't ready yet
+  // Guard : redirect to daily conversation if checkin not done yet today
   useEffect(() => {
-    const checkDailyRoutine = async () => {
+    const checkDailyCheckin = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         setCheckinStatus("done");
         return;
       }
       const today = new Date().toISOString().split("T")[0];
-      const isMorning = new Date().getHours() < 18;
       const { data } = await (supabase as any)
-        .from("daily_routine_log")
+        .from("daily_checkins")
         .select("id")
         .eq("user_id", session.user.id)
         .eq("date", today)
-        .eq("period", isMorning ? "morning" : "evening")
         .maybeSingle();
       if (!data) {
         navigate("/daily-conversation", { replace: true });
@@ -80,7 +77,7 @@ const Dashboard = () => {
         setCheckinStatus("done");
       }
     };
-    checkDailyRoutine();
+    checkDailyCheckin();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -105,6 +102,33 @@ const Dashboard = () => {
     };
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    console.log("[WeatherSave] liveWeather changed:", liveWeather);
+    if (liveWeather.locationName === "...") return;
+    const save = async () => {
+      const hour = new Date().getHours();
+      if (hour < 11 || hour >= 15) { console.log("[WeatherSave] hors fenêtre 11h-15h, skip UV"); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { console.log("[WeatherSave] no session, abort"); return; }
+      const today = new Date().toISOString().split("T")[0];
+      console.log("[WeatherSave] inserting for", session.user.id, today, liveWeather);
+      const { data, error } = await (supabase as any)
+        .from("daily_weather")
+        .upsert(
+          {
+            user_id: session.user.id,
+            date: today,
+            temp: liveWeather.temp,
+            uv: liveWeather.uv,
+            pollution: liveWeather.pollution,
+          },
+          { onConflict: "user_id,date", ignoreDuplicates: true }
+        );
+      console.log("[WeatherSave] result →", { data, error });
+    };
+    save();
+  }, [liveWeather]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -176,49 +200,80 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
-      const ADVICE_FIELDS = "id, advice_title, advice_text, advice_tip, advice_group, priority";
 
-      // 1. Conseils déjà en base pour aujourd'hui
+      // 1. Chercher si conseils déjà en base
       const { data } = await (supabase as any)
         .from("daily_advice_log")
-        .select(ADVICE_FIELDS)
+        .select("advice_title, advice_text")
         .eq("user_id", session.user.id)
-        .eq("date", today);
+        .eq("date", today)
+        .maybeSingle();
 
-      if (data && data.length > 0) {
-        setAdvices(sortConseils(data));
+      console.log("[AdviceDebug] data:", JSON.stringify(data), "user:", session.user.id, "date:", today);
+      if (data) {
+        // Fallback structure compatible with AdviceCard
+        setAdvices([{
+          id: "today-advice",
+          advice_title: data.advice_title,
+          advice_text: data.advice_text,
+          advice_tip: "",
+          advice_group: "astuce",
+          priority: "normal"
+        }]);
         return;
       }
 
-      // 2. Pas de conseil → générer (filet de sécurité, en plus du flow silencieux)
+      // 2. Pas de conseil → générer
       setAdviceLoading(true);
+      console.log("[AdviceDebug] Lancement generate-advice pour:", session.user.id);
       try {
-        const { error, data: genData } = await (supabase as any).functions.invoke("generate-advice", {
+        const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
           body: { user_id: session.user.id },
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         });
 
-        if (error) return;
-
-        if (genData?.conseils?.length > 0) {
-          setAdvices(sortConseils(genData.conseils));
+        if (error) {
+          console.error("[AdviceDebug] Erreur:", JSON.stringify(error));
           return;
         }
 
+        // Utiliser directement la réponse
+        if (genData?.conseils?.length > 0) {
+          const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+          const sorted = [...genData.conseils].sort((a: any, b: any) =>
+            (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)
+          );
+          setAdvices(sorted);
+          return;
+        }
         // Fallback — relire depuis DB
         const { data: fresh } = await (supabase as any)
           .from("daily_advice_log")
-          .select(ADVICE_FIELDS)
+          .select("advice_title, advice_text")
           .eq("user_id", session.user.id)
-          .eq("date", today);
+          .eq("date", today)
+          .maybeSingle();
 
-        if (fresh && fresh.length > 0) setAdvices(sortConseils(fresh));
+        if (fresh) {
+          setAdvices([{
+            id: "today-advice-fresh",
+            advice_title: fresh.advice_title,
+            advice_text: fresh.advice_text,
+            advice_tip: "",
+            advice_group: "astuce",
+            priority: "normal"
+          }]);
+        }
+
       } catch (err) {
-        console.error("[generate-advice] Dashboard:", err);
+        console.error("[AdviceDebug] Exception:", err);
       } finally {
         setAdviceLoading(false);
       }
     };
+
     fetchAdvice();
   }, []);
 
@@ -247,7 +302,6 @@ const Dashboard = () => {
     };
     fetchCharts();
   }, []);
-
 
   const cycleCalc = lastPeriodDate
     ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
@@ -448,14 +502,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Bouton flottant : régénérer la routine */}
+      {/* Bouton flottant IA */}
       <button
         onClick={() => navigate("/daily-conversation")}
         className="fixed bottom-20 right-4 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-50 transition-transform active:scale-95"
         style={{ background: "#2C1810" }}
-        aria-label="Régénérer ma routine"
+        aria-label="Ouvrir la conversation"
       >
-        <RefreshCw size={22} strokeWidth={1.8} className="text-white" />
+        <MessageCircle size={22} strokeWidth={1.8} className="text-white" />
       </button>
 
     </div>
