@@ -290,6 +290,7 @@ export type Database = {
           created_at: string
           cycle_duration: number | null
           cycle_phase: string | null
+          default_factors: Json | null
           did_sport: boolean | null
           first_name: string | null
           food_quality: string | null
@@ -322,6 +323,7 @@ export type Database = {
           created_at?: string
           cycle_duration?: number | null
           cycle_phase?: string | null
+          default_factors?: Json | null
           did_sport?: boolean | null
           first_name?: string | null
           food_quality?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           created_at?: string
           cycle_duration?: number | null
           cycle_phase?: string | null
+          default_factors?: Json | null
           did_sport?: boolean | null
           first_name?: string | null
           food_quality?: string | null
@@ -378,6 +381,41 @@ export type Database = {
           water_glasses?: number | null
         }
         Relationships: []
+      }
+      professional_diagnostics: {
+        Row: {
+          created_at: string
+          id: string
+          raw_metrics: Json | null
+          source: string | null
+          summary: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          raw_metrics?: Json | null
+          source?: string | null
+          summary?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          raw_metrics?: Json | null
+          source?: string | null
+          summary?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_diagnostics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       routine_logs: {
         Row: {

@@ -446,9 +446,12 @@ export default function DailyConversation() {
       ingredients: p.ingredients,
     }));
 
-    const body = isMorning
-      ? { morningProducts: products, eveningProducts: [], cyclePhase, uvIndex: weather?.uv ?? null, factors: [] }
-      : { eveningProducts: products, morningProducts: [], cyclePhase, uvIndex: weather?.uv ?? null, factors: [] };
+    const body = {
+      products,
+      period: isMorning ? "morning" : "evening",
+      cyclePhase,
+      uvIndex: weather?.uv ?? null,
+    };
 
     try {
       const { data: result, error } = await (supabase as any).functions.invoke("inci-analysis", { body });

@@ -1,25 +1,16 @@
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Sparkles } from "lucide-react";
+import { Sparkles, ImageOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid,
-  ResponsiveContainer, Tooltip,
-} from "recharts";
+import { motion } from "framer-motion";
+import { AdviceCard, Conseil } from "@/components/AdviceCard";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
-type SymptomRow    = { date: string; symptom: string; trend: string };
-type CheckinRow    = { date: string; stress_level: number | null; sleep_hours: number | null; food_quality: string | null; alcohol_drinks: number | null };
-
-const trendToScore = (t: string) => t === "moins" ? 1 : t === "plus" ? -1 : 0;
-const foodToScore  = (q: string | null): number | null =>
-  q === "Équilibrée" ? 5 : q === "Quelconque" ? 3 : q === "Grasses / Sucrées" ? 1 : null;
+type SkinPhotoRow  = { date: string; analysis_json: any; storage_path: string; publicUrl?: string };
 
 const DashboardSkeleton = () => (
   <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white animate-pulse">
@@ -32,93 +23,31 @@ const DashboardSkeleton = () => (
   </div>
 );
 
-// Types from yael
-type Conseil = {
-  id: string;
-  advice_title: string;
-  advice_text: string;
-  advice_tip: string;
-  advice_group: string;
-  priority: string;
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const nextCycleEvent = (cycleDay: number, cycleDuration: number): string => {
+  const ovDay  = Math.max(1, cycleDuration - 14);
+  const daysToOv     = ovDay - cycleDay;
+  const daysToPeriod = cycleDuration - cycleDay;
+
+  if (daysToOv > 0 && daysToOv <= 5)
+    return `Ovulation dans ${daysToOv} jour${daysToOv > 1 ? "s" : ""}`;
+  if (daysToOv === 0)
+    return "Pic d'ovulation aujourd'hui";
+  if (daysToPeriod <= 5 && daysToPeriod > 0)
+    return `Règles dans ${daysToPeriod} jour${daysToPeriod > 1 ? "s" : ""}`;
+  if (daysToPeriod === 0)
+    return "Début des règles aujourd'hui";
+  if (daysToPeriod < 0)
+    return "Règles en cours";
+  return `Règles dans ${daysToPeriod} jour${daysToPeriod > 1 ? "s" : ""}`;
 };
 
-// Config type badges from yael
-const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  observation: { label: "Observation", color: "text-blue-600", bg: "bg-blue-50" },
-  astuce: { label: "Astuce", color: "text-green-600", bg: "bg-green-50" },
-  alerte: { label: "Alerte", color: "text-orange-600", bg: "bg-orange-50" },
-  warning: { label: "Attention", color: "text-red-500", bg: "bg-red-50" },
-};
-
-// Composant card conseil from yael
-const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
-  const [open, setOpen] = useState(false);
-  const typeConf = TYPE_CONFIG[conseil.advice_group] ?? TYPE_CONFIG["astuce"];
-
-  return (
-    <motion.div
-      layout
-      onClick={() => setOpen(!open)}
-      className="bg-white rounded-2xl p-3 cursor-pointer hover:bg-muted/5 transition-colors border border-border/10"
-    >
-      {/* Preview */}
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${typeConf.bg} ${typeConf.color}`}>
-              {typeConf.label}
-            </span>
-          </div>
-          <p className="text-[13px] font-semibold text-foreground leading-snug mb-0.5">
-            {conseil.advice_title}
-          </p>
-          <p className={`text-[12px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-1"}`}>
-            {conseil.advice_text}
-          </p>
-        </div>
-        <motion.div
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex-shrink-0 mt-1"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" />
-          </svg>
-        </motion.div>
-      </div>
-
-      {/* Détail expandable */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="pt-3 mt-3 border-t border-border/15">
-              <p className="text-[12px] text-muted-foreground leading-relaxed mb-3">
-                {conseil.advice_text}
-              </p>
-              {conseil.advice_tip && (
-                <div className="bg-primary/5 rounded-xl p-3">
-                  <p className="text-[11px] font-bold text-primary mb-1">Action suggérée</p>
-                  <p className="text-[12px] text-foreground/80 leading-relaxed">
-                    {conseil.advice_tip}
-                  </p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
+// ── composant ────────────────────────────────────────────────────────────────
 
 const Dashboard = () => {
-  const [checkinStatus, setCheckinStatus] = useState<"loading" | "done">("loading");
+  const [checkinStatus] = useState<"loading" | "done">("done");
+  const [routineProducts, setRoutineProducts] = useState<any[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -128,41 +57,33 @@ const Dashboard = () => {
   const [streakCount, setStreakCount] = useState(0);
   const [weekCount, setWeekCount] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [skinGoal, setSkinGoal] = useState<string | null>(null);
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advices, setAdvices] = useState<Conseil[]>([]);
   const [adviceLoading, setAdviceLoading] = useState(false);
-  const [routineLogs, setRoutineLogs] = useState<RoutineLogRow[]>([]);
-  const [symptomData, setSymptomData] = useState<SymptomRow[]>([]);
-  const [checkinData, setCheckinData] = useState<CheckinRow[]>([]);
+  const [skinPhotos, setSkinPhotos] = useState<SkinPhotoRow[]>([]);
   const navigate = useNavigate();
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
-  // Guard : redirect to daily conversation if checkin not done yet today
+  // ── Routine produits ──────────────────────────────────────────────────────
   useEffect(() => {
-    const checkDailyCheckin = async () => {
+    const fetchRoutineProducts = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setCheckinStatus("done");
-        return;
-      }
-      const today = new Date().toISOString().split("T")[0];
+      if (!session?.user) return;
+      const isMorning = new Date().getHours() < 15;
       const { data } = await (supabase as any)
-        .from("daily_checkins")
-        .select("id")
+        .from("user_products")
+        .select("id, product_name, brand, photo_url, product_type")
         .eq("user_id", session.user.id)
-        .eq("date", today)
-        .maybeSingle();
-      if (!data) {
-        navigate("/daily-conversation", { replace: true });
-      } else {
-        setCheckinStatus("done");
-      }
+        .eq("is_active", true)
+        .eq(isMorning ? "morning_use" : "evening_use", true)
+        .limit(8);
+      if (data) setRoutineProducts(data);
     };
-    checkDailyCheckin();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    fetchRoutineProducts();
+  }, []);
 
+  // ── Profil + cycle ────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -170,49 +91,38 @@ const Dashboard = () => {
       if (session.user.user_metadata?.first_name) {
         setUserName(session.user.user_metadata.first_name);
       }
-      console.log("[CycleDebug] user.id used in WHERE:", session.user.id);
-      const { data, error } = await (supabase as any)
+      const { data } = await (supabase as any)
         .from("profiles")
-        .select("manual_location, last_period_date, cycle_duration, skin_goals")
+        .select("manual_location, last_period_date, cycle_duration")
         .eq("id", session.user.id)
         .single();
-      console.log("[CycleDebug] profiles data:", JSON.stringify(data));
-      console.log("[CycleDebug] profiles error:", JSON.stringify(error));
       if (data?.manual_location) setManualLocationState(data.manual_location);
       if (data?.last_period_date) setLastPeriodDate(data.last_period_date);
-      if (data?.cycle_duration) setCycleDuration(data.cycle_duration);
-      if (data?.skin_goals?.length > 0) setSkinGoal(data.skin_goals[0]);
+      if (data?.cycle_duration)   setCycleDuration(data.cycle_duration);
     };
     fetchProfile();
   }, []);
 
+  // ── Sauvegarde météo ──────────────────────────────────────────────────────
   useEffect(() => {
-    console.log("[WeatherSave] liveWeather changed:", liveWeather);
     if (liveWeather.locationName === "...") return;
     const save = async () => {
       const hour = new Date().getHours();
-      if (hour < 11 || hour >= 15) { console.log("[WeatherSave] hors fenêtre 11h-15h, skip UV"); return; }
+      if (hour < 11 || hour >= 15) return;
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { console.log("[WeatherSave] no session, abort"); return; }
+      if (!session) return;
       const today = new Date().toISOString().split("T")[0];
-      console.log("[WeatherSave] inserting for", session.user.id, today, liveWeather);
-      const { data, error } = await (supabase as any)
+      await (supabase as any)
         .from("daily_weather")
         .upsert(
-          {
-            user_id: session.user.id,
-            date: today,
-            temp: liveWeather.temp,
-            uv: liveWeather.uv,
-            pollution: liveWeather.pollution,
-          },
+          { user_id: session.user.id, date: today, temp: liveWeather.temp, uv: liveWeather.uv, pollution: liveWeather.pollution },
           { onConflict: "user_id,date", ignoreDuplicates: true }
         );
-      console.log("[WeatherSave] result →", { data, error });
     };
     save();
   }, [liveWeather]);
 
+  // ── Auth listener ─────────────────────────────────────────────────────────
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserName(session?.user?.user_metadata?.first_name ?? null);
@@ -220,6 +130,7 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ── Streak routine ────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchStreak = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -238,12 +149,11 @@ const Dashboard = () => {
       if (!data?.length) { setStreakLoaded(true); return; }
 
       const done = new Set<string>(
-        data
-          .filter((r: any) => r.morning_routine_done || r.evening_routine_done)
-          .map((r: any) => r.date as string)
+        (data as RoutineLogRow[])
+          .filter(r => r.morning_routine_done || r.evening_routine_done)
+          .map(r => r.date)
       );
 
-      // Streak courant
       let streak = 0;
       const cursor = new Date();
       while (done.has(cursor.toISOString().split("T")[0])) {
@@ -251,14 +161,12 @@ const Dashboard = () => {
         cursor.setDate(cursor.getDate() - 1);
       }
 
-      // 7 derniers jours
       let week = 0;
       for (let i = 0; i < 7; i++) {
         const d = new Date(); d.setDate(d.getDate() - i);
         if (done.has(d.toISOString().split("T")[0])) week++;
       }
 
-      // Meilleure série
       const sorted = Array.from(done).sort();
       let best = 0, cur = 0;
       let prev: Date | null = null;
@@ -278,13 +186,13 @@ const Dashboard = () => {
     fetchStreak();
   }, []);
 
+  // ── Conseil du jour ───────────────────────────────────────────────────────
   useEffect(() => {
     const fetchAdvice = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
 
-      // 1. Chercher si conseils déjà en base
       const { data } = await (supabase as any)
         .from("daily_advice_log")
         .select("advice_title, advice_text")
@@ -292,136 +200,72 @@ const Dashboard = () => {
         .eq("date", today)
         .maybeSingle();
 
-      console.log("[AdviceDebug] data:", JSON.stringify(data), "user:", session.user.id, "date:", today);
       if (data) {
-        // Fallback structure compatible with AdviceCard
-        setAdvices([{
-          id: "today-advice",
-          advice_title: data.advice_title,
-          advice_text: data.advice_text,
-          advice_tip: "",
-          advice_group: "astuce",
-          priority: "normal"
-        }]);
+        setAdvices([{ id: "today-advice", advice_title: data.advice_title, advice_text: data.advice_text, advice_tip: "", advice_group: "astuce", priority: "normal" }]);
         return;
       }
 
-      // 2. Pas de conseil → générer
       setAdviceLoading(true);
-      console.log("[AdviceDebug] Lancement generate-advice pour:", session.user.id);
       try {
         const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
           body: { user_id: session.user.id },
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
         });
-
-        if (error) {
-          console.error("[AdviceDebug] Erreur:", JSON.stringify(error));
-          return;
-        }
-
-        // Utiliser directement la réponse
+        if (error) return;
         if (genData?.conseils?.length > 0) {
           const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
-          const sorted = [...genData.conseils].sort((a: any, b: any) =>
-            (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)
-          );
-          setAdvices(sorted);
+          setAdvices([...genData.conseils].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
           return;
         }
-        // Fallback — relire depuis DB
         const { data: fresh } = await (supabase as any)
-          .from("daily_advice_log")
-          .select("advice_title, advice_text")
-          .eq("user_id", session.user.id)
-          .eq("date", today)
-          .maybeSingle();
-
-        if (fresh) {
-          setAdvices([{
-            id: "today-advice-fresh",
-            advice_title: fresh.advice_title,
-            advice_text: fresh.advice_text,
-            advice_tip: "",
-            advice_group: "astuce",
-            priority: "normal"
-          }]);
-        }
-
-      } catch (err) {
-        console.error("[AdviceDebug] Exception:", err);
+          .from("daily_advice_log").select("advice_title, advice_text")
+          .eq("user_id", session.user.id).eq("date", today).maybeSingle();
+        if (fresh) setAdvices([{ id: "today-advice-fresh", advice_title: fresh.advice_title, advice_text: fresh.advice_text, advice_tip: "", advice_group: "astuce", priority: "normal" }]);
       } finally {
         setAdviceLoading(false);
       }
     };
-
     fetchAdvice();
   }, []);
 
+  // ── Photos de peau (2 dernières) ──────────────────────────────────────────
   useEffect(() => {
-    const fetchCharts = async () => {
+    const fetchSkinPhotos = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-      const sinceStr = since.toISOString().split("T")[0];
-      const uid = session.user.id;
-      const [r1, r2, r3] = await Promise.all([
-        (supabase as any).from("routine_logs")
-          .select("date, morning_routine_done, evening_routine_done")
-          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
-        (supabase as any).from("symptom_tracking")
-          .select("date, symptom, trend")
-          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
-        (supabase as any).from("daily_checkins")
-          .select("date, stress_level, sleep_hours, food_quality, alcohol_drinks")
-          .eq("user_id", uid).gte("date", sinceStr).order("date", { ascending: true }),
-      ]);
-      setRoutineLogs(r1.data ?? []);
-      setSymptomData(r2.data ?? []);
-      setCheckinData(r3.data ?? []);
+      const { data } = await (supabase as any)
+        .from("skin_photos")
+        .select("date, analysis_json, storage_path")
+        .eq("user_id", session.user.id)
+        .order("date", { ascending: false })
+        .limit(2);
+      if (!data?.length) return;
+      const withUrls: SkinPhotoRow[] = await Promise.all(
+        data.map(async (row: SkinPhotoRow) => {
+          const { data: signed } = await supabase.storage
+            .from("skin-photos")
+            .createSignedUrl(row.storage_path, 3600);
+          return { ...row, publicUrl: signed?.signedUrl ?? undefined };
+        })
+      );
+      setSkinPhotos(withUrls);
     };
-    fetchCharts();
+    fetchSkinPhotos();
   }, []);
 
-  const cycleCalc = lastPeriodDate
-    ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5)
-    : null;
+  // ── Cycle ─────────────────────────────────────────────────────────────────
+  const cycleCalc  = lastPeriodDate ? calculateCyclePhase(lastPeriodDate, cycleDuration, 5) : null;
   const cyclePhase = cycleCalc?.phase ?? null;
   const cycleDay   = cycleCalc?.day   ?? null;
-  console.log("[CycleDebug] lastPeriodDate:", lastPeriodDate, "| cycleDuration:", cycleDuration, "| phase:", cyclePhase, "| day:", cycleDay);
 
-  const routineChartData = routineLogs.map(r => ({
-    date: r.date.slice(8),
-    matin: r.morning_routine_done ? 1 : 0,
-    soir:  r.evening_routine_done ? 1 : 0,
-  }));
+  // ── Skin score ────────────────────────────────────────────────────────────
+  const today     = new Date().toISOString().split("T")[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  const photoToday = skinPhotos.find(p => p.date === today);
+  const photoYest  = skinPhotos.find(p => p.date === yesterday)
+    ?? (skinPhotos.length > 1 && skinPhotos[0].date !== today ? skinPhotos[1] : null)
+    ?? (skinPhotos.length > 1 ? skinPhotos[1] : null);
 
-  const symptomByDate = new Map<string, number[]>();
-  for (const s of symptomData) {
-    if (!symptomByDate.has(s.date)) symptomByDate.set(s.date, []);
-    symptomByDate.get(s.date)!.push(trendToScore(s.trend));
-  }
-  const symptomChartData = Array.from(symptomByDate.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, scores]) => ({
-      date: date.slice(8),
-      score: +(scores.reduce((a, v) => a + v, 0) / scores.length).toFixed(2),
-    }));
-
-  const skinScoreMap = new Map<string, number>();
-  symptomByDate.forEach((scores, date) =>
-    skinScoreMap.set(date, +((scores.reduce((a, v) => a + v, 0) / scores.length + 1) * 2.5).toFixed(2))
-  );
-  const factorsChartData = checkinData.map(c => ({
-    date:   c.date.slice(8),
-    stress: c.stress_level,
-    sleep:  c.sleep_hours != null ? +(Math.min(5, Math.max(1, c.sleep_hours - 3))).toFixed(1) : null,
-    food:   foodToScore(c.food_quality),
-    peau:   skinScoreMap.get(c.date) ?? null,
-  }));
 
   if (checkinStatus === "loading") return <DashboardSkeleton />;
 
@@ -431,9 +275,7 @@ const Dashboard = () => {
       <PageHeader title={`Bonjour ${userName ?? ""}`} />
 
       {/* Hero */}
-      <div className="px-5 pt-6 pb-6 bg-white">
-
-        {/* PearlHero */}
+      <div className="px-5 pt-6 pb-3 bg-white">
         {cyclePhase && cycleDay ? (
           <div className="mb-3">
             <PearlHero
@@ -447,8 +289,35 @@ const Dashboard = () => {
           </div>
         ) : null}
 
-        {/* Conseils du jour */}
-        <div className="flex flex-col gap-2 mb-3">
+        {/* Routine du jour */}
+        {routineProducts.length > 0 && (
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              {new Date().getHours() < 15 ? "Routine du matin" : "Routine du soir"}
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+              {routineProducts.map(p => (
+                <div key={p.id} className="flex flex-col items-center gap-1 shrink-0 w-14">
+                  <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
+                    {p.photo_url
+                      ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                      : <ImageOff size={14} className="text-muted-foreground/40" />}
+                  </div>
+                  <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.brand || p.product_name}</p>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => navigate("/routine-player")}
+              className="w-full mt-3 py-3 rounded-2xl bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase transition active:scale-95"
+            >
+              Commencer la routine
+            </button>
+          </div>
+        )}
+
+        {/* Conseil du jour */}
+        <div className="flex flex-col gap-2 mb-1">
           {adviceLoading ? (
             <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
               <motion.div
@@ -456,137 +325,169 @@ const Dashboard = () => {
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
               />
-              <p className="text-[12px] text-muted-foreground">
-                Vos conseils personnalisés sont en cours de préparation...
-              </p>
+              <p className="text-[12px] text-muted-foreground">Vos conseils personnalisés sont en cours de préparation...</p>
             </div>
           ) : advices.length > 0 ? (
-            advices.map((conseil) => (
-              <AdviceCard key={conseil.id} conseil={conseil} />
-            ))
+            advices.slice(0, 1).map((conseil) => <AdviceCard key={conseil.id} conseil={conseil} />)
           ) : (
             <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
               <Sparkles size={16} strokeWidth={1.5} className="text-primary flex-shrink-0" />
               <p className="text-sm text-muted-foreground">Votre conseil arrive bientôt</p>
             </div>
           )}
+          {advices.length > 0 && (
+            <button
+              onClick={() => navigate("/weekly-plan")}
+              className="text-[11px] text-muted-foreground hover:underline underline-offset-2 text-right pr-1 -mt-1"
+            >
+              Voir le plan de la semaine →
+            </button>
+          )}
         </div>
-
       </div>
 
-      {/* Graphiques tendances */}
-      <div className="px-5 pb-6">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1 mb-3">
-          Tendances · 30 derniers jours
+      {/* ── Métriques ────────────────────────────────────────────────────── */}
+      <div className="px-5 pb-6 space-y-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground pt-2 pb-1">
+          Mes métriques
         </p>
 
-        {/* 1 — Régularité routine */}
-        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
-          <p className="text-xs font-semibold text-foreground mb-2">Régularité routine</p>
-          {routineChartData.length < 7 ? (
-            <p className="text-xs text-muted-foreground text-center py-5">
-              Continue ta routine pour voir tes tendances apparaître 🌱
-            </p>
+        {/* Carte 1 — Streak */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="bg-[#F8F6F2] rounded-2xl p-4"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Routine</p>
+          {streakLoaded && streakCount > 0 ? (
+            <div>
+              <p className="text-[22px] font-display text-foreground leading-tight">
+                🔥 {streakCount} jour{streakCount > 1 ? "s" : ""} consécutif{streakCount > 1 ? "s" : ""}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {weekCount}/7 cette semaine · Meilleure série : {bestStreak}
+              </p>
+            </div>
           ) : (
-            <>
-              <ResponsiveContainer width="100%" height={110}>
-                <BarChart data={routineChartData} barSize={5} barCategoryGap="30%">
-                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis hide domain={[0, 2]} />
-                  <Tooltip
-                    formatter={(v: number, key: string) => [v === 1 ? "Faite ✓" : "Manquée", key === "matin" ? "Matin" : "Soir"]}
-                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
-                  />
-                  <Bar dataKey="matin" stackId="a" fill="#2C1810" radius={[0, 0, 2, 2]} />
-                  <Bar dataKey="soir"  stackId="a" fill="#C4A882" radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex gap-4 justify-center mt-1">
-                {([["#2C1810","Matin"],["#C4A882","Soir"]] as [string,string][]).map(([c,l]) => (
-                  <div key={l} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-sm" style={{ background: c }} />
-                    <span className="text-[10px] text-muted-foreground">{l}</span>
+            <button
+              onClick={() => navigate("/routine-player")}
+              className="text-[13px] text-primary font-semibold"
+            >
+              Commence ta streak ce soir →
+            </button>
+          )}
+        </motion.div>
+
+        {/* Carte 2 — Phase cycle */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-[#F8F6F2] rounded-2xl p-4"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Cycle</p>
+          {cyclePhase && cycleDay ? (
+            <div>
+              <p className="text-[20px] font-display text-foreground leading-tight">
+                {cyclePhase} · Jour {cycleDay}
+              </p>
+              <p className="text-[12px] text-muted-foreground mt-1">
+                {nextCycleEvent(cycleDay, cycleDuration)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              Renseigne ta date de règles dans ton profil pour voir ta phase
+            </p>
+          )}
+        </motion.div>
+
+        {/* Carte 3 — Météo */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="bg-[#F8F6F2] rounded-2xl p-4"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Météo du jour</p>
+          {liveWeather.locationName !== "..." ? (
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-[22px] font-display text-foreground">{liveWeather.temp ?? "—"}°</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Temp.</p>
+              </div>
+              <div>
+                <p className="text-[22px] font-display text-foreground">{liveWeather.uv ?? "—"}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">UV</p>
+              </div>
+              <div>
+                <p className="text-[22px] font-display text-foreground">{liveWeather.humidity ?? "—"}%</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Humidité</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">Météo en cours de chargement…</p>
+          )}
+        </motion.div>
+
+        {/* Carte 4 — Comparaison photos */}
+        {skinPhotos.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="bg-[#F8F6F2] rounded-2xl p-4"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Évolution</p>
+            {skinPhotos.length >= 2 ? (
+              <div className="flex gap-3">
+                {[skinPhotos[1], skinPhotos[0]].map((photo, i) => (
+                  <div key={photo.date} className="flex-1 flex flex-col items-center gap-1.5">
+                    <div className="w-full aspect-square rounded-xl overflow-hidden bg-muted/20">
+                      {photo.publicUrl ? (
+                        <img src={photo.publicUrl} alt={photo.date} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageOff size={18} className="text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {i === 0 ? "Avant" : "Aujourd'hui"}
+                    </p>
+                    {photo.analysis_json?.eclat_global != null && (
+                      <p className="text-[11px] font-semibold text-foreground">
+                        Éclat {photo.analysis_json.eclat_global}/10
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
-            </>
-          )}
-        </div>
-
-        {/* 2 — Évolution symptômes */}
-        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
-          <p className="text-xs font-semibold text-foreground mb-2">Évolution symptômes</p>
-          {symptomChartData.length < 7 ? (
-            <p className="text-xs text-muted-foreground text-center py-5">
-              Continue ta routine pour voir tes tendances apparaître 🌱
-            </p>
-          ) : (
-            <ResponsiveContainer width="100%" height={120}>
-              <LineChart data={symptomChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                <YAxis domain={[-1, 1]} ticks={[-1, 0, 1]} tickFormatter={(v) => v === 1 ? "↑" : v === -1 ? "↓" : "—"}
-                  tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} width={16} />
-                <Tooltip
-                  formatter={(v: number) => [v > 0 ? "S'améliore" : v < 0 ? "Se détériore" : "Stable", "Peau"]}
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
-                />
-                <Line type="monotone" dataKey="score" stroke="#2C1810" strokeWidth={2} dot={false} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* 3 — Facteurs vs peau */}
-        <div className="bg-[#F8F6F2] rounded-2xl p-4 mb-3">
-          <p className="text-xs font-semibold text-foreground mb-2">Facteurs & peau</p>
-          {factorsChartData.length < 7 ? (
-            <p className="text-xs text-muted-foreground text-center py-5">
-              Continue ta routine pour voir tes tendances apparaître 🌱
-            </p>
-          ) : (
-            <>
-              <ResponsiveContainer width="100%" height={130}>
-                <LineChart data={factorsChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9CA3AF" }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                  <YAxis domain={[0, 5]} hide />
-                  <Tooltip
-                    contentStyle={{ fontSize: 11, borderRadius: 8, border: "none", background: "rgba(255,255,255,0.95)" }}
-                    formatter={(v: number, key: string) => {
-                      const labels: Record<string, string> = { stress: "Stress", sleep: "Sommeil", food: "Alimentation", peau: "Peau" };
-                      return [v, labels[key] ?? key];
-                    }}
-                  />
-                  <Line type="monotone" dataKey="stress" stroke="#E07070" strokeWidth={2} dot={false} connectNulls />
-                  <Line type="monotone" dataKey="sleep"  stroke="#70A0D0" strokeWidth={2} dot={false} connectNulls />
-                  <Line type="monotone" dataKey="food"   stroke="#70C090" strokeWidth={2} dot={false} connectNulls />
-                  <Line type="monotone" dataKey="peau"   stroke="#2C1810" strokeWidth={2} dot={false} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
-              <div className="flex gap-3 justify-center mt-1 flex-wrap">
-                {([["#E07070","Stress"],["#70A0D0","Sommeil"],["#70C090","Alimentation"],["#2C1810","Peau"]] as [string,string][]).map(([c,l]) => (
-                  <div key={l} className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full" style={{ background: c }} />
-                    <span className="text-[10px] text-muted-foreground">{l}</span>
+            ) : (
+              <div className="flex gap-3 items-start">
+                <div className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="w-full aspect-square rounded-xl overflow-hidden bg-muted/20">
+                    {skinPhotos[0].publicUrl ? (
+                      <img src={skinPhotos[0].publicUrl} alt={skinPhotos[0].date} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageOff size={18} className="text-muted-foreground/40" />
+                      </div>
+                    )}
                   </div>
-                ))}
+                  <p className="text-[10px] text-muted-foreground">Aujourd'hui</p>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 pt-4">
+                  <p className="text-[12px] text-muted-foreground text-center leading-snug">
+                    Reviens demain pour voir l'évolution
+                  </p>
+                </div>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </motion.div>
+        )}
       </div>
-
-      {/* Bouton flottant IA */}
-      <button
-        onClick={() => navigate("/daily-conversation")}
-        className="fixed bottom-20 right-4 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-50 transition-transform active:scale-95"
-        style={{ background: "#2C1810" }}
-        aria-label="Ouvrir la conversation"
-      >
-        <MessageCircle size={22} strokeWidth={1.8} className="text-white" />
-      </button>
-
     </div>
   );
 };

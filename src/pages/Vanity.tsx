@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan } from "lucide-react";
+import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan, FileUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
 import { RoutineCard } from "@/components/RoutineCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { PRESET_DEVICES } from "@/data/presetDevices";
 
 type CatalogProduct = {
   id: string;
@@ -17,6 +18,29 @@ type CatalogProduct = {
   product_type: string | null;
   user_id: string | null;
   frequency?: string | null;
+};
+
+type DiagnosticResult = {
+  source: string | null;
+  raw_metrics: Record<string, any>;
+  summary: string;
+};
+
+const renderDiagnosticMetrics = (metrics: Record<string, any>) => {
+  const rows: { label: string; value: string }[] = [];
+  if (metrics?.hydratation?.score != null) rows.push({ label: "Hydratation", value: `${metrics.hydratation.score}/4` });
+  if (metrics?.sebum) {
+    const parts: string[] = [];
+    if (metrics.sebum.zone_t != null) parts.push(`Zone T ${metrics.sebum.zone_t}/5`);
+    if (metrics.sebum.zone_u != null) parts.push(`Zone U ${metrics.sebum.zone_u}/5`);
+    if (parts.length) rows.push({ label: "Sébum", value: parts.join(" · ") });
+  }
+  if (metrics?.pores?.score != null) rows.push({ label: "Pores", value: `${metrics.pores.score}/4` });
+  if (metrics?.taches?.score != null) rows.push({ label: "Taches", value: `${metrics.taches.score}/4` });
+  if (metrics?.rougeurs?.score != null) rows.push({ label: "Rougeurs", value: `${metrics.rougeurs.score}/4` });
+  if (metrics?.rides?.score != null) rows.push({ label: "Rides", value: `${metrics.rides.score}/5` });
+  if (metrics?.eclat_global != null) rows.push({ label: "Éclat global", value: `${metrics.eclat_global}/10` });
+  return rows;
 };
 
 const FREQ_OPTIONS = [
@@ -30,6 +54,9 @@ const Vanity = () => {
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
+  const diagnosticFileRef = useRef<HTMLInputElement>(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
   const [frequencyModal, setFrequencyModal] = useState<{ product: CatalogProduct; mode: "add" | "edit" } | null>(null);
@@ -75,6 +102,11 @@ const Vanity = () => {
         }
       });
   }, []);
+
+  const cosmetics = userProducts.filter(p => (p as any).product_type !== "device");
+  const userDeviceLabels = new Set(
+    userProducts.filter(p => (p as any).product_type === "device").map(p => p.product_name)
+  );
 
   const dailyProducts   = routineProducts.filter(p => p.frequency === "daily");
   const weeklyProducts  = routineProducts.filter(p => p.frequency === "weekly");
@@ -160,11 +192,44 @@ const Vanity = () => {
     setFrequencyModal(null);
   };
 
+  const insertScannedProduct = async (product: {
+    product_name: string;
+    brand: string | null;
+    product_type: string | null;
+    ingredients: string | null;
+    open_beauty_facts_id: string | null;
+    photo_url: string | null;
+  }) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) throw new Error("Non connecté");
+    const { data: inserted, error: dbError } = await (supabase as any)
+      .from("user_products")
+      .insert({
+        product_name: product.product_name,
+        brand: product.brand,
+        product_type: product.product_type,
+        ingredients: product.ingredients,
+        open_beauty_facts_id: product.open_beauty_facts_id,
+        photo_url: product.photo_url,
+        user_id: session.user.id,
+        morning_use: true,
+        evening_use: true,
+        status: "active",
+        is_active: true,
+      })
+      .select()
+      .single();
+    if (dbError) throw dbError;
+    if (inserted) setUserProducts(prev => [...prev, inserted]);
+    setScanMessage(`${product.product_name} ajouté ✓`);
+    setTimeout(() => setScanMessage(null), 4000);
+  };
+
   const handleScanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    setScanMessage("Analyse du produit en cours…");
+    setScanMessage("Identification du produit en cours…");
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -181,30 +246,111 @@ const Vanity = () => {
           : error.message;
         throw new Error(errorText);
       }
-      if (!data?.product_name) throw new Error(`Réponse invalide : ${JSON.stringify(data)}`);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Non connecté");
-      const { data: inserted, error: dbError } = await (supabase as any)
-        .from("user_products")
-        .insert({
-          product_name: data.product_name,
-          brand:        data.brand        ?? null,
-          product_type: data.product_type ?? null,
-          user_id:      session.user.id,
-          morning_use:  true,
-          evening_use:  true,
-          status:       "pending",
-          is_active:    false,
-        })
-        .select()
-        .single();
-      if (dbError) throw dbError;
-      if (inserted) setUserProducts(prev => [...prev, inserted]);
-      setScanMessage(`${data.product_name} ajouté — en attente de validation ✓`);
-      setTimeout(() => setScanMessage(null), 4000);
+      if (data?.status === "unrecognized" || !data?.product_name) {
+        setScanMessage("Produit non reconnu — essaie une photo plus nette du packaging");
+        setTimeout(() => setScanMessage(null), 4000);
+        return;
+      }
+      await insertScannedProduct({
+        product_name: data.product_name,
+        brand: data.brand ?? null,
+        product_type: data.product_type ?? null,
+        ingredients: data.ingredients ?? null,
+        open_beauty_facts_id: null,
+        photo_url: null,
+      });
     } catch (err: any) {
       setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
       setTimeout(() => setScanMessage(null), 4000);
+    }
+  };
+
+
+  const handleDiagnosticFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (file.type !== "application/pdf") {
+      setScanMessage("Le fichier doit être un PDF");
+      setTimeout(() => setScanMessage(null), 4000);
+      return;
+    }
+    setDiagnosticLoading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data, error } = await supabase.functions.invoke("diagnostic-import", {
+        body: { pdfBase64: base64 },
+      });
+      if (error) {
+        const errorText = error.context
+          ? await (error.context as Response).text().catch(() => error.message)
+          : error.message;
+        throw new Error(errorText);
+      }
+      if (!data?.raw_metrics) throw new Error(`Réponse invalide : ${JSON.stringify(data)}`);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error("Non connecté");
+
+      const { error: dbError } = await (supabase as any)
+        .from("professional_diagnostics")
+        .insert({
+          user_id: session.user.id,
+          source: data.source ?? null,
+          raw_metrics: data.raw_metrics,
+          summary: data.summary ?? null,
+        });
+      if (dbError) throw dbError;
+
+      await (supabase as any)
+        .from("profiles")
+        .update({
+          skin_diagnostic_baseline: data.raw_metrics,
+          skin_diagnostic_source: data.source ?? null,
+        })
+        .eq("id", session.user.id);
+
+      setDiagnosticResult({
+        source: data.source ?? null,
+        raw_metrics: data.raw_metrics,
+        summary: data.summary ?? "",
+      });
+    } catch (err: any) {
+      setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
+      setTimeout(() => setScanMessage(null), 4000);
+    } finally {
+      setDiagnosticLoading(false);
+    }
+  };
+
+  const toggleDevice = async (label: string) => {
+    if (!userId) return;
+    const existing = userProducts.find(
+      p => p.product_name === label && (p as any).product_type === "device"
+    );
+    if (existing) {
+      await (supabase as any).from("user_products").delete().eq("id", existing.id);
+      setUserProducts(prev => prev.filter(p => p.id !== existing.id));
+    } else {
+      const { data, error } = await (supabase as any)
+        .from("user_products")
+        .insert({
+          product_name: label,
+          brand: null,
+          product_type: "device",
+          user_id: userId,
+          is_active: true,
+          morning_use: false,
+          evening_use: false,
+        })
+        .select()
+        .single();
+      if (!error && data) setUserProducts(prev => [...prev, data]);
     }
   };
 
@@ -390,7 +536,7 @@ const Vanity = () => {
               <Trash2 size={15} strokeWidth={1.8} />
             </button>
           </div>
-          {userProducts.length === 0 ? (
+          {cosmetics.length === 0 ? (
             <p className="text-xs text-muted-foreground italic py-6 text-center">
               Aucun produit dans votre inventaire pour le moment.
             </p>
@@ -398,7 +544,7 @@ const Vanity = () => {
             <div className="flex flex-col gap-6">
               {(() => {
                 const groups: Record<string, CatalogProduct[]> = {};
-                userProducts.forEach(p => {
+                cosmetics.forEach(p => {
                   const key = (p as any).product_type || "Autres";
                   if (!groups[key]) groups[key] = [];
                   groups[key].push(p);
@@ -479,6 +625,80 @@ const Vanity = () => {
               })()}
             </div>
           )}
+        </motion.div>
+
+        {/* Mes accessoires beauté */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="premium-card p-6 order-3"
+        >
+          <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
+            Mes accessoires beauté
+          </h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Sélectionne les appareils que tu utilises pour que ton assistant en tienne compte dans tes conseils.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PRESET_DEVICES.map(({ emoji, label }) => {
+              const active = userDeviceLabels.has(label);
+              return (
+                <button
+                  key={label}
+                  onClick={() => toggleDevice(label)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card border-border text-foreground/70 hover:border-primary/50 hover:bg-muted/20"
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  <span>{label}</span>
+                  {active && <Check size={11} />}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Import diagnostic professionnel */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="premium-card p-6 order-4"
+        >
+          <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
+            Importer mon diagnostic professionnel
+          </h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Importe le rapport PDF de ton dernier diagnostic en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
+          </p>
+          <button
+            onClick={() => diagnosticFileRef.current?.click()}
+            disabled={diagnosticLoading}
+            className="w-full h-12 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center gap-2 text-sm font-semibold text-foreground/80 hover:bg-muted/40 transition-colors disabled:opacity-60"
+          >
+            {diagnosticLoading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                Analyse en cours…
+              </>
+            ) : (
+              <>
+                <FileUp size={16} strokeWidth={1.5} />
+                Importer un PDF
+              </>
+            )}
+          </button>
+          <input
+            ref={diagnosticFileRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handleDiagnosticFile}
+          />
         </motion.div>
       </div>
       ) : (
@@ -670,6 +890,52 @@ const Vanity = () => {
               Annuler
             </button>
           </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Bottom sheet confirmation diagnostic professionnel */}
+      <Drawer
+        open={!!diagnosticResult}
+        onOpenChange={(open) => { if (!open) setDiagnosticResult(null); }}
+      >
+        <DrawerContent className="px-6 pb-10">
+          <DrawerHeader className="text-left px-0 pt-2 pb-4">
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              {diagnosticResult?.source ?? "Diagnostic professionnel"}
+            </p>
+            <DrawerTitle className="text-xl font-display text-foreground">
+              Ton diagnostic est prêt
+            </DrawerTitle>
+          </DrawerHeader>
+
+          {diagnosticResult?.summary && (
+            <p className="text-sm text-foreground/80 mb-4">{diagnosticResult.summary}</p>
+          )}
+
+          <div className="space-y-2 mb-6">
+            {renderDiagnosticMetrics(diagnosticResult?.raw_metrics ?? {}).map((row) => (
+              <div
+                key={row.label}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl border border-border/40 bg-background/40"
+              >
+                <p className="text-sm font-medium text-foreground">{row.label}</p>
+                <p className="text-sm font-bold text-primary">{row.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 mb-6">
+            <p className="text-xs text-foreground/80 leading-relaxed">
+              Cette analyse devient ta référence (J0). Nacre va suivre l'évolution de ta peau à partir de cette baseline.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setDiagnosticResult(null)}
+            className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest transition-all active:scale-95"
+          >
+            Compris, c'est ma baseline
+          </button>
         </DrawerContent>
       </Drawer>
 
