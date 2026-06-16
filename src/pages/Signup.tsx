@@ -373,7 +373,7 @@ const Signup = () => {
 
             setLoading(false);
             localStorage.removeItem("guestProfile");
-            navigate("/dashboard");
+            navigate("/onboarding/factors");
         } catch (error) {
             console.error("Signup error:", error);
             toast.error("Une erreur est survenue lors de l'inscription.");

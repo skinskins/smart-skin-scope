@@ -290,6 +290,7 @@ export type Database = {
           created_at: string
           cycle_duration: number | null
           cycle_phase: string | null
+          default_factors: Json | null
           did_sport: boolean | null
           first_name: string | null
           food_quality: string | null
@@ -322,6 +323,7 @@ export type Database = {
           created_at?: string
           cycle_duration?: number | null
           cycle_phase?: string | null
+          default_factors?: Json | null
           did_sport?: boolean | null
           first_name?: string | null
           food_quality?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           created_at?: string
           cycle_duration?: number | null
           cycle_phase?: string | null
+          default_factors?: Json | null
           did_sport?: boolean | null
           first_name?: string | null
           food_quality?: string | null
