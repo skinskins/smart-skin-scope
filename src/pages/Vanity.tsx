@@ -334,23 +334,23 @@ const Vanity = () => {
       p => p.product_name === label && (p as any).product_type === "device"
     );
     if (existing) {
-      await (supabase as any).from("user_products").delete().eq("id", existing.id);
       setUserProducts(prev => prev.filter(p => p.id !== existing.id));
+      const { error } = await (supabase as any).from("user_products").delete().eq("id", existing.id);
+      if (error) setUserProducts(prev => [...prev, existing]);
     } else {
+      const tempId = `temp-device-${label}`;
+      const tempItem = { id: tempId, product_name: label, brand: null, product_type: "device", photo_url: null, user_id: userId, frequency: null } as CatalogProduct;
+      setUserProducts(prev => [...prev, tempItem]);
       const { data, error } = await (supabase as any)
         .from("user_products")
-        .insert({
-          product_name: label,
-          brand: null,
-          product_type: "device",
-          user_id: userId,
-          is_active: true,
-          morning_use: false,
-          evening_use: false,
-        })
+        .insert({ product_name: label, brand: null, product_type: "device", user_id: userId, is_active: true, morning_use: false, evening_use: false })
         .select()
         .single();
-      if (!error && data) setUserProducts(prev => [...prev, data]);
+      if (error) {
+        setUserProducts(prev => prev.filter(p => p.id !== tempId));
+      } else if (data) {
+        setUserProducts(prev => prev.map(p => p.id === tempId ? data : p));
+      }
     }
   };
 
@@ -411,6 +411,7 @@ const Vanity = () => {
               </div>
               <button
                 onClick={() => scanFileRef.current?.click()}
+                aria-label="Scanner un produit par photo"
                 className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
               >
                 <Scan size={18} strokeWidth={1.5} />
@@ -756,9 +757,15 @@ const Vanity = () => {
                 </div>
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
-                <p className="text-center py-12 text-sm text-muted-foreground italic">
-                  Aucun produit dans votre routine quotidienne
-                </p>
+                <div className="text-center py-12 space-y-3">
+                  <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
+                  <button
+                    onClick={() => setActiveMainTab("produits")}
+                    className="text-sm font-semibold text-primary"
+                  >
+                    Ajouter des produits →
+                  </button>
+                </div>
               )}
             </div>
           ) : (

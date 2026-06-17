@@ -177,7 +177,7 @@ const Profile = () => {
             <span className="text-2xl font-bold text-white">{initials}</span>
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-serif text-white truncate">
+            <h1 className="text-2xl font-display text-white truncate">
               {firstName || "Mon profil"}
             </h1>
             {skinType && (
@@ -186,7 +186,7 @@ const Profile = () => {
           </div>
           <button
             onClick={handleLogout}
-            className="ml-auto flex-shrink-0 text-white/40 hover:text-white/70 transition-colors"
+            className="ml-auto flex-shrink-0 text-white/40 hover:text-white/70 transition-colors p-2 -mr-2"
             aria-label="Se déconnecter"
           >
             <LogOut size={18} strokeWidth={1.8} />
@@ -372,7 +372,7 @@ const Profile = () => {
               disabled={saving}
               className="w-full h-16 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow active:scale-95 transition-all disabled:opacity-50"
             >
-              {saving ? "..." : "Enregistrer"}
+              {saving ? "Enregistrement…" : "Enregistrer"}
             </button>
           </div>
         </DialogContent>

@@ -139,19 +139,20 @@ const WeeklyPlan = () => {
                     onClick={() => !isCurrent && toggleKey(group.key)}
                     className={`w-full flex items-center justify-between mb-2 ${isCurrent ? "cursor-default" : "cursor-pointer"}`}
                   >
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                      {isCurrent ? "Cette semaine" : group.label}
-                    </span>
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                        {isCurrent ? "Cette semaine" : group.label}
+                      </span>
+                      {isCurrent && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{group.label}</p>
+                      )}
+                    </div>
                     {!isCurrent && (
                       isOpen
                         ? <ChevronUp size={14} className="text-muted-foreground" />
                         : <ChevronDown size={14} className="text-muted-foreground" />
                     )}
                   </button>
-
-                  {isCurrent && (
-                    <p className="text-[10px] text-muted-foreground mb-2">{group.label}</p>
-                  )}
 
                   {isOpen && (
                     <div className="flex flex-col gap-2">

@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ImageOff } from "lucide-react";
+import { Sparkles, ImageOff, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
@@ -290,7 +290,7 @@ const Dashboard = () => {
         ) : null}
 
         {/* Routine du jour */}
-        {routineProducts.length > 0 && (
+        {routineProducts.length > 0 ? (
           <div className="mb-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
               {new Date().getHours() < 15 ? "Routine du matin" : "Routine du soir"}
@@ -312,6 +312,17 @@ const Dashboard = () => {
               className="w-full mt-3 py-3 rounded-2xl bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase transition active:scale-95"
             >
               Commencer la routine
+            </button>
+          </div>
+        ) : (
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Ma routine</p>
+            <button
+              onClick={() => navigate("/vanity")}
+              className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10 text-sm text-muted-foreground flex items-center justify-center gap-2 transition hover:bg-muted/20"
+            >
+              <Plus size={14} />
+              Ajouter mes premiers produits
             </button>
           </div>
         )}
@@ -397,9 +408,12 @@ const Dashboard = () => {
               </p>
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">
-              Renseigne ta date de règles dans ton profil pour voir ta phase
-            </p>
+            <button
+              onClick={() => navigate("/profile")}
+              className="text-[13px] text-primary font-semibold text-left"
+            >
+              Renseigne ta date de règles →
+            </button>
           )}
         </motion.div>
 
@@ -427,7 +441,14 @@ const Dashboard = () => {
               </div>
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Météo en cours de chargement…</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {["Temp.", "UV", "Humidité"].map(label => (
+                <div key={label}>
+                  <div className="h-7 bg-[#EDE9E3] rounded-lg animate-pulse mb-1.5 mx-auto w-14" />
+                  <p className="text-[10px] text-muted-foreground">{label}</p>
+                </div>
+              ))}
+            </div>
           )}
         </motion.div>
 

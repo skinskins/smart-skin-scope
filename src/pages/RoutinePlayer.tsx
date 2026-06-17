@@ -371,7 +371,7 @@ const RoutinePlayer = () => {
   const totalMin = steps.reduce((acc, s) => acc + s.durationMin, 0);
 
   return (
-    <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto" onClick={goNext}>
+    <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto">
 
       <div className="px-5 pt-12 pb-4 flex items-center gap-3">
         <button
