@@ -59,26 +59,51 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advices, setAdvices] = useState<Conseil[]>([]);
-  const [adviceLoading, setAdviceLoading] = useState(false);
   const [skinPhotos, setSkinPhotos] = useState<SkinPhotoRow[]>([]);
   const navigate = useNavigate();
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
-  // ── Routine produits ──────────────────────────────────────────────────────
+  // ── Routine produits — daily_routine_log en priorité, fallback user_products ─
   useEffect(() => {
     const fetchRoutineProducts = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
       const isMorning = new Date().getHours() < 15;
-      const { data } = await (supabase as any)
+      const today = new Date().toISOString().split("T")[0];
+
+      const { data: logData } = await (supabase as any)
+        .from("daily_routine_log")
+        .select("product_ids")
+        .eq("user_id", session.user.id)
+        .eq("date", today)
+        .eq("period", isMorning ? "morning" : "evening")
+        .maybeSingle();
+
+      if (logData?.product_ids?.length > 0) {
+        const { data: products } = await (supabase as any)
+          .from("user_products")
+          .select("id, product_name, brand, photo_url, product_type")
+          .in("id", logData.product_ids);
+        if (products) {
+          const ordered = logData.product_ids
+            .map((id: string) => products.find((p: any) => p.id === id))
+            .filter(Boolean);
+          setRoutineProducts(ordered);
+          return;
+        }
+      }
+
+      // Fallback : tous les produits quotidiens actifs
+      const { data: fallback } = await (supabase as any)
         .from("user_products")
         .select("id, product_name, brand, photo_url, product_type")
         .eq("user_id", session.user.id)
         .eq("is_active", true)
         .eq(isMorning ? "morning_use" : "evening_use", true)
+        .eq("frequency", "daily")
         .limit(8);
-      if (data) setRoutineProducts(data);
+      if (fallback) setRoutineProducts(fallback);
     };
     fetchRoutineProducts();
   }, []);
@@ -204,23 +229,6 @@ const Dashboard = () => {
       if (existing && existing.length > 0) {
         const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
         setAdvices([...existing].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
-        return;
-      }
-
-      setAdviceLoading(true);
-      // Sécurité : si l'edge function ne répond pas dans les 30s, on arrête le spinner
-      const safetyTimer = setTimeout(() => setAdviceLoading(false), 30000);
-      try {
-        const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
-          body: { user_id: session.user.id },
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (error || !genData?.conseils?.length) return;
-        const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
-        setAdvices([...genData.conseils].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
-      } finally {
-        clearTimeout(safetyTimer);
-        setAdviceLoading(false);
       }
     };
     fetchAdvice();
@@ -327,16 +335,7 @@ const Dashboard = () => {
 
         {/* Conseil du jour */}
         <div className="flex flex-col gap-2 mb-1">
-          {adviceLoading ? (
-            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
-              />
-              <p className="text-[12px] text-muted-foreground">Vos conseils personnalisés sont en cours de préparation...</p>
-            </div>
-          ) : advices.length > 0 ? (
+          {advices.length > 0 ? (
             advices.slice(0, 1).map((conseil) => <AdviceCard key={conseil.id} conseil={conseil} />)
           ) : (
             <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">

@@ -590,6 +590,7 @@ export type Database = {
           product_type: string | null
           removed_at: string | null
           removed_reason: string | null
+          source: string | null
           status: string | null
           user_id: string | null
         }
@@ -610,6 +611,7 @@ export type Database = {
           product_type?: string | null
           removed_at?: string | null
           removed_reason?: string | null
+          source?: string | null
           status?: string | null
           user_id?: string | null
         }
@@ -630,6 +632,7 @@ export type Database = {
           product_type?: string | null
           removed_at?: string | null
           removed_reason?: string | null
+          source?: string | null
           status?: string | null
           user_id?: string | null
         }

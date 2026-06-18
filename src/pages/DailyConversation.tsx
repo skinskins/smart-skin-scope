@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhase } from "@/utils/cycle";
-import { useRoutineProducts } from "@/hooks/useRoutineProducts";
 import { PearlHero } from "@/components/PearlHero";
 
 const MORNING_FACTOR_PILLS = ["Sucré/Gras", "Stress élevé", "Médicament", "Autre"];
@@ -29,8 +28,15 @@ type Q1EveningAnswer = "Bien" | "Stressante" | "Épuisante";
 type Q2Answer        = "Oui" | "Non" | "Passable";
 type Q3EveningAnswer = "Oui" | "Non" | "Un peu";
 type Screen  = "intro" | "chat";
-type InciVerdict = { verdict: "danger" | "warning"; reason: string };
-type RawIncompat = { product_name: string; verdict: string; reason: string; rule?: string };
+
+type OptimizedProduct = {
+  product_id:   string;
+  product_name: string;
+  brand:        string | null;
+  product_type: string | null;
+  photo_url:    string | null;
+  order:        number;
+};
 
 const fadeUp = {
   hidden:  { opacity: 0, y: 10 },
@@ -118,131 +124,22 @@ export default function DailyConversation() {
   const [answerQ2,        setAnswerQ2]        = useState<Q2Answer | null>(null);
   const [answerQ3,        setAnswerQ3]        = useState<Q3EveningAnswer | null>(null);
   const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
-  const [factorsDone,     setFactorsDone]     = useState(false);
-  const [analysisStep,    setAnalysisStep]    = useState<0 | 1 | 2 | 3 | 4>(0);
-  const [inciDone,        setInciDone]        = useState(false);
-  const [saving,          setSaving]          = useState(false);
-  const [cyclePhase,      setCyclePhase]      = useState<string | null>(null);
-  const [cycleDay,        setCycleDay]        = useState<number | null>(null);
-  const [cycleDuration,   setCycleDuration]   = useState<number>(28);
-  const [inciVerdicts,    setInciVerdicts]    = useState<Record<string, InciVerdict>>({});
-  const [preComputedRaw,  setPreComputedRaw]  = useState<RawIncompat[] | null>(null);
-  const [uvIndex,         setUvIndex]         = useState<number | null>(null);
-  const [usedWeeklyIds,   setUsedWeeklyIds]   = useState<Set<string>>(new Set());
-  const [usedMonthlyIds,  setUsedMonthlyIds]  = useState<Set<string>>(new Set());
+  const [factorsDone,       setFactorsDone]       = useState(false);
+  const [analysisStep,      setAnalysisStep]      = useState<0 | 1 | 2 | 3>(0);
+  const [saving,            setSaving]            = useState(false);
+  const [cyclePhase,        setCyclePhase]        = useState<string | null>(null);
+  const [cycleDay,          setCycleDay]          = useState<number | null>(null);
+  const [cycleDuration,     setCycleDuration]     = useState<number>(28);
+  const [uvIndex,           setUvIndex]           = useState<number | null>(null);
+  const [optimizedRoutine,  setOptimizedRoutine]  = useState<OptimizedProduct[]>([]);
+  const [routineExplanation,setRouteExplanation]  = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inciAnalysisStarted = useRef(false);
-  const routineJustGeneratedRef = useRef(false);
-  const routinePersistedRef = useRef(false);
 
-  const isMorning      = new Date().getHours() < 18;
-  const { morning, evening } = useRoutineProducts();
-  const routineProducts = useMemo(() => {
-    const source = isMorning ? morning : evening;
-    return source.filter(p => {
-      if (!p.frequency || p.frequency === "daily") return true;
-      if (p.frequency === "weekly")  return !usedWeeklyIds.has(p.id);
-      if (p.frequency === "monthly") return !usedMonthlyIds.has(p.id);
-      return true;
-    });
-  }, [isMorning, morning, evening, usedWeeklyIds, usedMonthlyIds]);
-
-  const displayedProducts = useMemo(() =>
-    routineProducts.filter(p => {
-      const v = inciVerdicts[p.id] ?? inciVerdicts[p.product_name];
-      return !v || v.verdict !== "danger";
-    }), [routineProducts, inciVerdicts]);
-
-  const explanationSentence = useMemo(() => {
-    const removed = routineProducts.filter(p => {
-      const v = inciVerdicts[p.id] ?? inciVerdicts[p.product_name];
-      return v?.verdict === "danger";
-    });
-    if (removed.length === 0) return null;
-    const names = removed.map(p => p.product_name).join(", ");
-    const reason = (inciVerdicts[removed[0].id] ?? inciVerdicts[removed[0].product_name])?.reason
-      ?? "ta peau a besoin de douceur";
-    return `J'ai retiré ${names} — ${reason}.`;
-  }, [routineProducts, inciVerdicts]);
+  const isMorning = new Date().getHours() < 18;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [step, typing, answerQ1, answerQ2, answerQ3, factorsDone, analysisStep]);
-
-  // Quand INCI est prêt et qu'on est au step 2 → avancer à 3
-  useEffect(() => {
-    if (inciDone && analysisStep === 2) {
-      const t = setTimeout(() => setAnalysisStep(3), 600);
-      return () => clearTimeout(t);
-    }
-  }, [inciDone, analysisStep]);
-
-  // Persister la routine en DB quand step 3 est atteint (une seule fois, après conversation)
-  useEffect(() => {
-    if (analysisStep !== 3 || !routineJustGeneratedRef.current || routinePersistedRef.current) return;
-    routinePersistedRef.current = true;
-    const persist = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const today = new Date().toISOString().split("T")[0];
-      await (supabase as any).from("daily_routine_log").upsert(
-        {
-          user_id: session.user.id,
-          date: today,
-          period: isMorning ? "morning" : "evening",
-          product_ids: displayedProducts.map(p => p.id),
-          inci_message: explanationSentence ?? null,
-        },
-        { onConflict: "user_id,date,period" }
-      );
-    };
-    persist();
-  }, [analysisStep]); // eslint-disable-line
-
-  // Quand preComputedRaw + factorsDone → appliquer les ajustements facteurs et exposer inciVerdicts
-  useEffect(() => {
-    if (preComputedRaw === null || !factorsDone) return;
-    const skinSensitive = selectedFactors.has("Stress élevé") ||
-                          selectedFactors.has("Médicament") ||
-                          answerQ1 === "Très fatiguée" ||
-                          answerQ1 === "Épuisante" ||
-                          answerQ2 === "Non";
-    const map: Record<string, InciVerdict> = {};
-    for (const inc of preComputedRaw) {
-      const b = inc.product_name.toLowerCase().trim();
-      const matched = routineProducts.find(p => {
-        const a = p.product_name.toLowerCase().trim();
-        return a === b || a.includes(b) || b.includes(a);
-      });
-      let verdict = inc.verdict as "danger" | "warning";
-      let reason = inc.reason;
-      if (skinSensitive && verdict === "warning") {
-        verdict = "danger";
-        reason = reason + " — peau fragilisée";
-      }
-      const key = matched?.id ?? inc.product_name;
-      map[key] = { verdict, reason };
-      if (matched) map[matched.product_name] = { verdict, reason };
-    }
-    setInciVerdicts(map);
-    setInciDone(true);
-  }, [preComputedRaw, factorsDone]); // eslint-disable-line
-
-  const fetchInciVerdicts = async (uid: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    const { data } = await (supabase as any)
-      .from("daily_inci_verdicts")
-      .select("product_id, product_name, verdict, reason")
-      .eq("user_id", uid)
-      .eq("date", today);
-    if (!data) return;
-    const map: Record<string, InciVerdict> = {};
-    for (const row of data) {
-      const key = row.product_id ?? row.product_name;
-      if (key) map[key] = { verdict: row.verdict, reason: row.reason };
-    }
-    setInciVerdicts(map);
-  };
 
   useEffect(() => {
     const init = async () => {
@@ -252,10 +149,8 @@ export default function DailyConversation() {
       if (!session?.user) return;
 
       const today = new Date().toISOString().split("T")[0];
-      const sevenDaysAgo  = new Date(Date.now() - 7  * 86400000).toISOString().split("T")[0];
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
 
-      const [profileRes, checkinRes, logsRes, weatherRes] = await Promise.all([
+      const [profileRes, checkinRes, weatherRes] = await Promise.all([
         (supabase as any)
           .from("profiles")
           .select("last_period_date, cycle_duration")
@@ -263,15 +158,10 @@ export default function DailyConversation() {
           .single(),
         (supabase as any)
           .from("daily_checkins")
-          .select("stress_level, sleep_hours, food_quality, alcohol_drinks, water_glasses, did_sport, extra_factors")
+          .select("stress_level, sleep_hours, food_quality, alcohol_drinks, extra_factors")
           .eq("user_id", session.user.id)
           .eq("date", today)
           .maybeSingle(),
-        (supabase as any)
-          .from("routine_product_logs")
-          .select("product_id, date")
-          .eq("user_id", session.user.id)
-          .gte("date", thirtyDaysAgo),
         (supabase as any)
           .from("daily_weather")
           .select("uv")
@@ -280,15 +170,6 @@ export default function DailyConversation() {
           .maybeSingle(),
       ]);
       if (weatherRes.data?.uv != null) setUvIndex(weatherRes.data.uv);
-
-      const weekly = new Set<string>();
-      const monthly = new Set<string>();
-      for (const log of (logsRes.data ?? [])) {
-        monthly.add(log.product_id);
-        if (log.date >= sevenDaysAgo) weekly.add(log.product_id);
-      }
-      setUsedWeeklyIds(weekly);
-      setUsedMonthlyIds(monthly);
 
       if (profileRes.data?.last_period_date) {
         const duration = profileRes.data.cycle_duration ?? 28;
@@ -303,14 +184,12 @@ export default function DailyConversation() {
         setFactorsDone(true);
 
         if (isMorning) {
-          if (c.stress_level === 1)         setAnswerQ1("En forme");
-          else if (c.stress_level === 4)    setAnswerQ1("Très fatiguée");
-          else if (c.sleep_hours === 5)     setAnswerQ1("Fatiguée");
-
-          if (c.sleep_hours === 8)          setAnswerQ2("Oui");
-          else if (c.sleep_hours === 6)     setAnswerQ2("Passable");
-          else if (c.sleep_hours === 4)     setAnswerQ2("Non");
-
+          if (c.stress_level === 1)           setAnswerQ1("En forme");
+          else if (c.stress_level === 4)      setAnswerQ1("Très fatiguée");
+          else if (c.sleep_hours === 5)       setAnswerQ1("Fatiguée");
+          if (c.sleep_hours === 8)            setAnswerQ2("Oui");
+          else if (c.sleep_hours === 6)       setAnswerQ2("Passable");
+          else if (c.sleep_hours === 4)       setAnswerQ2("Non");
           const factors = new Set<string>();
           if (c.food_quality === "Grasses / Sucrées") factors.add("Sucré/Gras");
           if (c.extra_factors?.medication)            factors.add("Médicament");
@@ -318,32 +197,53 @@ export default function DailyConversation() {
           setSelectedFactors(factors);
           setStep(2);
         } else {
-          if (c.stress_level === 1)         setAnswerQ1("Bien");
-          else if (c.stress_level === 3)    setAnswerQ1("Stressante");
-          else if (c.stress_level === 4)    setAnswerQ1("Épuisante");
-
+          if (c.stress_level === 1)           setAnswerQ1("Bien");
+          else if (c.stress_level === 3)      setAnswerQ1("Stressante");
+          else if (c.stress_level === 4)      setAnswerQ1("Épuisante");
           if (c.food_quality === "Grasses / Sucrées") setAnswerQ2("Non");
           else if (c.food_quality === "Quelconque")   setAnswerQ2("Passable");
           else                                        setAnswerQ2("Oui");
-
           if (c.extra_factors?.sun_exposure)          setAnswerQ3("Oui");
-
           const factors = new Set<string>();
-          if (c.alcohol_drinks >= 1)        factors.add("Alcool");
-          if (c.extra_factors?.medication)  factors.add("Médicament");
-          if (c.extra_factors?.travel)      factors.add("Voyage");
+          if (c.alcohol_drinks >= 1)          factors.add("Alcool");
+          if (c.extra_factors?.medication)    factors.add("Médicament");
+          if (c.extra_factors?.travel)        factors.add("Voyage");
           setSelectedFactors(factors);
           setStep(3);
         }
 
+        // Charger la routine déjà optimisée si elle existe
+        const { data: routineLog } = await (supabase as any)
+          .from("daily_routine_log")
+          .select("product_ids, inci_message")
+          .eq("user_id", session.user.id)
+          .eq("date", today)
+          .eq("period", isMorning ? "morning" : "evening")
+          .maybeSingle();
+
+        if (routineLog?.product_ids?.length > 0) {
+          const { data: products } = await (supabase as any)
+            .from("user_products")
+            .select("id, product_name, brand, product_type, photo_url")
+            .in("id", routineLog.product_ids);
+          if (products) {
+            const ordered = routineLog.product_ids
+              .map((id: string, i: number) => {
+                const p = products.find((x: any) => x.id === id);
+                return p ? { product_id: p.id, product_name: p.product_name, brand: p.brand, product_type: p.product_type, photo_url: p.photo_url, order: i + 1 } : null;
+              })
+              .filter(Boolean) as OptimizedProduct[];
+            setOptimizedRoutine(ordered);
+          }
+          setRouteExplanation(routineLog.inci_message ?? null);
+        }
+
         setAnalysisStep(3);
-        setInciDone(true);
         setScreen("chat");
-        fetchInciVerdicts(session.user.id);
       }
     };
     init();
-  }, []);
+  }, []); // eslint-disable-line
 
   const skip = () => navigate("/dashboard", { replace: true });
 
@@ -428,82 +328,34 @@ export default function DailyConversation() {
     );
   };
 
-  const runInitialInciAnalysis = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setPreComputedRaw([]); return; }
-    const today = new Date().toISOString().split("T")[0];
+  const handleFactorsDone = async () => {
+    setFactorsDone(true);
+    await saveCheckin();
 
-    const { data: weather } = await (supabase as any)
-      .from("daily_weather")
-      .select("uv")
-      .eq("user_id", session.user.id)
-      .eq("date", today)
-      .maybeSingle();
+    setTyping(true);
+    await new Promise(r => setTimeout(r, 800));
+    setTyping(false);
+    setAnalysisStep(1);
 
-    const products = routineProducts.map(p => ({
-      product_name: p.product_name,
-      brand: p.brand,
-      ingredients: p.ingredients,
-    }));
-
-    const body = {
-      products,
-      period: isMorning ? "morning" : "evening",
-      cyclePhase,
-      uvIndex: weather?.uv ?? null,
-    };
+    await new Promise(r => setTimeout(r, 1200));
+    setAnalysisStep(2);
 
     try {
-      const { data: result, error } = await (supabase as any).functions.invoke("inci-analysis", { body });
-      if (error || !result) { setPreComputedRaw([]); return; }
-
-      const rawIncompats: RawIncompat[] = result.incompatibilities ?? [];
-
-      // Insérer les résultats de base dans daily_inci_verdicts
-      for (const inc of rawIncompats) {
-        const b = inc.product_name.toLowerCase().trim();
-        const matched = routineProducts.find(p => {
-          const a = p.product_name.toLowerCase().trim();
-          return a === b || a.includes(b) || b.includes(a);
-        });
-        (supabase as any).from("daily_inci_verdicts").insert({
-          user_id: session.user.id,
-          date: today,
-          product_id: matched?.id ?? null,
-          product_name: inc.product_name,
-          verdict: inc.verdict,
-          reason: inc.reason,
-          rule_id: inc.rule ?? null,
-        });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Non connecté");
+      const { data: result, error } = await supabase.functions.invoke("inci-analysis", {
+        body: { user_id: session.user.id, period: isMorning ? "morning" : "evening" },
+      });
+      if (error || !result) throw new Error(error?.message ?? "Réponse vide");
+      if (result.routine?.length > 0) {
+        setOptimizedRoutine(result.routine);
       }
-
-      setPreComputedRaw(rawIncompats);
+      setRouteExplanation(result.explanation ?? null);
     } catch (err) {
       console.error("[inci-analysis] DailyConversation:", err);
-      setPreComputedRaw([]);
     }
-  };
 
-  // Déclencher l'analyse initiale dès que les produits + phase cycle sont disponibles
-  useEffect(() => {
-    if (routineProducts.length > 0 && cyclePhase && !inciAnalysisStarted.current) {
-      inciAnalysisStarted.current = true;
-      runInitialInciAnalysis();
-    }
-  }, [routineProducts.length, cyclePhase]); // eslint-disable-line
-
-  const handleFactorsDone = () => {
-    routineJustGeneratedRef.current = true;
-    setFactorsDone(true);
-    saveCheckin();
-    setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      setAnalysisStep(1);
-      setTimeout(() => {
-        setAnalysisStep(2); // useEffect prend le relais quand inciDone=true
-      }, 1200);
-    }, 800);
+    setAnalysisStep(3);
   };
 
   const handleStartRoutine = async () => {
@@ -701,20 +553,20 @@ export default function DailyConversation() {
                     Voici ta routine du {isMorning ? "matin" : "soir"} ✨
                   </p>
 
-                  {explanationSentence && (
-                    <p className="text-sm text-muted-foreground leading-snug">{explanationSentence}</p>
+                  {routineExplanation && (
+                    <p className="text-sm text-muted-foreground leading-snug">{routineExplanation}</p>
                   )}
 
-                  {displayedProducts.length === 0 ? (
+                  {optimizedRoutine.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Aucun produit dans ta routine pour l'instant.
                     </p>
                   ) : (
                     <div className="space-y-2.5">
-                      {displayedProducts.map(p => {
+                      {optimizedRoutine.map(p => {
                         const duration = getDuration(p.product_type);
                         return (
-                          <div key={p.id} className="flex items-center gap-2.5">
+                          <div key={p.product_id} className="flex items-center gap-2.5">
                             {p.photo_url ? (
                               <img
                                 src={p.photo_url}
@@ -753,7 +605,7 @@ export default function DailyConversation() {
             </motion.div>
           ) : analysisStep >= 3 ? (
             <motion.div key="cta" variants={fadeUp} initial="hidden" animate="visible">
-              {displayedProducts.length > 0 ? (
+              {optimizedRoutine.length > 0 ? (
                 <div className="space-y-2.5">
                   <button
                     onClick={handleStartRoutine}

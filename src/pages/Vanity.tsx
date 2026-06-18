@@ -174,6 +174,7 @@ const Vanity = () => {
           morning_use: true,
           evening_use: true,
           frequency: selectedFrequency,
+          source: "catalog",
         })
         .select()
         .single();
@@ -216,6 +217,7 @@ const Vanity = () => {
         evening_use: true,
         status: "active",
         is_active: true,
+        source: "claude_scan",
       })
       .select()
       .single();
@@ -343,7 +345,7 @@ const Vanity = () => {
       setUserProducts(prev => [...prev, tempItem]);
       const { data, error } = await (supabase as any)
         .from("user_products")
-        .insert({ product_name: label, brand: null, product_type: "device", user_id: userId, is_active: true, morning_use: false, evening_use: false })
+        .insert({ product_name: label, brand: null, product_type: "device", user_id: userId, is_active: true, morning_use: false, evening_use: false, source: "device" })
         .select()
         .single();
       if (error) {

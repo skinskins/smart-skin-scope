@@ -612,6 +612,7 @@ const Signup = () => {
                             evening_use: evening,
                             frequency,
                             is_active: true,
+                            source: "onboarding",
                         };
                     })
                 );
@@ -628,6 +629,7 @@ const Signup = () => {
                         morning_use: false,
                         evening_use: false,
                         is_active: true,
+                        source: "onboarding",
                     }))
                 );
             }

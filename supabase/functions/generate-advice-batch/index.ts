@@ -13,31 +13,41 @@ serve(async (req) => {
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      throw new Error("Env vars manquantes : SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY");
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const period: string = body.period ?? "morning";
+    console.log(`[batch] period=${period}`);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
     const today = new Date().toISOString().split("T")[0];
+    console.log("[batch] Date:", today);
 
-    // Utilisatrices ayant complété leur onboarding (skin_goals renseigné)
-    const { data: profiles, error: profErr } = await supabase
+    const profilesResult = await supabase
       .from("profiles")
-      .select("id")
-      .not("skin_goals", "is", null)
-      .not("skin_goals", "eq", "{}");
+      .select("id, skin_goals");
 
-    if (profErr) throw new Error(`Profiles query: ${profErr.message}`);
+    if (profilesResult.error) throw new Error(`Profiles query: ${profilesResult.error.message}`);
 
-    const total = profiles?.length ?? 0;
-    console.log(`[generate-advice-batch] ${total} utilisatrices à traiter pour le ${today}`);
+    const profiles = (profilesResult.data ?? []).filter(
+      (p: any) => p.skin_goals && Array.isArray(p.skin_goals) && p.skin_goals.length > 0
+    );
+
+    const total = profiles.length;
+    console.log(`[batch] ${total} utilisatrices à traiter — ${today} ${period}`);
 
     let generated = 0;
     let skipped   = 0;
     let errors    = 0;
 
-    for (const profile of profiles ?? []) {
-      // Éviter de regénérer si déjà fait aujourd'hui
+    for (const profile of profiles) {
+      // Skip si déjà traité aujourd'hui pour cette période
       const { data: existing } = await supabase
         .from("daily_advice_log")
         .select("id")
@@ -51,41 +61,41 @@ serve(async (req) => {
       }
 
       try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-advice`, {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/inci-analysis`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${SERVICE_KEY}`,
           },
-          body: JSON.stringify({ user_id: profile.id }),
+          body: JSON.stringify({ user_id: profile.id, period }),
         });
 
         if (res.ok) {
           generated++;
-          console.log(`[generate-advice-batch] ✅ ${profile.id}`);
+          console.log(`[batch] ✅ ${profile.id}`);
         } else {
           errors++;
-          const body = await res.text().catch(() => res.status.toString());
-          console.warn(`[generate-advice-batch] ⚠️ ${profile.id}: ${body}`);
+          const text = await res.text().catch(() => res.status.toString());
+          console.warn(`[batch] ⚠️ ${profile.id}: ${text}`);
         }
       } catch (e) {
         errors++;
-        console.error(`[generate-advice-batch] ❌ ${profile.id}:`, e);
+        console.error(`[batch] ❌ ${profile.id}:`, e);
       }
 
-      // Pause entre les appels pour ne pas saturer l'API Anthropic
+      // Pause pour ne pas saturer l'API Anthropic
       await new Promise(r => setTimeout(r, 800));
     }
 
-    const summary = { total, generated, skipped, errors, date: today };
-    console.log("[generate-advice-batch] Terminé :", summary);
+    const summary = { total, generated, skipped, errors, date: today, period };
+    console.log("[batch] Terminé :", summary);
 
     return new Response(JSON.stringify(summary), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
-    console.error("[generate-advice-batch] Erreur fatale :", error);
+    console.error("[batch] Erreur fatale :", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Erreur inconnue" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
