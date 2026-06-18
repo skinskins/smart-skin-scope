@@ -1329,25 +1329,25 @@ const Signup = () => {
                                 {activeProductTab === "produits" && (
                                     <>
                                     <div className="premium-card p-0 overflow-hidden">
-                                        <div className="p-5 bg-background/50 border-b border-border/50">
-                                            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Rechercher un produit</h2>
+                                        <div className="p-4 bg-background/50 border-b border-border/50">
+                                            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-3">Rechercher un produit</h2>
                                             <div className="flex gap-2">
                                                 <div className="relative flex-1">
-                                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                                     <Input
                                                         value={productSearchQuery}
                                                         onChange={(e) => setProductSearchQuery(e.target.value)}
                                                         onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-                                                        placeholder="Chercher un produit ou marque..."
-                                                        className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
+                                                        placeholder="Produit ou marque..."
+                                                        className="pl-9 text-sm rounded-xl py-5 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
                                                     />
                                                 </div>
                                                 <button
                                                     type="button"
                                                     onClick={() => onboardingScanFileRef.current?.click()}
-                                                    className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
+                                                    className="w-10 h-10 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
                                                 >
-                                                    <Scan size={18} strokeWidth={1.5} />
+                                                    <Scan size={16} strokeWidth={1.5} />
                                                 </button>
                                                 <input
                                                     ref={onboardingScanFileRef}
@@ -1359,34 +1359,31 @@ const Signup = () => {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="p-5 space-y-4">
+                                        <div className="p-3 space-y-2">
                                             {productCatalogResults.length > 0 ? (
-                                                <div className="grid gap-3">
+                                                <div className="flex flex-col gap-2">
                                                     {productCatalogResults.map(p => {
                                                         const isAdded = selectedOnboardingProducts.some(s => s.id === p.id);
                                                         return (
-                                                            <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm">
-                                                                <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                            <div key={p.id} className="flex items-center gap-2.5 p-2.5 bg-card border border-border rounded-xl transition-all hover:border-primary/30">
+                                                                <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
                                                                     {p.photo_url
                                                                         ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                                                                        : <ImageOff size={18} className="text-muted-foreground/40" />}
+                                                                        : <ImageOff size={14} className="text-muted-foreground/40" />}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
-                                                                    {p.product_type && (
-                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
-                                                                    )}
+                                                                    <p className="text-[10px] text-muted-foreground truncate">{p.brand}{p.product_type ? ` · ${p.product_type}` : ""}</p>
                                                                 </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleOnboardingProduct(p)}
-                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
+                                                                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
                                                                         ? "bg-primary/10 text-primary cursor-default"
                                                                         : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                                                                         }`}
                                                                 >
-                                                                    {isAdded ? <Check size={16} /> : <Plus size={16} />}
+                                                                    {isAdded ? <Check size={14} /> : <Plus size={14} />}
                                                                 </button>
                                                             </div>
                                                         );
