@@ -580,8 +580,11 @@ const Signup = () => {
                 used_channels: usedChannels.length > 0 ? usedChannels.map(c => c === "Autre" ? `Autre: ${otherChannel}` : c) : null,
                 age: age ? parseInt(age) : null,
                 gender: gender || null,
-                skin_type: skinType || null,
-                skin_problems: skinProblems.length > 0 ? skinProblems : null,
+                skin_type: correctedSkinType || skinType || null,
+                skin_problems: (() => {
+                    const merged = [...new Set([...correctedProblems, ...skinProblems])];
+                    return merged.length > 0 ? merged : null;
+                })(),
                 skin_goals: skinGoals.length > 0 ? skinGoals : null,
                 carnation: carnation || null,
                 last_period_date: lastPeriodDate || null,
