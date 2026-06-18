@@ -1,5 +1,6 @@
-import { Check, ImageOff } from "lucide-react";
+import { Check } from "lucide-react";
 import type { RoutineProduct } from "@/hooks/useRoutineProducts";
+import { ProductPhoto } from "@/components/ProductPhoto";
 
 interface RoutineCardProps {
   products: RoutineProduct[];
@@ -38,10 +39,7 @@ export const RoutineCard = ({
           <>
             {showPhotos ? (
               <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 flex-shrink-0">
-                {product.photo_url
-                  ? <img src={product.photo_url} alt={product.product_name} className="w-full h-full object-contain" />
-                  : <ImageOff size={14} className="text-muted-foreground/40" />
-                }
+                <ProductPhoto url={product.photo_url} name={product.product_name} iconSize={14} />
               </div>
             ) : interactive ? (
               <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all ${

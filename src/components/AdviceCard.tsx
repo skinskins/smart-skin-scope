@@ -33,6 +33,8 @@ export const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
   return (
     <motion.div
       layout
+      role="button"
+      aria-expanded={open}
       onClick={() => setOpen(!open)}
       className="bg-white rounded-2xl p-3 cursor-pointer hover:bg-muted/5 transition-colors border border-border/10"
     >
@@ -54,6 +56,7 @@ export const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.2 }}
           className="flex-shrink-0 mt-1"
+          aria-label={open ? "Réduire" : "Développer"}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" />

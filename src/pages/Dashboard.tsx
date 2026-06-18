@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ImageOff } from "lucide-react";
+import { Sparkles, ImageOff, Plus, RefreshCw } from "lucide-react";
+import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AdviceCard, Conseil } from "@/components/AdviceCard";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
@@ -59,29 +60,55 @@ const Dashboard = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advices, setAdvices] = useState<Conseil[]>([]);
-  const [adviceLoading, setAdviceLoading] = useState(false);
   const [skinPhotos, setSkinPhotos] = useState<SkinPhotoRow[]>([]);
+  const [regenerating, setRegenerating] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
-  // ── Routine produits ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchRoutineProducts = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      const isMorning = new Date().getHours() < 15;
-      const { data } = await (supabase as any)
+  // ── Routine produits — daily_routine_log en priorité, fallback user_products ─
+  const fetchRoutineProducts = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const isMorning = new Date().getHours() < 15;
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data: logData } = await (supabase as any)
+      .from("daily_routine_log")
+      .select("product_ids")
+      .eq("user_id", session.user.id)
+      .eq("date", today)
+      .eq("period", isMorning ? "morning" : "evening")
+      .maybeSingle();
+
+    if (logData?.product_ids?.length > 0) {
+      const { data: products } = await (supabase as any)
         .from("user_products")
         .select("id, product_name, brand, photo_url, product_type")
-        .eq("user_id", session.user.id)
-        .eq("is_active", true)
-        .eq(isMorning ? "morning_use" : "evening_use", true)
-        .limit(8);
-      if (data) setRoutineProducts(data);
-    };
-    fetchRoutineProducts();
+        .in("id", logData.product_ids);
+      if (products) {
+        const ordered = logData.product_ids
+          .map((id: string) => products.find((p: any) => p.id === id))
+          .filter(Boolean);
+        setRoutineProducts(ordered);
+        return;
+      }
+    }
+
+    // Fallback : tous les produits quotidiens actifs
+    const { data: fallback } = await (supabase as any)
+      .from("user_products")
+      .select("id, product_name, brand, photo_url, product_type")
+      .eq("user_id", session.user.id)
+      .eq("is_active", true)
+      .eq(isMorning ? "morning_use" : "evening_use", true)
+      .eq("frequency", "daily")
+      .limit(8);
+    if (fallback) setRoutineProducts(fallback);
   }, []);
+
+  useEffect(() => { fetchRoutineProducts(); }, [fetchRoutineProducts]);
 
   // ── Profil + cycle ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -187,46 +214,25 @@ const Dashboard = () => {
   }, []);
 
   // ── Conseil du jour ───────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchAdvice = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      const today = new Date().toISOString().split("T")[0];
+  const fetchAdvice = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const today = new Date().toISOString().split("T")[0];
 
-      const { data } = await (supabase as any)
-        .from("daily_advice_log")
-        .select("advice_title, advice_text")
-        .eq("user_id", session.user.id)
-        .eq("date", today)
-        .maybeSingle();
+    const { data: existing } = await (supabase as any)
+      .from("daily_advice_log")
+      .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
+      .eq("user_id", session.user.id)
+      .eq("date", today)
+      .order("priority", { ascending: true });
 
-      if (data) {
-        setAdvices([{ id: "today-advice", advice_title: data.advice_title, advice_text: data.advice_text, advice_tip: "", advice_group: "astuce", priority: "normal" }]);
-        return;
-      }
-
-      setAdviceLoading(true);
-      try {
-        const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
-          body: { user_id: session.user.id },
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (error) return;
-        if (genData?.conseils?.length > 0) {
-          const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
-          setAdvices([...genData.conseils].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
-          return;
-        }
-        const { data: fresh } = await (supabase as any)
-          .from("daily_advice_log").select("advice_title, advice_text")
-          .eq("user_id", session.user.id).eq("date", today).maybeSingle();
-        if (fresh) setAdvices([{ id: "today-advice-fresh", advice_title: fresh.advice_title, advice_text: fresh.advice_text, advice_tip: "", advice_group: "astuce", priority: "normal" }]);
-      } finally {
-        setAdviceLoading(false);
-      }
-    };
-    fetchAdvice();
+    if (existing && existing.length > 0) {
+      const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+      setAdvices([...existing].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
+    }
   }, []);
+
+  useEffect(() => { fetchAdvice(); }, [fetchAdvice]);
 
   // ── Photos de peau (2 dernières) ──────────────────────────────────────────
   useEffect(() => {
@@ -267,6 +273,25 @@ const Dashboard = () => {
     ?? (skinPhotos.length > 1 ? skinPhotos[1] : null);
 
 
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const isMorning = new Date().getHours() < 15;
+      await supabase.functions.invoke("inci-analysis", {
+        body: { user_id: session.user.id, period: isMorning ? "morning" : "evening" },
+      });
+      await Promise.all([fetchRoutineProducts(), fetchAdvice()]);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error("[regenerate]", err);
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
   if (checkinStatus === "loading") return <DashboardSkeleton />;
 
   return (
@@ -290,7 +315,7 @@ const Dashboard = () => {
         ) : null}
 
         {/* Routine du jour */}
-        {routineProducts.length > 0 && (
+        {routineProducts.length > 0 ? (
           <div className="mb-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
               {new Date().getHours() < 15 ? "Routine du matin" : "Routine du soir"}
@@ -299,9 +324,7 @@ const Dashboard = () => {
               {routineProducts.map(p => (
                 <div key={p.id} className="flex flex-col items-center gap-1 shrink-0 w-14">
                   <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
-                    {p.photo_url
-                      ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                      : <ImageOff size={14} className="text-muted-foreground/40" />}
+                    <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={14} />
                   </div>
                   <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.brand || p.product_name}</p>
                 </div>
@@ -313,21 +336,31 @@ const Dashboard = () => {
             >
               Commencer la routine
             </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="w-full mt-2 py-2 rounded-xl border border-border/30 bg-transparent text-[11px] text-muted-foreground flex items-center justify-center gap-1.5 transition hover:bg-muted/10 active:scale-95 disabled:opacity-50"
+            >
+              <RefreshCw size={11} className={regenerating ? "animate-spin" : ""} />
+              {regenerating ? "Mise à jour..." : "Mettre à jour ma routine"}
+            </button>
+          </div>
+        ) : (
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Ma routine</p>
+            <button
+              onClick={() => navigate("/vanity")}
+              className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10 text-sm text-muted-foreground flex items-center justify-center gap-2 transition hover:bg-muted/20"
+            >
+              <Plus size={14} />
+              Ajouter mes premiers produits
+            </button>
           </div>
         )}
 
         {/* Conseil du jour */}
         <div className="flex flex-col gap-2 mb-1">
-          {adviceLoading ? (
-            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent flex-shrink-0"
-              />
-              <p className="text-[12px] text-muted-foreground">Vos conseils personnalisés sont en cours de préparation...</p>
-            </div>
-          ) : advices.length > 0 ? (
+          {advices.length > 0 ? (
             advices.slice(0, 1).map((conseil) => <AdviceCard key={conseil.id} conseil={conseil} />)
           ) : (
             <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
@@ -397,9 +430,12 @@ const Dashboard = () => {
               </p>
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">
-              Renseigne ta date de règles dans ton profil pour voir ta phase
-            </p>
+            <button
+              onClick={() => navigate("/profile")}
+              className="text-[13px] text-primary font-semibold text-left"
+            >
+              Renseigne ta date de règles →
+            </button>
           )}
         </motion.div>
 
@@ -427,7 +463,14 @@ const Dashboard = () => {
               </div>
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Météo en cours de chargement…</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {["Temp.", "UV", "Humidité"].map(label => (
+                <div key={label}>
+                  <div className="h-7 bg-[#EDE9E3] rounded-lg animate-pulse mb-1.5 mx-auto w-14" />
+                  <p className="text-[10px] text-muted-foreground">{label}</p>
+                </div>
+              ))}
+            </div>
           )}
         </motion.div>
 
@@ -488,6 +531,19 @@ const Dashboard = () => {
           </motion.div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-5 py-2.5 rounded-full shadow-lg z-50 whitespace-nowrap"
+          >
+            Routine mise à jour ✓
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

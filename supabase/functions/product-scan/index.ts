@@ -92,6 +92,23 @@ Le nom et la marque sont les informations les plus importantes — concentre-toi
       );
     }
 
+    // Recherche Open Beauty Facts pour récupérer la photo produit
+    let photo_url: string | null = null;
+    try {
+      const searchTerm = [result.brand, result.product_name].filter(Boolean).join(" ");
+      const obfRes = await fetch(
+        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(searchTerm)}&search_simple=1&action=process&json=1&page_size=3`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      if (obfRes.ok) {
+        const obfData = await obfRes.json();
+        const first = obfData.products?.[0];
+        photo_url = first?.image_front_url ?? first?.image_url ?? null;
+      }
+    } catch {
+      // OBF lookup non bloquant — on continue sans photo
+    }
+
     return new Response(
       JSON.stringify({
         status: "ok",
@@ -99,6 +116,7 @@ Le nom et la marque sont les informations les plus importantes — concentre-toi
         brand: result.brand ?? null,
         product_type: result.product_type ?? null,
         ingredients: result.ingredients ?? null,
+        photo_url,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Trash2, SlidersHorizontal, ImageOff, Scan, FileUp } from "lucide-react";
+import { Check, X, Search, Plus, Trash2, SlidersHorizontal, Scan, FileUp } from "lucide-react";
+import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
@@ -174,6 +175,7 @@ const Vanity = () => {
           morning_use: true,
           evening_use: true,
           frequency: selectedFrequency,
+          source: "catalog",
         })
         .select()
         .single();
@@ -216,6 +218,7 @@ const Vanity = () => {
         evening_use: true,
         status: "active",
         is_active: true,
+        source: "claude_scan",
       })
       .select()
       .single();
@@ -257,7 +260,7 @@ const Vanity = () => {
         product_type: data.product_type ?? null,
         ingredients: data.ingredients ?? null,
         open_beauty_facts_id: null,
-        photo_url: null,
+        photo_url: data.photo_url ?? null,
       });
     } catch (err: any) {
       setScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
@@ -334,23 +337,23 @@ const Vanity = () => {
       p => p.product_name === label && (p as any).product_type === "device"
     );
     if (existing) {
-      await (supabase as any).from("user_products").delete().eq("id", existing.id);
       setUserProducts(prev => prev.filter(p => p.id !== existing.id));
+      const { error } = await (supabase as any).from("user_products").delete().eq("id", existing.id);
+      if (error) setUserProducts(prev => [...prev, existing]);
     } else {
+      const tempId = `temp-device-${label}`;
+      const tempItem = { id: tempId, product_name: label, brand: null, product_type: "device", photo_url: null, user_id: userId, frequency: null } as CatalogProduct;
+      setUserProducts(prev => [...prev, tempItem]);
       const { data, error } = await (supabase as any)
         .from("user_products")
-        .insert({
-          product_name: label,
-          brand: null,
-          product_type: "device",
-          user_id: userId,
-          is_active: true,
-          morning_use: false,
-          evening_use: false,
-        })
+        .insert({ product_name: label, brand: null, product_type: "device", user_id: userId, is_active: true, morning_use: false, evening_use: false, source: "device" })
         .select()
         .single();
-      if (!error && data) setUserProducts(prev => [...prev, data]);
+      if (error) {
+        setUserProducts(prev => prev.filter(p => p.id !== tempId));
+      } else if (data) {
+        setUserProducts(prev => prev.map(p => p.id === tempId ? data : p));
+      }
     }
   };
 
@@ -411,6 +414,7 @@ const Vanity = () => {
               </div>
               <button
                 onClick={() => scanFileRef.current?.click()}
+                aria-label="Scanner un produit par photo"
                 className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
               >
                 <Scan size={18} strokeWidth={1.5} />
@@ -479,11 +483,7 @@ const Vanity = () => {
                         className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm"
                       >
                         <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                          {p.photo_url ? (
-                            <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                          ) : (
-                            <ImageOff size={18} className="text-muted-foreground/40" />
-                          )}
+                          <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={18} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
@@ -581,11 +581,7 @@ const Vanity = () => {
                           >
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                                {p.photo_url ? (
-                                  <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                                ) : (
-                                  <ImageOff size={14} className="text-muted-foreground/40" />
-                                )}
+                                <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={14} />
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
@@ -756,9 +752,15 @@ const Vanity = () => {
                 </div>
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
-                <p className="text-center py-12 text-sm text-muted-foreground italic">
-                  Aucun produit dans votre routine quotidienne
-                </p>
+                <div className="text-center py-12 space-y-3">
+                  <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
+                  <button
+                    onClick={() => setActiveMainTab("produits")}
+                    className="text-sm font-semibold text-primary"
+                  >
+                    Ajouter des produits →
+                  </button>
+                </div>
               )}
             </div>
           ) : (

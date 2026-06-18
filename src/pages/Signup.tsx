@@ -612,6 +612,7 @@ const Signup = () => {
                             evening_use: evening,
                             frequency,
                             is_active: true,
+                            source: "onboarding",
                         };
                     })
                 );
@@ -628,6 +629,7 @@ const Signup = () => {
                         morning_use: false,
                         evening_use: false,
                         is_active: true,
+                        source: "onboarding",
                     }))
                 );
             }
@@ -826,10 +828,9 @@ const Signup = () => {
 
                                                 }).then(({ data }) => {
                                                     if (data?.rejected) {
-                                                        // Photo mauvaise qualité → message + reset photo
                                                         setOnboardingPhotoBase64(null);
                                                         setAnalysisLoading(false);
-                                                        alert(`📸 ${data.reason}`);
+                                                        toast.error(data.reason ?? "Photo non exploitable — reprends une photo bien éclairée, de face.");
                                                         return;
                                                     }
                                                     if (data?.analysis) {

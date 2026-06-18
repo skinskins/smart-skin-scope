@@ -340,12 +340,16 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
     if (insertError) throw new Error(`Insert daily_advice_log: ${insertError.message}`);
     console.log("[generate-advice] Conseils sauvegardés ✅");
 
+    // Re-fetch DB rows so the client receives the correct format (id, advice_title, etc.)
+    const { data: inserted } = await supabase
+      .from("daily_advice_log")
+      .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
+      .eq("user_id", user_id)
+      .eq("date", today)
+      .order("priority", { ascending: true });
+
     return new Response(
-      JSON.stringify({
-        cached: false,
-        conseils: parsed.conseils,
-        resume_journalier: parsed.resume_journalier,
-      }),
+      JSON.stringify({ cached: false, conseils: inserted ?? [] }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

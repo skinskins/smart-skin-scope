@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, ChevronRight, Check } from "lucide-react";
+import { ArrowLeft, ChevronRight, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRoutineProducts, type RoutineProduct } from "@/hooks/useRoutineProducts";
+import { type RoutineProduct } from "@/hooks/useRoutineProducts";
 import { FactorsModal } from "@/components/FactorsModal";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -51,17 +51,12 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const RoutinePlayer = () => {
   const navigate = useNavigate();
-  const { morning } = useRoutineProducts();
   const isMorning = new Date().getHours() < 18;
   const [currentStep, setCurrentStep] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [completed, setCompleted] = useState(false);
-  const [completionStep, setCompletionStep] = useState<1 | 3>(1);
   const [showFactorsModal, setShowFactorsModal] = useState(false);
   const [checkinAlreadyFilled, setCheckinAlreadyFilled] = useState(false);
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const [photoTaken, setPhotoTaken] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const alarmFiredRef = useRef(false);
   const goNextRef = useRef<() => Promise<void>>();
@@ -69,14 +64,6 @@ const RoutinePlayer = () => {
   const [stepsReady, setStepsReady] = useState(false);
   const loading = !stepsReady;
 
-  const morningSteps = useMemo(() =>
-    morning
-      .filter(p => p.frequency === "daily")
-      .map(p => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
-      .sort((a, b) => a.order - b.order),
-    [morning]
-  );
-  const totalMorningMin = morningSteps.reduce((acc, s) => acc + s.durationMin, 0);
 
   // Initialisation séquentielle : daily_routine_log → fallback user_products
   useEffect(() => {
@@ -158,27 +145,7 @@ const RoutinePlayer = () => {
 
   const goToNextCompletionStep = () => {
     if (!checkinAlreadyFilled) setShowFactorsModal(true);
-    else setCompletionStep(3);
-  };
-
-  const handlePhotoUpload = async (file: File) => {
-    setPhotoUploading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setPhotoUploading(false); return; }
-    const today = new Date().toISOString().split("T")[0];
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `${session.user.id}/${today}.${ext}`;
-    const { error } = await supabase.storage
-      .from("skin-photos")
-      .upload(path, file, { upsert: true });
-    if (!error) {
-      await (supabase as any).from("skin_photos").upsert(
-        { user_id: session.user.id, date: today, storage_path: path },
-        { onConflict: "user_id,date" }
-      );
-      setPhotoTaken(true);
-    }
-    setPhotoUploading(false);
+    else navigate("/dashboard");
   };
 
   const goNext = async () => {
@@ -233,9 +200,9 @@ const RoutinePlayer = () => {
     );
   }
 
-  // ── Completion screens ─────────────────────────────────────────────────────
+  // ── Completion screen ──────────────────────────────────────────────────────
 
-  if (completed && completionStep === 1) {
+  if (completed) {
     return (
       <>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -251,65 +218,13 @@ const RoutinePlayer = () => {
 
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <h2 className="text-3xl font-display text-foreground mb-3">Routine terminée</h2>
-            <p className="text-base text-muted-foreground mb-6 leading-relaxed">
+            <p className="text-base text-muted-foreground mb-10 leading-relaxed">
               {isMorning ? "Belle journée ✨ Ta peau te remercie." : "Bonne nuit ✨ Ta perle de demain se prépare."}
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
-            className="w-full max-w-xs mb-6"
-          >
-            <div className="rounded-2xl p-4 text-left" style={{ background: "rgba(255,255,255,0.7)" }}>
-              <div className="flex items-start gap-3 mb-3">
-                <Camera size={17} strokeWidth={1.5} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Prends une photo de ta peau ce soir — elle enrichit les prédictions de demain.
-                </p>
-              </div>
-              {photoTaken ? (
-                <div className="flex items-center gap-2 justify-center py-1">
-                  <Check size={15} className="text-primary" />
-                  <span className="text-sm font-semibold text-primary">Photo enregistrée</span>
-                </div>
-              ) : (
-                <label className="block cursor-pointer">
-                  <div
-                    className="w-full h-11 rounded-xl flex items-center justify-center transition-colors"
-                    style={{ background: "rgba(44,24,16,0.08)" }}
-                  >
-                    {photoUploading ? (
-                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    ) : (
-                      <span className="text-sm font-semibold" style={{ color: "#2C1810" }}>
-                        Prendre une photo 📸
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    ref={photoInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="user"
-                    className="hidden"
-                    onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
-                  />
-                </label>
-              )}
-            </div>
-            {!photoTaken && (
-              <button
-                onClick={goToNextCompletionStep}
-                className="w-full mt-2 text-xs py-1 transition-colors"
-                style={{ color: "#8B7355" }}
-              >
-                Passer
-              </button>
-            )}
-          </motion.div>
-
           <motion.button
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
             onClick={goToNextCompletionStep}
             className="w-full max-w-xs h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
           >
@@ -318,49 +233,10 @@ const RoutinePlayer = () => {
         </motion.div>
         <FactorsModal
           open={showFactorsModal}
-          onClose={() => { setShowFactorsModal(false); setCompletionStep(3); }}
-          onSaved={() => { setShowFactorsModal(false); setCompletionStep(3); }}
+          onClose={() => { setShowFactorsModal(false); navigate("/dashboard"); }}
+          onSaved={() => { setShowFactorsModal(false); navigate("/dashboard"); }}
         />
       </>
-    );
-  }
-
-  if (completed && completionStep === 3) {
-    return (
-      <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
-        className="min-h-screen bg-[#F0EBE3] flex flex-col px-6 pt-16 pb-10"
-      >
-        <div className="mb-8">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Demain matin</p>
-          <h2 className="text-2xl font-display text-foreground">Prépare ta routine</h2>
-          {totalMorningMin > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">{totalMorningMin} min estimées</p>
-          )}
-        </div>
-        {morningSteps.length > 0 ? (
-          <div className="flex-1 space-y-2 mb-8">
-            {morningSteps.map((step, i) => (
-              <div key={step.id} className="bg-white rounded-2xl p-4 flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-muted/30 flex items-center justify-center text-[11px] font-bold text-muted-foreground flex-shrink-0">
-                  {i + 1}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{step.product_name}</p>
-                  {step.brand && <p className="text-[11px] text-muted-foreground">{step.brand}</p>}
-                </div>
-                <span className="text-[11px] text-muted-foreground flex-shrink-0">{step.durationMin} min</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="flex-1 text-sm text-muted-foreground italic">Aucun produit du matin configuré.</p>
-        )}
-        <button onClick={() => navigate("/dashboard")}
-          className="w-full h-14 bg-primary text-primary-foreground rounded-2xl font-bold text-sm tracking-wide"
-        >
-          Fermer
-        </button>
-      </motion.div>
     );
   }
 
@@ -371,7 +247,7 @@ const RoutinePlayer = () => {
   const totalMin = steps.reduce((acc, s) => acc + s.durationMin, 0);
 
   return (
-    <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto" onClick={goNext}>
+    <div className="min-h-screen bg-[#F0EBE3] flex flex-col max-w-lg mx-auto">
 
       <div className="px-5 pt-12 pb-4 flex items-center gap-3">
         <button

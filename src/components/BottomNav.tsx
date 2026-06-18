@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 const tabs = [
   { path: "/dashboard", icon: Home, label: "Accueil" },
-  { path: "/vanity", icon: Sparkles, label: "Vanity" },
+  { path: "/vanity", icon: Sparkles, label: "Produits" },
   { path: "/suivi", icon: CalendarDays, label: "Suivi" },
   { path: "/profile", icon: User, label: "Profil" },
 ];
@@ -12,14 +12,14 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/rgpd", "/", "/reset-password", "/callback", "/strava-connect", "/routine-player", "/daily-conversation"];
-  if (hiddenRoutes.includes(location.pathname)) return null;
+  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/rgpd", "/", "/reset-password", "/callback", "/strava-connect", "/routine-player", "/daily-conversation", "/weekly-plan", "/onboarding/factors"];
+  if (hiddenRoutes.includes(location.pathname) || location.pathname.startsWith("/passport")) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-t border-border z-50">
       <div className="max-w-lg mx-auto flex items-center justify-around py-2 px-4">
         {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
+          const isActive = location.pathname === tab.path || location.pathname.startsWith(tab.path + "/");
           return (
             <button
               key={tab.path}
