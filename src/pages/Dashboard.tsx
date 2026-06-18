@@ -193,35 +193,33 @@ const Dashboard = () => {
       if (!session?.user) return;
       const today = new Date().toISOString().split("T")[0];
 
-      const { data } = await (supabase as any)
+      // Fetch all today's conseils — maybeSingle() échoue silencieusement si plusieurs lignes
+      const { data: existing } = await (supabase as any)
         .from("daily_advice_log")
-        .select("advice_title, advice_text")
+        .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
         .eq("user_id", session.user.id)
         .eq("date", today)
-        .maybeSingle();
+        .order("priority", { ascending: true });
 
-      if (data) {
-        setAdvices([{ id: "today-advice", advice_title: data.advice_title, advice_text: data.advice_text, advice_tip: "", advice_group: "astuce", priority: "normal" }]);
+      if (existing && existing.length > 0) {
+        const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+        setAdvices([...existing].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
         return;
       }
 
       setAdviceLoading(true);
+      // Sécurité : si l'edge function ne répond pas dans les 30s, on arrête le spinner
+      const safetyTimer = setTimeout(() => setAdviceLoading(false), 30000);
       try {
         const { error, data: genData } = await supabase.functions.invoke("generate-advice", {
           body: { user_id: session.user.id },
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        if (error) return;
-        if (genData?.conseils?.length > 0) {
-          const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
-          setAdvices([...genData.conseils].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
-          return;
-        }
-        const { data: fresh } = await (supabase as any)
-          .from("daily_advice_log").select("advice_title, advice_text")
-          .eq("user_id", session.user.id).eq("date", today).maybeSingle();
-        if (fresh) setAdvices([{ id: "today-advice-fresh", advice_title: fresh.advice_title, advice_text: fresh.advice_text, advice_tip: "", advice_group: "astuce", priority: "normal" }]);
+        if (error || !genData?.conseils?.length) return;
+        const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+        setAdvices([...genData.conseils].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
       } finally {
+        clearTimeout(safetyTimer);
         setAdviceLoading(false);
       }
     };
