@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera } from "lucide-react";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera, FileUp } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -185,6 +185,9 @@ const Signup = () => {
     const [onboardingPhotoBase64, setOnboardingPhotoBase64] = useState<string | null>(null);
     const [onboardingAnalysis, setOnboardingAnalysis] = useState<any>(null);
     const [analysisLoading, setAnalysisLoading] = useState(false);
+    const [onboardingDiagLoading, setOnboardingDiagLoading] = useState(false);
+    const [onboardingDiagResult, setOnboardingDiagResult] = useState<{ source: string | null; raw_metrics: any } | null>(null);
+    const onboardingDiagRef = useRef<HTMLInputElement>(null);
     const [showDiagnostic, setShowDiagnostic] = useState(false);
     const [editingDiagnostic, setEditingDiagnostic] = useState(false);
     const [correctedSkinType, setCorrectedSkinType] = useState("");
@@ -664,6 +667,20 @@ const Signup = () => {
             }
 
             const baselinePromises: any[] = [];
+            if (onboardingDiagResult) {
+                baselinePromises.push(
+                    (supabase as any).from("professional_diagnostics").insert({
+                        user_id: userId,
+                        source: onboardingDiagResult.source,
+                        raw_metrics: onboardingDiagResult.raw_metrics,
+                        summary: null,
+                    }),
+                    (supabase as any).from("profiles").update({
+                        skin_diagnostic_baseline: onboardingDiagResult.raw_metrics,
+                        skin_diagnostic_source: onboardingDiagResult.source,
+                    }).eq("id", userId)
+                );
+            }
             await Promise.all(baselinePromises);
 
             if (profileError) {
@@ -678,6 +695,33 @@ const Signup = () => {
             console.error("Signup error:", error);
             toast.error("Une erreur est survenue lors de l'inscription.");
             setLoading(false);
+        }
+    };
+
+    const handleOnboardingDiagFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        if (file.type !== "application/pdf") { toast.error("Le fichier doit être un PDF"); return; }
+        setOnboardingDiagLoading(true);
+        try {
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve((reader.result as string).split(",")[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+            const { data, error } = await supabase.functions.invoke("diagnostic-import", {
+                body: { pdfBase64: base64 },
+            });
+            if (error) throw new Error(error.message);
+            if (!data?.raw_metrics) throw new Error("Réponse invalide");
+            setOnboardingDiagResult({ source: data.source ?? null, raw_metrics: data.raw_metrics });
+            toast.success("Diagnostic importé ✓");
+        } catch (err: any) {
+            toast.error(`Erreur : ${err?.message ?? "Erreur inconnue"}`);
+        } finally {
+            setOnboardingDiagLoading(false);
         }
     };
 
@@ -771,29 +815,19 @@ const Signup = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 flex flex-col gap-6">
-                                    {/* Zone photo */}
-                                    <div className="relative rounded-3xl overflow-hidden bg-muted/20 border border-border/40" style={{ height: 320 }}>
-                                        {onboardingPhotoBase64 ? (
+                                <div className="flex-1 flex flex-col gap-4">
+                                    {/* Preview photo — seulement si prise */}
+                                    {onboardingPhotoBase64 && (
+                                        <div className="relative rounded-2xl overflow-hidden bg-muted/20 border border-border/40" style={{ height: 200 }}>
                                             <img
                                                 src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
                                                 alt="Photo peau"
                                                 className="w-full h-full object-cover"
                                             />
-                                        ) : (
-                                            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground/50">
-                                                <Camera size={40} strokeWidth={1.2} />
-                                                <p className="text-sm">Visage démaquillé, face à la lumière</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
 
-                                    {/* Disclaimer RGPD */}
-                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-4">
-                                        Votre photo est utilisée uniquement pour l'analyse de peau, conformément à notre politique de confidentialité.
-                                    </p>
-
-                                    {/* Bouton prendre une photo */}
+                                    {/* Option 1 — Photo */}
                                     <label className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest cursor-pointer hover:opacity-90 transition-all active:scale-[0.98]">
                                         <Camera size={18} strokeWidth={2} />
                                         {onboardingPhotoBase64 ? "Reprendre la photo" : "Prendre une photo"}
@@ -852,6 +886,44 @@ const Signup = () => {
                                             }}
                                         />
                                     </label>
+
+                                    {/* Séparateur */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 h-px bg-border/30" />
+                                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">ou</p>
+                                        <div className="flex-1 h-px bg-border/30" />
+                                    </div>
+
+                                    {/* Option 2 — Diagnostic pro PDF */}
+                                    <button
+                                        type="button"
+                                        onClick={() => onboardingDiagRef.current?.click()}
+                                        disabled={onboardingDiagLoading}
+                                        className={`w-full h-14 flex items-center justify-center gap-3 rounded-full font-bold uppercase tracking-widest border-2 transition-all active:scale-[0.98] disabled:opacity-60 ${
+                                            onboardingDiagResult
+                                                ? "border-primary bg-primary/5 text-primary"
+                                                : "border-border/40 bg-muted/10 text-foreground/70 hover:border-primary/40"
+                                        }`}
+                                    >
+                                        {onboardingDiagLoading ? (
+                                            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                        ) : (
+                                            <FileUp size={18} strokeWidth={1.8} />
+                                        )}
+                                        {onboardingDiagLoading ? "Analyse en cours…" : onboardingDiagResult ? `${onboardingDiagResult.source ?? "Diagnostic"} importé ✓` : "Importer un diagnostic pro (PDF)"}
+                                    </button>
+                                    <input
+                                        ref={onboardingDiagRef}
+                                        type="file"
+                                        accept="application/pdf"
+                                        className="hidden"
+                                        onChange={handleOnboardingDiagFile}
+                                    />
+
+                                    {/* Disclaimer RGPD */}
+                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-4">
+                                        Votre photo est utilisée uniquement pour l'analyse de peau, conformément à notre politique de confidentialité.
+                                    </p>
                                 </div>
                             </>
                         )}
