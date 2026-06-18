@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ImageOff, Plus } from "lucide-react";
+import { Sparkles, ImageOff, Plus, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AdviceCard, Conseil } from "@/components/AdviceCard";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
@@ -60,53 +60,54 @@ const Dashboard = () => {
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [advices, setAdvices] = useState<Conseil[]>([]);
   const [skinPhotos, setSkinPhotos] = useState<SkinPhotoRow[]>([]);
+  const [regenerating, setRegenerating] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const navigate = useNavigate();
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
   // ── Routine produits — daily_routine_log en priorité, fallback user_products ─
-  useEffect(() => {
-    const fetchRoutineProducts = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      const isMorning = new Date().getHours() < 15;
-      const today = new Date().toISOString().split("T")[0];
+  const fetchRoutineProducts = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const isMorning = new Date().getHours() < 15;
+    const today = new Date().toISOString().split("T")[0];
 
-      const { data: logData } = await (supabase as any)
-        .from("daily_routine_log")
-        .select("product_ids")
-        .eq("user_id", session.user.id)
-        .eq("date", today)
-        .eq("period", isMorning ? "morning" : "evening")
-        .maybeSingle();
+    const { data: logData } = await (supabase as any)
+      .from("daily_routine_log")
+      .select("product_ids")
+      .eq("user_id", session.user.id)
+      .eq("date", today)
+      .eq("period", isMorning ? "morning" : "evening")
+      .maybeSingle();
 
-      if (logData?.product_ids?.length > 0) {
-        const { data: products } = await (supabase as any)
-          .from("user_products")
-          .select("id, product_name, brand, photo_url, product_type")
-          .in("id", logData.product_ids);
-        if (products) {
-          const ordered = logData.product_ids
-            .map((id: string) => products.find((p: any) => p.id === id))
-            .filter(Boolean);
-          setRoutineProducts(ordered);
-          return;
-        }
-      }
-
-      // Fallback : tous les produits quotidiens actifs
-      const { data: fallback } = await (supabase as any)
+    if (logData?.product_ids?.length > 0) {
+      const { data: products } = await (supabase as any)
         .from("user_products")
         .select("id, product_name, brand, photo_url, product_type")
-        .eq("user_id", session.user.id)
-        .eq("is_active", true)
-        .eq(isMorning ? "morning_use" : "evening_use", true)
-        .eq("frequency", "daily")
-        .limit(8);
-      if (fallback) setRoutineProducts(fallback);
-    };
-    fetchRoutineProducts();
+        .in("id", logData.product_ids);
+      if (products) {
+        const ordered = logData.product_ids
+          .map((id: string) => products.find((p: any) => p.id === id))
+          .filter(Boolean);
+        setRoutineProducts(ordered);
+        return;
+      }
+    }
+
+    // Fallback : tous les produits quotidiens actifs
+    const { data: fallback } = await (supabase as any)
+      .from("user_products")
+      .select("id, product_name, brand, photo_url, product_type")
+      .eq("user_id", session.user.id)
+      .eq("is_active", true)
+      .eq(isMorning ? "morning_use" : "evening_use", true)
+      .eq("frequency", "daily")
+      .limit(8);
+    if (fallback) setRoutineProducts(fallback);
   }, []);
+
+  useEffect(() => { fetchRoutineProducts(); }, [fetchRoutineProducts]);
 
   // ── Profil + cycle ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -212,27 +213,25 @@ const Dashboard = () => {
   }, []);
 
   // ── Conseil du jour ───────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchAdvice = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      const today = new Date().toISOString().split("T")[0];
+  const fetchAdvice = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const today = new Date().toISOString().split("T")[0];
 
-      // Fetch all today's conseils — maybeSingle() échoue silencieusement si plusieurs lignes
-      const { data: existing } = await (supabase as any)
-        .from("daily_advice_log")
-        .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
-        .eq("user_id", session.user.id)
-        .eq("date", today)
-        .order("priority", { ascending: true });
+    const { data: existing } = await (supabase as any)
+      .from("daily_advice_log")
+      .select("id, advice_title, advice_text, advice_tip, advice_group, priority")
+      .eq("user_id", session.user.id)
+      .eq("date", today)
+      .order("priority", { ascending: true });
 
-      if (existing && existing.length > 0) {
-        const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
-        setAdvices([...existing].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
-      }
-    };
-    fetchAdvice();
+    if (existing && existing.length > 0) {
+      const ORDER: Record<string, number> = { alerte: 0, warning: 0, astuce: 1, observation: 2 };
+      setAdvices([...existing].sort((a: any, b: any) => (ORDER[a.advice_group] ?? 3) - (ORDER[b.advice_group] ?? 3)));
+    }
   }, []);
+
+  useEffect(() => { fetchAdvice(); }, [fetchAdvice]);
 
   // ── Photos de peau (2 dernières) ──────────────────────────────────────────
   useEffect(() => {
@@ -272,6 +271,25 @@ const Dashboard = () => {
     ?? (skinPhotos.length > 1 && skinPhotos[0].date !== today ? skinPhotos[1] : null)
     ?? (skinPhotos.length > 1 ? skinPhotos[1] : null);
 
+
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const isMorning = new Date().getHours() < 15;
+      await supabase.functions.invoke("inci-analysis", {
+        body: { user_id: session.user.id, period: isMorning ? "morning" : "evening" },
+      });
+      await Promise.all([fetchRoutineProducts(), fetchAdvice()]);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (err) {
+      console.error("[regenerate]", err);
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   if (checkinStatus === "loading") return <DashboardSkeleton />;
 
@@ -318,6 +336,14 @@ const Dashboard = () => {
               className="w-full mt-3 py-3 rounded-2xl bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase transition active:scale-95"
             >
               Commencer la routine
+            </button>
+            <button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="w-full mt-2 py-2 rounded-xl border border-border/30 bg-transparent text-[11px] text-muted-foreground flex items-center justify-center gap-1.5 transition hover:bg-muted/10 active:scale-95 disabled:opacity-50"
+            >
+              <RefreshCw size={11} className={regenerating ? "animate-spin" : ""} />
+              {regenerating ? "Mise à jour..." : "Mettre à jour ma routine"}
             </button>
           </div>
         ) : (
@@ -506,6 +532,19 @@ const Dashboard = () => {
           </motion.div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-28 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-5 py-2.5 rounded-full shadow-lg z-50 whitespace-nowrap"
+          >
+            Routine mise à jour ✓
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
