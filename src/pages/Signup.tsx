@@ -586,7 +586,7 @@ const Signup = () => {
                     return merged.length > 0 ? merged : null;
                 })(),
                 skin_goals: skinGoals.length > 0 ? skinGoals : null,
-                carnation: carnation || null,
+                carnation: carnation || onboardingAnalysis?.carnation_detectee || null,
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
                 manual_location: locationMode === "manual" ? manualCity || null : null,
