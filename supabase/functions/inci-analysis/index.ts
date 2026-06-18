@@ -201,22 +201,39 @@ ${productList}
 
 Sélectionne les produits les plus adaptés pour ce ${periodLabel}.
 
-RÈGLES DE DÉDUPLICATION — 1 seul produit par catégorie fonctionnelle :
-- Pads / cotons exfoliants / toners actifs → 1 maximum
-- Crèmes hydratantes / émollientes → 1 maximum
-- Sérums (si même famille d'actifs) → 1 maximum
-- Nettoyants / huiles démaquillantes → 1 maximum
-- SPF → 1 maximum (matin uniquement)
-- Accessoires (gua sha, etc.) → inclure si contexte favorable
+RÈGLES DE SÉLECTION PAR CATÉGORIE FONCTIONNELLE — obligation de sélection :
 
-CRITÈRE DE SÉLECTION entre doublons fonctionnels :
-Choisir le produit dont les INCI sont les plus adaptés à :
+- Pads / cotons exfoliants / toners actifs :
+  SI l'utilisatrice possède 1 ou plusieurs pads → tu DOIS en inclure exactement 1 dans la routine.
+  Choisir le plus adapté au contexte du jour. Mettre les autres dans excluded[] avec raison.
+  INTERDIT de mettre 0 pad si l'utilisatrice en possède au moins 1 (sauf contre-indication médicale précise).
+
+- Crèmes hydratantes / émollientes :
+  SI l'utilisatrice possède 1 ou plusieurs crèmes → inclure exactement 1, exclure les autres avec raison.
+  INTERDIT de mettre 0 crème si l'utilisatrice en possède au moins 1.
+
+- Sérums :
+  SI l'utilisatrice possède 1 ou plusieurs sérums → inclure exactement 1 (ou 2 si familles d'actifs complémentaires), exclure les autres avec raison.
+  INTERDIT de mettre 0 sérum si l'utilisatrice en possède au moins 1.
+
+- Nettoyants / huiles démaquillantes :
+  SI l'utilisatrice possède 1 ou plusieurs nettoyants → inclure exactement 1, exclure les autres avec raison.
+  INTERDIT de mettre 0 nettoyant si l'utilisatrice en possède au moins 1.
+
+- SPF : 1 maximum (matin uniquement). Le soir : exclure avec raison "non adapté au soir".
+- Accessoires (gua sha, etc.) : inclure si contexte favorable.
+
+RÈGLE GÉNÉRALE : SI l'utilisatrice possède N produits d'une catégorie → inclure exactement 1, exclure N-1 dans excluded[].
+NE JAMAIS retirer toute une catégorie sauf si TOUS les produits sont contre-indiqués pour une raison médicale ou chimique précise (ex. rétinoïdes + AHA le matin). Dans ce cas, expliquer dans excluded[].
+
+CRITÈRE DE SÉLECTION entre produits de même catégorie :
+Choisir celui dont les INCI sont les plus adaptés à :
 1. La phase de cycle et l'état de peau observé
 2. La météo du jour (UV, humidité, pollution)
 3. Les conditions de vie du jour
 4. La période (${periodLabel} : ${period === "morning" ? "légèreté, protection" : "nutrition, récupération, réparation"})
 
-INCOMPATIBILITÉS : Exclure tout produit dangereux pour les conditions actuelles (pH antagonistes, photosensibilisants le matin, irritants si peau fragilisée).
+INCOMPATIBILITÉS CHIMIQUES UNIQUEMENT : Exclure un produit seulement si danger avéré (pH antagonistes, photosensibilisant le matin, irritant actif si peau fragilisée). Pas d'exclusion par défaut.
 
 ORDRE D'APPLICATION : Texture eau → tonique → essence/pad → sérum → contour yeux → soin/crème → huile → SPF.
 
@@ -341,31 +358,26 @@ Génère 2 à 3 conseils qui expliquent les choix de la Mission 1.
     );
     console.log(`[inci-analysis] daily_routine_log sauvegardé (${finalRoutine.length} produits)`);
 
-    // ── 9. Sauvegarder daily_advice_log (seulement si vide pour aujourd'hui) ──
-    const { data: existingAdvice } = await supabase
+    // ── 9. Sauvegarder daily_advice_log — DELETE + INSERT systématique ───────
+    await supabase
       .from("daily_advice_log")
-      .select("id")
+      .delete()
       .eq("user_id", user_id)
-      .eq("date", today)
-      .limit(1);
+      .eq("date", today);
 
-    if (!existingAdvice || existingAdvice.length === 0) {
-      const rows = (result.conseils ?? []).map((c: any, i: number) => ({
-        user_id,
-        date:         today,
-        advice_title: c.advice_title,
-        advice_text:  c.advice_text,
-        advice_tip:   c.advice_tip,
-        advice_group: c.advice_group,
-        priority:     c.priority ?? String(i + 1),
-      }));
-      if (rows.length > 0) {
-        const { error: adviceErr } = await supabase.from("daily_advice_log").insert(rows);
-        if (adviceErr) console.warn("[inci-analysis] daily_advice_log insert warning:", adviceErr.message);
-        else console.log(`[inci-analysis] ${rows.length} conseils sauvegardés`);
-      }
-    } else {
-      console.log("[inci-analysis] daily_advice_log déjà rempli pour aujourd'hui — pas d'écrasement");
+    const rows = (result.conseils ?? []).map((c: any, i: number) => ({
+      user_id,
+      date:         today,
+      advice_title: c.advice_title,
+      advice_text:  c.advice_text,
+      advice_tip:   c.advice_tip,
+      advice_group: c.advice_group,
+      priority:     c.priority ?? String(i + 1),
+    }));
+    if (rows.length > 0) {
+      const { error: adviceErr } = await supabase.from("daily_advice_log").insert(rows);
+      if (adviceErr) console.warn("[inci-analysis] daily_advice_log insert warning:", adviceErr.message);
+      else console.log(`[inci-analysis] ${rows.length} conseils sauvegardés`);
     }
 
     // ── 10. Réponse ────────────────────────────────────────────────────────────
