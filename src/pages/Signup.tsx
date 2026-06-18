@@ -815,22 +815,35 @@ const Signup = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 flex flex-col gap-4">
-                                    {/* Preview photo — seulement si prise */}
-                                    {onboardingPhotoBase64 && (
-                                        <div className="relative rounded-2xl overflow-hidden bg-muted/20 border border-border/40" style={{ height: 200 }}>
-                                            <img
-                                                src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
-                                                alt="Photo peau"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                    )}
+                                <div className="flex-1 flex flex-col gap-3 min-h-0">
 
-                                    {/* Option 1 — Photo */}
-                                    <label className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest cursor-pointer hover:opacity-90 transition-all active:scale-[0.98]">
-                                        <Camera size={18} strokeWidth={2} />
-                                        {onboardingPhotoBase64 ? "Reprendre la photo" : "Prendre une photo"}
+                                    {/* Card Option 1 — Photo */}
+                                    <label className={`flex-1 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.98] overflow-hidden relative ${
+                                        onboardingPhotoBase64
+                                            ? "border-primary bg-primary/5"
+                                            : "border-border/30 bg-muted/10 hover:border-primary/30"
+                                    }`}>
+                                        {onboardingPhotoBase64 ? (
+                                            <>
+                                                <img
+                                                    src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
+                                                    alt="Photo peau"
+                                                    className="absolute inset-0 w-full h-full object-cover"
+                                                />
+                                                <div className="relative z-10 bg-black/40 rounded-full px-4 py-2 flex items-center gap-2">
+                                                    <Camera size={14} strokeWidth={2} className="text-white" />
+                                                    <span className="text-white text-xs font-bold uppercase tracking-widest">Reprendre</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Camera size={32} strokeWidth={1.2} className="text-muted-foreground/50" />
+                                                <div className="text-center">
+                                                    <p className="text-sm font-bold text-foreground">Prendre une photo</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Visage démaquillé, face à la lumière</p>
+                                                </div>
+                                            </>
+                                        )}
                                         <input
                                             type="file"
                                             accept="image/*"
@@ -859,7 +872,6 @@ const Signup = () => {
                                                 setAnalysisLoading(true);
                                                 supabase.functions.invoke("skin-analysis", {
                                                     body: { imageBase64: base64, age: age || undefined },
-
                                                 }).then(({ data }) => {
                                                     if (data?.rejected) {
                                                         setOnboardingPhotoBase64(null);
@@ -870,7 +882,6 @@ const Signup = () => {
                                                     if (data?.analysis) {
                                                         setOnboardingAnalysis(data.analysis);
                                                         setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
-                                                        // Auto-populate skin problems from detected conditions
                                                         const autoProblems: string[] = [];
                                                         const cond = data.analysis.conditions_detectees ?? {};
                                                         if (cond.eczema === true) autoProblems.push("Eczéma");
@@ -888,29 +899,38 @@ const Signup = () => {
                                     </label>
 
                                     {/* Séparateur */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 shrink-0">
                                         <div className="flex-1 h-px bg-border/30" />
                                         <p className="text-[10px] text-muted-foreground uppercase tracking-widest">ou</p>
                                         <div className="flex-1 h-px bg-border/30" />
                                     </div>
 
-                                    {/* Option 2 — Diagnostic pro PDF */}
+                                    {/* Card Option 2 — Diagnostic pro PDF */}
                                     <button
                                         type="button"
                                         onClick={() => onboardingDiagRef.current?.click()}
                                         disabled={onboardingDiagLoading}
-                                        className={`w-full h-14 flex items-center justify-center gap-3 rounded-full font-bold uppercase tracking-widest border-2 transition-all active:scale-[0.98] disabled:opacity-60 ${
+                                        className={`flex-1 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 transition-all active:scale-[0.98] disabled:opacity-60 ${
                                             onboardingDiagResult
-                                                ? "border-primary bg-primary/5 text-primary"
-                                                : "border-border/40 bg-muted/10 text-foreground/70 hover:border-primary/40"
+                                                ? "border-primary bg-primary/5"
+                                                : "border-border/30 bg-muted/10 hover:border-primary/30"
                                         }`}
                                     >
                                         {onboardingDiagLoading ? (
-                                            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                        ) : onboardingDiagResult ? (
+                                            <Check size={32} strokeWidth={1.5} className="text-primary" />
                                         ) : (
-                                            <FileUp size={18} strokeWidth={1.8} />
+                                            <FileUp size={32} strokeWidth={1.2} className="text-muted-foreground/50" />
                                         )}
-                                        {onboardingDiagLoading ? "Analyse en cours…" : onboardingDiagResult ? `${onboardingDiagResult.source ?? "Diagnostic"} importé ✓` : "Importer un diagnostic pro (PDF)"}
+                                        <div className="text-center">
+                                            <p className="text-sm font-bold text-foreground">
+                                                {onboardingDiagLoading ? "Analyse en cours…" : onboardingDiagResult ? `${onboardingDiagResult.source ?? "Diagnostic"} importé` : "Importer un diagnostic pro"}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                {onboardingDiagResult ? "Baseline enregistrée ✓" : "Rapport PDF (Observ, Visia…)"}
+                                            </p>
+                                        </div>
                                     </button>
                                     <input
                                         ref={onboardingDiagRef}
@@ -921,8 +941,8 @@ const Signup = () => {
                                     />
 
                                     {/* Disclaimer RGPD */}
-                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-4">
-                                        Votre photo est utilisée uniquement pour l'analyse de peau, conformément à notre politique de confidentialité.
+                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed shrink-0">
+                                        Photo utilisée uniquement pour l'analyse de peau.
                                     </p>
                                 </div>
                             </>
