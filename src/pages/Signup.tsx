@@ -148,8 +148,9 @@ const Signup = () => {
     const [rednessBaseline, setRednessBaseline] = useState("");
     const [drynessBaseline, setDrynessBaseline] = useState("");
 
-    // Step 3 — Carnation
+    // Step 3 — Carnation + type + sensibilités (chemin sans photo)
     const [carnation, setCarnation] = useState("");
+    const [skinManualSubStep, setSkinManualSubStep] = useState(0); // 0=carnation 1=type 2=sensibilités
 
     // Step 4 — Cycle
     const [lastPeriodDate, setLastPeriodDate] = useState("");
@@ -487,6 +488,8 @@ const Signup = () => {
                 else if (step === 11) setStep(10);
                 else if (step === 10) setStep(9);
                 else if (step === 9) setStep(8);
+                else if (step === 3 && skinManualSubStep > 0) setSkinManualSubStep(skinManualSubStep - 1);
+                else if (step === 4 && !onboardingPhotoBase64) { setStep(3); setSkinManualSubStep(2); }
                 else if (step > 2) setStep(step - 1);
                 else if (step === 2) navigate("/onboarding");
                 else navigate("/onboarding");
@@ -536,11 +539,18 @@ const Signup = () => {
             return;
         }
 
+        if (step === 3 && skinManualSubStep < 2) {
+            setSkinManualSubStep(skinManualSubStep + 1);
+            window.scrollTo(0, 0);
+            return;
+        }
+
         if (step < 11) {
             // Si photo prise et on est au step 2, sauter carnation (step 3)
             if (step === 2 && onboardingPhotoBase64) {
                 setStep(4);
             } else {
+                if (step === 3) setSkinManualSubStep(0); // reset pour retour éventuel
                 setStep(step + 1);
             }
             window.scrollTo(0, 0);
@@ -985,41 +995,87 @@ const Signup = () => {
                             </>
                         )}
 
-                        {/* Step 3 — Carnation */}
+                        {/* Step 3 — Carnation / Type de peau / Sensibilités (chemin sans photo) */}
                         {step === 3 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
                                     <div>
-                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Votre carnation</h1>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation colorimétrique</p>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">
+                                            {skinManualSubStep === 0 ? "Votre carnation" : skinManualSubStep === 1 ? "Votre type de peau" : "Vos sensibilités"}
+                                        </h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+                                            {skinManualSubStep === 0 ? "Personnalisation colorimétrique" : skinManualSubStep === 1 ? "Pour des conseils adaptés" : "Sélectionnez tout ce qui s'applique"}
+                                        </p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-3 gap-4 flex-1">
-                                    {[
-                                        { value: "très_claire", label: "Très claire", color: "#F5E6D8" },
-                                        { value: "claire", label: "Claire", color: "#EAC9A8" },
-                                        { value: "beige_doré", label: "Beige dorée", color: "#C8924F" },
-                                        { value: "olive_caramel", label: "Olive-Caramel", color: "#A0622A" },
-                                        { value: "foncée", label: "Foncée", color: "#6B3A1F" },
-                                        { value: "ébène", label: "Ébène", color: "#2C1810" },
-                                    ].map(swatch => (
-                                        <button
-                                            type="button"
-                                            key={swatch.value}
-                                            onClick={() => setCarnation(swatch.value)}
-                                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value
-                                                ? "border-primary bg-primary/5 premium-shadow"
-                                                : "border-border/40 bg-background/40"
-                                                }`}
-                                        >
-                                            <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
-                                            <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">
-                                                {swatch.label}
-                                            </p>
-                                        </button>
-                                    ))}
-                                </div>
+
+                                {/* Sous-étape 0 : Carnation */}
+                                {skinManualSubStep === 0 && (
+                                    <div className="grid grid-cols-3 gap-4 flex-1">
+                                        {[
+                                            { value: "très_claire", label: "Très claire", color: "#F5E6D8" },
+                                            { value: "claire", label: "Claire", color: "#EAC9A8" },
+                                            { value: "beige_doré", label: "Beige dorée", color: "#C8924F" },
+                                            { value: "olive_caramel", label: "Olive-Caramel", color: "#A0622A" },
+                                            { value: "foncée", label: "Foncée", color: "#6B3A1F" },
+                                            { value: "ébène", label: "Ébène", color: "#2C1810" },
+                                        ].map(swatch => (
+                                            <button
+                                                type="button"
+                                                key={swatch.value}
+                                                onClick={() => setCarnation(swatch.value)}
+                                                className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value
+                                                    ? "border-primary bg-primary/5 premium-shadow"
+                                                    : "border-border/40 bg-background/40"
+                                                    }`}
+                                            >
+                                                <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
+                                                <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">
+                                                    {swatch.label}
+                                                </p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Sous-étape 1 : Type de peau */}
+                                {skinManualSubStep === 1 && (
+                                    <div className="flex flex-col gap-3 flex-1">
+                                        {["normale", "sèche", "grasse", "mixte", "sensible"].map(t => (
+                                            <button
+                                                type="button"
+                                                key={t}
+                                                onClick={() => setSkinType(t)}
+                                                className={`w-full py-4 px-5 rounded-2xl border-2 text-left transition-all ${skinType === t
+                                                    ? "border-primary bg-primary/5 premium-shadow"
+                                                    : "border-border/40 bg-background/40"
+                                                    }`}
+                                            >
+                                                <p className="text-[11px] font-bold uppercase tracking-widest text-foreground">{t}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Sous-étape 2 : Sensibilités */}
+                                {skinManualSubStep === 2 && (
+                                    <div className="flex flex-wrap gap-3 flex-1 content-start">
+                                        {["Acné", "Rides", "Taches", "Rougeurs", "Cernes", "Sécheresse", "Eczéma"].map(p => (
+                                            <button
+                                                type="button"
+                                                key={p}
+                                                onClick={() => toggleProblem(p)}
+                                                className={`py-3 px-5 rounded-full text-[11px] font-bold border-2 transition-all ${skinProblems.includes(p)
+                                                    ? "bg-primary text-primary-foreground border-primary premium-shadow"
+                                                    : "bg-muted/20 border-border/40 text-foreground/60"
+                                                    }`}
+                                            >
+                                                {p}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -1931,6 +1987,16 @@ const Signup = () => {
                                     </button>
                                 )}
 
+                                {step === 3 && skinManualSubStep === 2 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setSkinProblems([]); setSkinManualSubStep(0); setStep(4); window.scrollTo(0, 0); }}
+                                        className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
+                                    >
+                                        Passer cette étape
+                                    </button>
+                                )}
+
                                 {step === 5 && (
                                     <button
                                         type="button"
@@ -1947,7 +2013,8 @@ const Signup = () => {
                                         (loading) ||
 
                                         (step === 2 && (!age || !gender)) ||
-                                        (step === 3 && !carnation) ||
+                                        (step === 3 && skinManualSubStep === 0 && !carnation) ||
+                                        (step === 3 && skinManualSubStep === 1 && !skinType) ||
                                         (step === 8 && skinGoals.length === 0) ||
                                         (step === 11 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                     }
