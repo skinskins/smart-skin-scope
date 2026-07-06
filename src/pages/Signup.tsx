@@ -34,6 +34,25 @@ const BASELINE_MAP: Record<string, string> = {
     "Forte": "plus", "Fortes": "plus",
 };
 
+// La colonne profiles.carnation attend les slugs du sélecteur manuel (step 3),
+// alors que skin-analysis (IA) renvoie des libellés différents ("très claire",
+// "beige dorée", "olive-caramel"...). Sans normalisation, l'upsert profiles
+// est rejeté quand la valeur vient de l'analyse photo.
+const CARNATION_AI_TO_SLUG: Record<string, string> = {
+    "très claire": "très_claire",
+    "claire": "claire",
+    "beige dorée": "beige_doré",
+    "olive-caramel": "olive_caramel",
+    "foncée": "foncée",
+    "ébène": "ébène",
+};
+
+function normalizeCarnation(value?: string | null): string | null {
+    if (!value) return null;
+    const key = value.trim().toLowerCase();
+    return CARNATION_AI_TO_SLUG[key] ?? null;
+}
+
 const Signup = () => {
     const navigate = useNavigate();
 
@@ -350,10 +369,10 @@ const Signup = () => {
                 used_channels: usedChannels.length > 0 ? usedChannels.map(c => c === "Autre" ? `Autre: ${otherChannel}` : c) : null,
                 age: age ? parseInt(age) : null,
                 gender: gender || null,
-                skin_type: skinType || null,
-                skin_problems: skinProblems.length > 0 ? skinProblems : null,
+                skin_type: correctedSkinType || skinType || onboardingAnalysis?.type_peau_detecte || null,
+                skin_problems: correctedProblems.length > 0 ? correctedProblems : (skinProblems.length > 0 ? skinProblems : null),
                 skin_goals: skinGoals.length > 0 ? skinGoals : null,
-                carnation: carnation || null,
+                carnation: carnation || normalizeCarnation(onboardingAnalysis?.carnation_detectee) || null,
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
                 manual_location: locationMode === "manual" ? manualCity || null : null,
