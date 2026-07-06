@@ -384,6 +384,31 @@ const Signup = () => {
             }
 
             localStorage.removeItem("guestProfile");
+            // Persister l'analyse de peau de l'onboarding (option A2) avant de générer les conseils
+            console.log("[DEBUG] onboardingAnalysis avant insert:", onboardingAnalysis);
+            if (onboardingAnalysis && onboardingPhotoBase64) {
+                // storage_path est NOT NULL sur skin_photos : il faut uploader la photo
+                // avant l'upsert, sinon l'insert échoue silencieusement et analysis_json
+                // n'est jamais écrit (aucune ligne n'est créée pour la journée).
+                const storagePath = `${userId}/${today}.jpg`;
+                const photoBytes = Uint8Array.from(atob(onboardingPhotoBase64), c => c.charCodeAt(0));
+                const { error: uploadError } = await supabase.storage
+                    .from("skin-photos")
+                    .upload(storagePath, photoBytes, { contentType: "image/jpeg", upsert: true });
+                if (uploadError) {
+                    console.error("[DEBUG] skin_photos upload error:", uploadError);
+                }
+
+                const { error: skinPhotoError } = await (supabase as any).from("skin_photos").upsert({
+                    user_id: userId,
+                    date: today,
+                    storage_path: storagePath,
+                    analysis_json: onboardingAnalysis,
+                }, { onConflict: "user_id,date" });
+                if (skinPhotoError) {
+                    console.error("[DEBUG] skin_photos upsert error:", skinPhotoError);
+                }
+            }
             // Générer les conseils de la semaine (piliers) à partir de l'analyse
             supabase.functions.invoke("generate-weekly-advice", {
                 body: { user_id: userId },
