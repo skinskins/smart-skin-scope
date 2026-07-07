@@ -285,8 +285,14 @@ const SuiviJour = () => {
             {/* Photo peau */}
             {skinPhotoUrl ? (
               <div className="space-y-3">
-                <div className="rounded-2xl overflow-hidden border border-border/40">
+                <div className="relative rounded-2xl overflow-hidden border border-border/40">
                   <img src={skinPhotoUrl} alt="Photo peau" className="w-full object-cover" />
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3">
+                      <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <p className="text-white text-sm font-medium">Analyse de votre peau en cours…</p>
+                    </div>
+                  )}
                 </div>
                 {skinAnalysis && (
                   <div className="space-y-3">
