@@ -983,6 +983,16 @@ const Signup = () => {
                                     </div>
                                 ) : onboardingAnalysis ? (
                                     <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                                        {/* Photo prise */}
+                                        {onboardingPhotoBase64 && (
+                                            <div className="rounded-3xl overflow-hidden border border-border/40 bg-muted/20 flex items-center justify-center" style={{ maxHeight: 280 }}>
+                                                <img
+                                                    src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
+                                                    alt="Votre photo"
+                                                    className="w-full h-auto max-h-[280px] object-contain"
+                                                />
+                                            </div>
+                                        )}
 
                                         {/* KPIs principaux */}
                                         <div className="grid grid-cols-2 gap-2 p-3 bg-muted/20 rounded-2xl">
