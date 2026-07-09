@@ -166,6 +166,14 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <BottomNav />
+        <div style={{
+          position: "fixed", bottom: 72, right: 8, zIndex: 99999,
+          fontSize: 10, color: "rgba(0,0,0,0.4)", pointerEvents: "none",
+          fontFamily: "monospace", background: "rgba(255,255,255,0.7)",
+          padding: "1px 5px", borderRadius: 6,
+        }}>
+          v{__APP_VERSION__}
+        </div>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
