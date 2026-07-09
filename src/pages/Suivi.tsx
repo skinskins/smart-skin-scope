@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhaseForDate } from "@/utils/cycle";
@@ -44,6 +44,13 @@ const Suivi = () => {
   const [cycleDuration, setCycleDuration]   = useState<number>(28);
   const [periodDuration, setPeriodDuration] = useState<number>(5);
   const [accountCreatedDate, setAccountCreatedDate] = useState<string>("");
+  const todayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      todayRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -103,6 +110,7 @@ const Suivi = () => {
               return (
                 <div
                   key={di}
+                  ref={isToday ? todayRef : null}
                   onClick={() => !isFuture && navigate(`/suivi/${dateStr}`)}
                   className={`flex flex-col items-center gap-0.5 py-1.5 ${!isFuture ? "cursor-pointer active:opacity-70" : ""}`}
                 >
