@@ -355,7 +355,7 @@ const Dashboard = () => {
       {weekPhotoTaken === false && (
         <div className="px-5 pt-3">
           <button
-            onClick={() => navigate("/suivi")}
+            onClick={() => navigate(`/suivi/${today}`)}
             className="w-full flex items-center gap-3 py-2.5 text-left group"
           >
             <Camera size={16} strokeWidth={1.8} className="text-primary flex-shrink-0" />
