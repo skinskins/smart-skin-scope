@@ -3,6 +3,7 @@ import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, He
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
+import { normalizeCarnation } from "@/utils/carnation";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,20 +39,6 @@ const BASELINE_MAP: Record<string, string> = {
 // alors que skin-analysis (IA) renvoie des libellés différents ("très claire",
 // "beige dorée", "olive-caramel"...). Sans normalisation, l'upsert profiles
 // est rejeté quand la valeur vient de l'analyse photo.
-const CARNATION_AI_TO_SLUG: Record<string, string> = {
-    "très claire": "très_claire",
-    "claire": "claire",
-    "beige dorée": "beige_doré",
-    "olive-caramel": "olive_caramel",
-    "foncée": "foncée",
-    "ébène": "ébène",
-};
-
-function normalizeCarnation(value?: string | null): string | null {
-    if (!value) return null;
-    const key = value.trim().toLowerCase();
-    return CARNATION_AI_TO_SLUG[key] ?? null;
-}
 
 const Signup = () => {
     const navigate = useNavigate();

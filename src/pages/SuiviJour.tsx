@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
+import { normalizeCarnation } from "@/utils/carnation";
 import { PageHeader } from "@/components/PageHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,6 +193,22 @@ const SuiviJour = () => {
       // Régénérer les conseils de la semaine à partir de la nouvelle analyse
       if (analysisData?.analysis) {
         setSkinAnalysis(analysisData.analysis);
+
+        // Approche B : remplir skin_type / carnation du profil seulement s'ils sont vides
+        const { data: prof } = await (supabase as any).from("profiles")
+          .select("skin_type, carnation").eq("id", userId).single();
+        const profUpdate: Record<string, string> = {};
+        if (!prof?.skin_type && analysisData.analysis.type_peau_detecte) {
+          profUpdate.skin_type = analysisData.analysis.type_peau_detecte;
+        }
+        if (!prof?.carnation) {
+          const normCarn = normalizeCarnation(analysisData.analysis.carnation_detectee);
+          if (normCarn) profUpdate.carnation = normCarn;
+        }
+        if (Object.keys(profUpdate).length > 0) {
+          await (supabase as any).from("profiles").update(profUpdate).eq("id", userId);
+        }
+
         supabase.functions.invoke("generate-weekly-advice", {
           body: { user_id: userId },
         }).catch((e) => console.warn("generate-weekly-advice:", e));
