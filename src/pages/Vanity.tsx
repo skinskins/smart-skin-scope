@@ -169,30 +169,35 @@ const Vanity = () => {
       }
       setIsSearching(true);
       try {
-        let query = (supabase as any)
-          .from("user_products")
-          .select("*")
-          .is("user_id", null);
-
         if (searchQuery.length >= 2) {
-          query = query.or(
-            `product_name.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%`
-          );
+          // Recherche texte -> Open Beauty Facts (catalogue large)
+          const { data, error } = await supabase.functions.invoke("product-search", {
+            body: { query: searchQuery },
+          });
+          if (!error && data?.products) {
+            setCatalogResults(data.products);
+          } else {
+            setCatalogResults([]);
+          }
+        } else if (typeFilter) {
+          // Filtre par type seul -> catalogue interne
+          const { data, error } = await (supabase as any)
+            .from("user_products")
+            .select("*")
+            .is("user_id", null)
+            .eq("product_type", typeFilter)
+            .limit(8);
+          if (!error && data) setCatalogResults(data);
         }
-        if (typeFilter) {
-          query = query.eq("product_type", typeFilter);
-        }
-
-        const { data, error } = await query.limit(8);
-        if (!error && data) setCatalogResults(data);
       } catch (e) {
         console.error(e);
+        setCatalogResults([]);
       } finally {
         setIsSearching(false);
       }
     };
 
-    const timer = setTimeout(search, 300);
+    const timer = setTimeout(search, 400);
     return () => clearTimeout(timer);
   }, [searchQuery, typeFilter]);
 
@@ -469,7 +474,7 @@ const Vanity = () => {
 
           <div className="p-6 space-y-6">
             {/* Type filter pills */}
-            {productTypes.length > 0 && (
+            {false && productTypes.length > 0 && ( /* filtre masque en V0 - a rebrancher (backlog 21) */
               <div className="space-y-3">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Filtrer par type</p>
                 <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar -mx-1 px-1">
