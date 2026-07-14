@@ -313,18 +313,6 @@ const SuiviJour = () => {
                 </div>
                 {skinAnalysis && (
                   <div className="space-y-3">
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2">
-                      {skinAnalysis.type_peau_detecte && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full bg-primary/10 text-primary">{skinAnalysis.type_peau_detecte}</span>
-                      )}
-                      {skinAnalysis.carnation_detectee && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full bg-muted/30 text-foreground/70">{skinAnalysis.carnation_detectee}</span>
-                      )}
-                      {skinAnalysis.eclat_global != null && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-full bg-muted/30 text-foreground/70">Éclat {skinAnalysis.eclat_global}/10</span>
-                      )}
-                    </div>
                     {/* Scores */}
                     <div className="bg-white rounded-2xl p-4 border border-border/40 space-y-3">
                       {[
@@ -344,10 +332,41 @@ const SuiviJour = () => {
                         </div>
                       ))}
                     </div>
-                    {/* Observations */}
+                    {/* Points forts */}
+                    {Array.isArray(skinAnalysis.points_forts) && skinAnalysis.points_forts.length > 0 && (
+                      <div className="bg-emerald-50/60 rounded-2xl p-4 border border-emerald-100">
+                        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-3">Points forts</p>
+                        <div className="space-y-2.5">
+                          {skinAnalysis.points_forts.map((point: string, i: number) => (
+                            <div key={i} className="flex gap-2.5 items-start">
+                              <span className="text-emerald-500 text-[14px] leading-tight mt-0.5">✓</span>
+                              <p className="text-[13px] text-foreground/85 leading-relaxed flex-1">{point}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Points d'attention */}
+                    {Array.isArray(skinAnalysis.points_attention) && skinAnalysis.points_attention.length > 0 && (
+                      <div className="bg-amber-50/60 rounded-2xl p-4 border border-amber-100">
+                        <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-3">À surveiller</p>
+                        <div className="space-y-2.5">
+                          {skinAnalysis.points_attention.map((point: string, i: number) => (
+                            <div key={i} className="flex gap-2.5 items-start">
+                              <span className="text-amber-500 text-[14px] leading-tight mt-0.5">!</span>
+                              <p className="text-[13px] text-foreground/85 leading-relaxed flex-1">{point}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Observation générale */}
                     {skinAnalysis.observations_libres && (
-                      <div className="bg-muted/5 rounded-2xl p-4 border border-border/20">
-                        <p className="text-[11px] text-foreground/70 leading-relaxed italic">{skinAnalysis.observations_libres}</p>
+                      <div className="bg-muted/10 rounded-2xl p-4 border border-border/30">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">En résumé</p>
+                        <p className="text-[13px] text-foreground/85 leading-relaxed text-left">{skinAnalysis.observations_libres}</p>
                       </div>
                     )}
                   </div>
