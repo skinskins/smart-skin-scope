@@ -400,7 +400,7 @@ const Dashboard = () => {
               ))}
             </div>
             <button
-              onClick={() => navigate("/routine-player")}
+              onClick={() => navigate("/vanity")}
               className="w-full mt-3 py-3 rounded-2xl bg-primary text-primary-foreground text-xs font-bold tracking-widest uppercase transition active:scale-95"
             >
               Commencer la routine
@@ -478,7 +478,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <button
-              onClick={() => navigate("/routine-player")}
+              onClick={() => navigate("/vanity")}
               className="text-[13px] text-primary font-semibold"
             >
               Commence ta streak ce soir →

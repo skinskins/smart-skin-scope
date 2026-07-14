@@ -65,6 +65,8 @@ const Vanity = () => {
   const [deleteMode, setDeleteMode] = useState(false);
   const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
+  const [morningDone, setMorningDone] = useState(false);
+  const [eveningDone, setEveningDone] = useState(false);
   const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
@@ -85,6 +87,20 @@ const Vanity = () => {
           .eq("user_id", uid)
           .then(({ data }: any) => {
             if (data) setUserProducts(data);
+          });
+        // Lire l'etat de la routine du jour
+        const todayStr = new Date().toISOString().split("T")[0];
+        (supabase as any)
+          .from("routine_logs")
+          .select("morning_routine_done, evening_routine_done")
+          .eq("user_id", uid)
+          .eq("date", todayStr)
+          .maybeSingle()
+          .then(({ data }: any) => {
+            if (data) {
+              setMorningDone(!!data.morning_routine_done);
+              setEveningDone(!!data.evening_routine_done);
+            }
           });
       }
     });
@@ -122,6 +138,27 @@ const Vanity = () => {
       else next.add(id);
       return next;
     });
+  };
+
+  const setRoutineDone = async (moment: "morning" | "evening", done: boolean) => {
+    if (!userId) return;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const field = moment === "morning" ? "morning_routine_done" : "evening_routine_done";
+    // Optimistic UI
+    if (moment === "morning") setMorningDone(done);
+    else setEveningDone(done);
+    const { error } = await (supabase as any)
+      .from("routine_logs")
+      .upsert(
+        { user_id: userId, date: todayStr, [field]: done },
+        { onConflict: "user_id,date" }
+      );
+    if (error) {
+      console.warn("routine_logs upsert:", error.message);
+      // Rollback si echec
+      if (moment === "morning") setMorningDone(!done);
+      else setEveningDone(!done);
+    }
   };
 
   useEffect(() => {
@@ -735,6 +772,16 @@ const Vanity = () => {
                     onToggle={toggleRoutineProduct}
                     showPhotos
                   />
+                  <button
+                    onClick={() => setRoutineDone("morning", !morningDone)}
+                    className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${
+                      morningDone
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-primary/40 text-primary bg-primary/5"
+                    }`}
+                  >
+                    {morningDone ? "Routine du matin faite \u2713" : "J'ai fait ma routine du matin"}
+                  </button>
                 </div>
               )}
               {eveningProducts.length > 0 && (
@@ -749,6 +796,16 @@ const Vanity = () => {
                     onToggle={toggleRoutineProduct}
                     showPhotos
                   />
+                  <button
+                    onClick={() => setRoutineDone("evening", !eveningDone)}
+                    className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${
+                      eveningDone
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-primary/40 text-primary bg-primary/5"
+                    }`}
+                  >
+                    {eveningDone ? "Routine du soir faite \u2713" : "J'ai fait ma routine du soir"}
+                  </button>
                 </div>
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
