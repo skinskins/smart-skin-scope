@@ -578,7 +578,7 @@ const Signup = () => {
                                                         // Photo mauvaise qualité → message + reset photo
                                                         setOnboardingPhotoBase64(null);
                                                         setAnalysisLoading(false);
-                                                        alert(`📸 ${data.reason}`);
+                                                        toast.error(data.reason ?? "Photo non exploitable, reprends une photo bien eclairee.");
                                                         return;
                                                     }
                                                     if (data?.analysis) {
