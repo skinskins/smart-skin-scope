@@ -396,7 +396,7 @@ const Dashboard = () => {
                   <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
                     <ProductTypeIcon type={p.product_type} size={28} />
                   </div>
-                  <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.brand || p.product_name}</p>
+                  <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.product_name || p.brand}</p>
                 </div>
               ))}
             </div>
@@ -549,8 +549,8 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Carte 4 — Comparaison photos */}
-        {skinPhotos.length > 0 && (
+        {/* Carte 4 — Comparaison photos (masquee en V0, jugee inutile sur le dashboard - backlog) */}
+        {false && skinPhotos.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
