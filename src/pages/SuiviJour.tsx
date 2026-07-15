@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Camera } from "lucide-react";
+import { normalizeCarnation } from "@/utils/carnation";
 import { PageHeader } from "@/components/PageHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +60,7 @@ const SuiviJour = () => {
   const [periodDuration, setPeriodDuration] = useState<number>(5);
   const [userId, setUserId] = useState<string | null>(null);
   const [skinPhotoUrl, setSkinPhotoUrl] = useState<string | null>(null);
+  const [skinAnalysis, setSkinAnalysis] = useState<any>(null);
   const [weather, setWeather] = useState<{ temp: number; uv: number; pollution: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggedProducts, setLoggedProducts] = useState<RoutineProduct[]>([]);
@@ -79,7 +81,7 @@ const SuiviJour = () => {
           .select("last_period_date, cycle_duration, period_duration")
           .eq("id", uid).single(),
         (supabase as any).from("skin_photos")
-          .select("storage_path").eq("user_id", uid).eq("date", date).maybeSingle(),
+          .select("storage_path, analysis_json").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("daily_weather")
           .select("temp, uv, pollution").eq("user_id", uid).eq("date", date).maybeSingle(),
         (supabase as any).from("daily_routine_log")
@@ -93,6 +95,7 @@ const SuiviJour = () => {
         if (profileRes.data.period_duration)  setPeriodDuration(profileRes.data.period_duration);
       }
 
+      if (photoRes.data?.analysis_json) setSkinAnalysis(photoRes.data.analysis_json);
       if (photoRes.data?.storage_path) {
         const { data: signed } = await supabase.storage
           .from("skin-photos")
@@ -157,6 +160,63 @@ const SuiviJour = () => {
     const { data: signed } = await supabase.storage.from("skin-photos").createSignedUrl(path, 3600);
     console.log("[PhotoUpload] createSignedUrl →", signed?.signedUrl ? "OK" : "URL manquante");
     if (signed?.signedUrl) setSkinPhotoUrl(signed.signedUrl);
+
+    // ── Analyse IA de la photo (compression + skin-analysis) ──────────────
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX = 1200;
+          const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+          canvas.width = img.width * ratio;
+          canvas.height = img.height * ratio;
+          canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", 0.8).split(",")[1]);
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+
+      const { data: analysisData } = await supabase.functions.invoke("skin-analysis", {
+        body: { user_id: userId, imageBase64: base64 },
+      });
+
+      if (analysisData?.rejected) {
+        setUploadError(analysisData.reason ?? "Photo non exploitable — reprends une photo bien éclairée, de face.");
+        setUploading(false);
+        return;
+      }
+
+      // Régénérer les conseils de la semaine à partir de la nouvelle analyse
+      if (analysisData?.analysis) {
+        setSkinAnalysis(analysisData.analysis);
+
+        // Approche B : remplir skin_type / carnation du profil seulement s'ils sont vides
+        const { data: prof } = await (supabase as any).from("profiles")
+          .select("skin_type, carnation").eq("id", userId).single();
+        const profUpdate: Record<string, string> = {};
+        if (!prof?.skin_type && analysisData.analysis.type_peau_detecte) {
+          profUpdate.skin_type = analysisData.analysis.type_peau_detecte;
+        }
+        if (!prof?.carnation) {
+          const normCarn = normalizeCarnation(analysisData.analysis.carnation_detectee);
+          if (normCarn) profUpdate.carnation = normCarn;
+        }
+        if (Object.keys(profUpdate).length > 0) {
+          await (supabase as any).from("profiles").update(profUpdate).eq("id", userId);
+        }
+
+        supabase.functions.invoke("generate-weekly-advice", {
+          body: { user_id: userId },
+        }).catch((e) => console.warn("generate-weekly-advice:", e));
+      }
+    } catch (e) {
+      console.warn("[PhotoUpload] analyse échouée:", e);
+    }
+
     setUploading(false);
   };
 
@@ -241,8 +301,76 @@ const SuiviJour = () => {
 
             {/* Photo peau */}
             {skinPhotoUrl ? (
-              <div className="rounded-2xl overflow-hidden border border-border/40">
-                <img src={skinPhotoUrl} alt="Photo peau" className="w-full object-cover" />
+              <div className="space-y-3">
+                <div className="relative rounded-2xl overflow-hidden border border-border/40">
+                  <img src={skinPhotoUrl} alt="Photo peau" className="w-full object-cover" />
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3">
+                      <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <p className="text-white text-sm font-medium">Analyse de votre peau en cours…</p>
+                    </div>
+                  )}
+                </div>
+                {skinAnalysis && (
+                  <div className="space-y-3">
+                    {/* Scores */}
+                    <div className="bg-white rounded-2xl p-4 border border-border/40 space-y-3">
+                      {[
+                        { label: "Hydratation", value: skinAnalysis.hydratation?.score, max: 4, color: "bg-blue-400" },
+                        { label: "Érythème", value: skinAnalysis.erytheme?.score, max: 4, color: "bg-red-400" },
+                        { label: "Sébum zone T", value: skinAnalysis.sebum?.zone_t, max: 5, color: "bg-yellow-400" },
+                        { label: "Acné", value: skinAnalysis.acne?.score, max: 4, color: "bg-orange-400" },
+                      ].filter(s => s.value != null).map(s => (
+                        <div key={s.label}>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-foreground">{s.label}</span>
+                            <span className="text-[11px] text-muted-foreground">{s.value}/{s.max}</span>
+                          </div>
+                          <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden">
+                            <div className={`h-full ${s.color} rounded-full`} style={{ width: `${(s.value / s.max) * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Points forts */}
+                    {Array.isArray(skinAnalysis.points_forts) && skinAnalysis.points_forts.length > 0 && (
+                      <div className="bg-emerald-50/60 rounded-2xl p-4 border border-emerald-100">
+                        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-3">Points forts</p>
+                        <div className="space-y-2.5">
+                          {skinAnalysis.points_forts.map((point: string, i: number) => (
+                            <div key={i} className="flex gap-2.5 items-start">
+                              <span className="text-emerald-500 text-[14px] leading-tight mt-0.5">✓</span>
+                              <p className="text-[13px] text-foreground/85 leading-relaxed flex-1">{point}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Points d'attention */}
+                    {Array.isArray(skinAnalysis.points_attention) && skinAnalysis.points_attention.length > 0 && (
+                      <div className="bg-amber-50/60 rounded-2xl p-4 border border-amber-100">
+                        <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest mb-3">À surveiller</p>
+                        <div className="space-y-2.5">
+                          {skinAnalysis.points_attention.map((point: string, i: number) => (
+                            <div key={i} className="flex gap-2.5 items-start">
+                              <span className="text-amber-500 text-[14px] leading-tight mt-0.5">!</span>
+                              <p className="text-[13px] text-foreground/85 leading-relaxed flex-1">{point}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Observation générale */}
+                    {skinAnalysis.observations_libres && (
+                      <div className="bg-muted/10 rounded-2xl p-4 border border-border/30">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">En résumé</p>
+                        <p className="text-[13px] text-foreground/85 leading-relaxed text-left">{skinAnalysis.observations_libres}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <label className="block cursor-pointer">

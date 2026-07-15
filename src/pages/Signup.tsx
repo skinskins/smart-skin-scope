@@ -1,39 +1,17 @@
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera, FileUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Mail, User, CheckCircle2, ChevronRight, Weight, Calendar, HelpCircle, Briefcase, Share2, AlertCircle, Lock, Sparkles, Shield, Info, ArrowRight, Lightbulb, Activity, Droplets, Flame, Check, Clock, MapPin, Plus, X, Search, ImageOff, Scan, Camera } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
+import { normalizeCarnation } from "@/utils/carnation";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import matrixData from "@/data/skincare_matrix.json";
-import { PRESET_DEVICES } from "@/data/presetDevices";
 
 const matrix = (matrixData as any).skincare_matrix;
-
-// ── Ton quotidien — constantes partagées avec DefaultFactors ─────────────────
-const ONBOARDING_TAGS = [
-    { key: "poor_sleep",    emoji: "😴", label: "Manque de sommeil",       score: -1 as const },
-    { key: "good_sleep",    emoji: "🌙", label: "Je dors bien",            score:  1 as const },
-    { key: "high_stress",   emoji: "😤", label: "Stress élevé",            score: -1 as const },
-    { key: "serene",        emoji: "😌", label: "Plutôt sereine",          score:  1 as const },
-    { key: "high_sugar",    emoji: "🍬", label: "Beaucoup de sucre",       score: -1 as const },
-    { key: "low_water",     emoji: "💧", label: "Je bois peu d'eau",       score: -1 as const },
-    { key: "balanced_diet", emoji: "🥗", label: "Alimentation équilibrée", score:  1 as const },
-    { key: "sport",         emoji: "🏃", label: "Sport régulier",          score:  1 as const },
-    { key: "sedentary",     emoji: "🛋️", label: "Sédentaire",              score: -1 as const },
-    { key: "sun",           emoji: "☀️", label: "Soleil fréquent",         score: -1 as const },
-    { key: "screens",       emoji: "📱", label: "Beaucoup d'écrans",       score: -1 as const },
-    { key: "smoking",       emoji: "🚬", label: "Je fume",                 score: -1 as const },
-    { key: "hormonal",      emoji: "💊", label: "Contraception hormonale", score: -1 as const },
-];
-const ONBOARDING_ORB = {
-    positive: { gradient: "radial-gradient(circle at 38% 35%, #EEE5D5 0%, #D9C8A8 60%, #C4A882 100%)", shadow: "0 20px 60px rgba(196,168,130,0.5)" },
-    neutral:  { gradient: "radial-gradient(circle at 38% 35%, #F0EBE3 0%, #D4C4B0 60%, #BFB09A 100%)", shadow: "0 20px 60px rgba(192,176,154,0.4)" },
-    negative: { gradient: "radial-gradient(circle at 38% 35%, #F5ECEC 0%, #E8C8C8 60%, #D4A8A8 100%)", shadow: "0 20px 60px rgba(212,168,168,0.45)" },
-};
 
 const professions = [
     "Étudiant(e)",
@@ -51,71 +29,16 @@ const professions = [
 
 const channels = ["Instagram", "LinkedIn", "TikTok", "Facebook", "Twitter/X", "Bouche à oreille", "Recherche Google", "Autre"];
 
-const AHA_TIMING: Record<string, "morning" | "evening" | "both" | "weekly" | "monthly"> = {
-    // Nettoyants
-    "démaquillant":     "evening",
-    "demaquillant":     "evening",
-    "micellaire":       "evening",
-    "micellar":         "evening",
-    "double cleansing": "evening",
-    "huile nettoyante": "evening",
-    "cleansing oil":    "evening",
-    "nettoyant":        "both",
-    "cleanser":         "both",
-    // Toniques & actifs eau
-    "tonique":          "both",
-    "toner":            "both",
-    "lotion":           "both",
-    // Sérums & ampoules
-    "sérum":            "both",
-    "serum":            "both",
-    "ampoule":          "both",
-    "essence":          "both",
-    // Actifs réservés au soir
-    "rétinol":          "evening",
-    "retinol":          "evening",
-    "rétinoïde":        "evening",
-    "retinoide":        "evening",
-    "acide":            "evening",
-    "aha":              "evening",
-    "bha":              "evening",
-    "peeling":          "monthly",
-    // Hydratants & crèmes
-    "hydratant":        "morning",
-    "crème":            "morning",
-    "moisturizer":      "morning",
-    // SPF — matin uniquement
-    "spf":              "morning",
-    "solaire":          "morning",
-    "sunscreen":        "morning",
-    // Contour yeux
-    "contour-yeux":     "both",
-    "eye cream":        "both",
-    "yeux":             "both",
-    // Huiles & baumes (hors nettoyage) — soir
-    "huile":            "evening",
-    "oil":              "evening",
-    "baume":            "evening",
-    "balm":             "evening",
-    // Soins ponctuels
-    "masque":           "weekly",
-    "mask":             "weekly",
-    "gommage":          "weekly",
-    "exfoliant":        "weekly",
-    "scrub":            "weekly",
-};
-
-const resolveProductTiming = (productType: string | null) => {
-    const t = (productType ?? "autre").toLowerCase().trim();
-    const key = Object.keys(AHA_TIMING).find(k => t.includes(k));
-    return key ? AHA_TIMING[key] : "both";
-};
-
 const BASELINE_MAP: Record<string, string> = {
     "Légère": "moins", "Légères": "moins",
     "Modérée": "pareil", "Modérées": "pareil",
     "Forte": "plus", "Fortes": "plus",
 };
+
+// La colonne profiles.carnation attend les slugs du sélecteur manuel (step 3),
+// alors que skin-analysis (IA) renvoie des libellés différents ("très claire",
+// "beige dorée", "olive-caramel"...). Sans normalisation, l'upsert profiles
+// est rejeté quand la valeur vient de l'analyse photo.
 
 const Signup = () => {
     const navigate = useNavigate();
@@ -148,9 +71,8 @@ const Signup = () => {
     const [rednessBaseline, setRednessBaseline] = useState("");
     const [drynessBaseline, setDrynessBaseline] = useState("");
 
-    // Step 3 — Carnation + type + sensibilités (chemin sans photo)
+    // Step 3 — Carnation
     const [carnation, setCarnation] = useState("");
-    const [skinManualSubStep, setSkinManualSubStep] = useState(0); // 0=carnation 1=type 2=sensibilités
 
     // Step 4 — Cycle
     const [lastPeriodDate, setLastPeriodDate] = useState("");
@@ -165,19 +87,9 @@ const Signup = () => {
     const [productSearchQuery, setProductSearchQuery] = useState("");
     const [productCatalogResults, setProductCatalogResults] = useState<any[]>([]);
     const [selectedOnboardingProducts, setSelectedOnboardingProducts] = useState<any[]>([]);
-    const [selectedOnboardingDevices, setSelectedOnboardingDevices] = useState<string[]>([]);
-
-    // Step 9 — INCI analysis (produits à déplacer au soir)
-    const [inciWarnings, setInciWarnings] = useState<Set<string>>(new Set());
-    const [inciLoading, setInciLoading] = useState(false);
-    const [activeProductTab, setActiveProductTab] = useState<"produits" | "accessoires">("produits");
+    const [onboardingScannerOpen, setOnboardingScannerOpen] = useState(false);
     const [onboardingScanMessage, setOnboardingScanMessage] = useState<string | null>(null);
-    const onboardingScanFileRef = useRef<HTMLInputElement>(null);
-
-    // Step 5 — Ton quotidien (default_factors)
-    const [onboardingDefaultFactors, setOnboardingDefaultFactors] = useState<string[]>([]);
-    const onboardingOrbRef  = useRef<HTMLDivElement>(null);
-    const onboardingOrbAnim = useAnimation();
+    const onboardingScannerRef = useRef<any>(null);
 
     // Pricing Step State
     const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
@@ -186,14 +98,12 @@ const Signup = () => {
     const [onboardingPhotoBase64, setOnboardingPhotoBase64] = useState<string | null>(null);
     const [onboardingAnalysis, setOnboardingAnalysis] = useState<any>(null);
     const [analysisLoading, setAnalysisLoading] = useState(false);
-    const [onboardingDiagLoading, setOnboardingDiagLoading] = useState(false);
-    const [onboardingDiagResult, setOnboardingDiagResult] = useState<{ source: string | null; raw_metrics: any } | null>(null);
-    const onboardingDiagRef = useRef<HTMLInputElement>(null);
     const [showDiagnostic, setShowDiagnostic] = useState(false);
     const [editingDiagnostic, setEditingDiagnostic] = useState(false);
     const [correctedSkinType, setCorrectedSkinType] = useState("");
     const [correctedProblems, setCorrectedProblems] = useState<string[]>([]);
     const [showPreview, setShowPreview] = useState(false);
+    const [pricingMode, setPricingMode] = useState<"free" | "premium">("premium");
     const [loading, setLoading] = useState(false);
 
     const PLANS = {
@@ -276,204 +186,56 @@ const Signup = () => {
                 .is("user_id", null)
                 .or(`product_name.ilike.%${productSearchQuery}%,brand.ilike.%${productSearchQuery}%`)
                 .limit(8);
-            if (data && data.length > 0) {
-                setProductCatalogResults(data);
-                return;
-            }
-            // Fallback OBF when Supabase catalog has no match
-            if (productSearchQuery.length >= 3) {
-                try {
-                    const res = await fetch(
-                        `https://world.openbeautyfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(productSearchQuery)}&search_simple=1&action=process&json=1&page_size=8`
-                    );
-                    const json = await res.json();
-                    const obfResults = (json.products ?? [])
-                        .filter((p: any) => p.product_name || p.product_name_fr)
-                        .map((p: any) => ({
-                            id: `obf_${p.code}`,
-                            product_name: p.product_name || p.product_name_fr,
-                            brand: p.brands ?? null,
-                            photo_url: p.image_front_small_url || p.image_url || null,
-                            product_type: null,
-                        }));
-                    setProductCatalogResults(obfResults);
-                } catch {
-                    setProductCatalogResults([]);
-                }
-            } else {
-                setProductCatalogResults([]);
-            }
+            if (data) setProductCatalogResults(data);
         }, 300);
         return () => clearTimeout(timer);
     }, [productSearchQuery]);
 
-    const handleOnboardingScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = "";
-        setOnboardingScanMessage("Identification du produit en cours…");
-        try {
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve((reader.result as string).split(",")[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-            const { data, error } = await supabase.functions.invoke("product-scan", {
-                body: { imageBase64: base64 },
-            });
-            if (error) {
-                const errorText = error.context
-                    ? await (error.context as Response).text().catch(() => error.message)
-                    : error.message;
-                throw new Error(errorText);
-            }
-            if (data?.status === "unrecognized" || !data?.product_name) {
-                setOnboardingScanMessage("Produit non reconnu — essaie une photo plus nette du packaging");
-                setTimeout(() => setOnboardingScanMessage(null), 4000);
-                return;
-            }
-            const tempProduct = {
-                id: `scan-${Date.now()}`,
-                product_name: data.product_name,
-                brand: data.brand ?? null,
-                product_type: data.product_type ?? null,
-                photo_url: null,
-                ingredients: data.ingredients ?? null,
-            };
-            setSelectedOnboardingProducts(prev => {
-                const exists = prev.some(
-                    p => p.product_name === data.product_name && p.brand === data.brand
-                );
-                return exists ? prev : [...prev, tempProduct];
-            });
-            setOnboardingScanMessage(`${data.product_name} ajouté ✓`);
-            setTimeout(() => setOnboardingScanMessage(null), 4000);
-        } catch (err: any) {
-            setOnboardingScanMessage(`Erreur : ${err?.message ?? JSON.stringify(err)}`);
-            setTimeout(() => setOnboardingScanMessage(null), 4000);
+    const processOnboardingBarcode = async (barcode: string) => {
+        const { data: catalogProduct } = await (supabase as any)
+            .from("user_products")
+            .select("*")
+            .is("user_id", null)
+            .eq("barcode", barcode)
+            .maybeSingle();
+        if (catalogProduct) {
+            const isAlready = selectedOnboardingProducts.some(p => p.id === catalogProduct.id);
+            if (!isAlready) setSelectedOnboardingProducts(prev => [...prev, catalogProduct]);
+            setOnboardingScanMessage("Produit trouvé et ajouté ✓");
+        } else {
+            setOnboardingScanMessage("Produit non reconnu — introuvable dans le catalogue");
         }
+        setTimeout(() => setOnboardingScanMessage(null), 4000);
     };
+
+    useEffect(() => {
+        if (!onboardingScannerOpen) return;
+        let scanner: any;
+        const init = async () => {
+            const { Html5Qrcode } = await import("html5-qrcode");
+            scanner = new Html5Qrcode("qr-reader-onboarding");
+            onboardingScannerRef.current = scanner;
+            await scanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 120 } },
+                async (code: string) => {
+                    await scanner.stop().catch(() => { });
+                    onboardingScannerRef.current = null;
+                    setOnboardingScannerOpen(false);
+                    await processOnboardingBarcode(code);
+                },
+                undefined
+            );
+        };
+        init().catch(() => setOnboardingScannerOpen(false));
+        return () => { onboardingScannerRef.current?.stop().catch(() => { }); };
+    }, [onboardingScannerOpen]);
 
     const toggleOnboardingProduct = (product: any) => {
         const isAdded = selectedOnboardingProducts.some(p => p.id === product.id);
         if (isAdded) setSelectedOnboardingProducts(prev => prev.filter(p => p.id !== product.id));
         else setSelectedOnboardingProducts(prev => [...prev, product]);
     };
-
-    const ahaInsights = useMemo(() => {
-        const insights: Array<{ emoji: string; text: string }> = [];
-
-        // Cycle phase
-        if (lastPeriodDate) {
-            const daysSince = Math.floor((Date.now() - new Date(lastPeriodDate).getTime()) / 86400000);
-            const dayInCycle = ((daysSince % cycleDuration) + cycleDuration) % cycleDuration + 1;
-            let phase: string, advice: string;
-            if (dayInCycle <= 5)       { phase = "menstruelle";  advice = "ta peau peut être plus sensible — Nacre privilégiera les soins apaisants"; }
-            else if (dayInCycle <= 13) { phase = "folliculaire"; advice = "c'est le meilleur moment pour les actifs ciblés comme la vitamine C"; }
-            else if (dayInCycle <= 16) { phase = "ovulatoire";   advice = "ta peau est à son pic d'éclat naturel"; }
-            else                       { phase = "lutéale";      advice = "Nacre surveillera les signes de congestion hormonale"; }
-            insights.push({ emoji: "🌙", text: `Tu es actuellement en phase ${phase} — ${advice}.` });
-        }
-
-        // Skin type + first goal
-        if (skinType && skinGoals.length > 0) {
-            insights.push({
-                emoji: "✨",
-                text: `Basé sur ta peau ${skinType.toLowerCase()} et ton objectif "${skinGoals[0].toLowerCase()}", Nacre va adapter ta routine chaque jour selon la météo, ton cycle et tes produits.`,
-            });
-        } else if (skinType) {
-            insights.push({
-                emoji: "✨",
-                text: `Nacre va analyser ta peau ${skinType.toLowerCase()} au quotidien et affiner ses conseils au fil du temps.`,
-            });
-        }
-
-        // First problem
-        if (skinProblems.length > 0) {
-            insights.push({
-                emoji: "🎯",
-                text: `Tes ${skinProblems[0].toLowerCase()} seront suivis semaine après semaine pour mesurer ta progression réelle.`,
-            });
-        }
-
-        if (insights.length === 0) {
-            insights.push({ emoji: "✨", text: "Nacre va apprendre à connaître ta peau et adapter tes conseils chaque jour." });
-        }
-
-        return insights.slice(0, 3);
-    }, [lastPeriodDate, cycleDuration, skinType, skinGoals, skinProblems]);
-
-    const ahaGoal = useMemo(() => {
-        const GOAL_MAP: Array<[string, string]> = [
-            ["éclat", "radieuse"], ["lumino", "lumineuse"], ["tache", "lumineuse"],
-            ["âge", "jeune"], ["ferme", "tonifiée"], ["hydrat", "hydratée"],
-            ["imperfection", "nette"], ["acné", "nette"], ["pore", "affinée"],
-            ["sensib", "apaisée"], ["unifo", "lumineuse"],
-        ];
-        let adjective = "radieuse";
-        for (const goal of skinGoals) {
-            const found = GOAL_MAP.find(([key]) => goal.toLowerCase().includes(key));
-            if (found) { adjective = found[1]; break; }
-        }
-        const target = new Date();
-        target.setDate(target.getDate() + 28);
-        const dateLabel = target.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-        return { adjective, dateLabel };
-    }, [skinGoals]);
-
-    const ahaRoutine = useMemo(() => {
-        const morning: any[] = [];
-        const evening: any[] = [];
-        const weekly: any[] = [];
-        for (const p of selectedOnboardingProducts) {
-            const slot = resolveProductTiming(p.product_type);
-            const forcedEvening = inciWarnings.has(p.product_name);
-            if (slot === "weekly" || slot === "monthly") {
-                weekly.push(p);
-            } else if (slot === "evening" || (slot === "morning" && forcedEvening)) {
-                evening.push(p);
-            } else if (slot === "morning") {
-                morning.push(p);
-            } else { // both
-                if (forcedEvening) evening.push(p);
-                else { morning.push(p); evening.push(p); }
-            }
-        }
-        return { morning, evening, weekly };
-    }, [selectedOnboardingProducts, inciWarnings]);
-
-    // Appel inci-analysis dès que l'utilisatrice arrive à l'AHA moment
-    useEffect(() => {
-        if (step !== 9 || selectedOnboardingProducts.length === 0) return;
-        const morningCandidates = selectedOnboardingProducts.filter(p => {
-            const slot = resolveProductTiming(p.product_type);
-            return slot === "morning" || slot === "both";
-        });
-        if (morningCandidates.length === 0) return;
-        setInciLoading(true);
-        supabase.functions.invoke("inci-analysis", {
-            body: {
-                products: morningCandidates.map((p: any) => ({
-                    product_name: p.product_name,
-                    brand: p.brand ?? null,
-                    ingredients: p.ingredients ?? null,
-                })),
-                period: "morning",
-                cyclePhase: null,
-                uvIndex: null,
-            },
-        }).then(({ data }) => {
-            if (data?.incompatibilities?.length > 0) {
-                setInciWarnings(new Set<string>(
-                    data.incompatibilities
-                        .filter((i: any) => i.verdict === "danger")
-                        .map((i: any) => i.product_name as string)
-                ));
-            }
-        }).catch(() => { /* silent — fallback AHA_TIMING */ })
-          .finally(() => setInciLoading(false));
-    }, [step]);
 
     const BackButton = () => (
         <motion.button
@@ -485,11 +247,12 @@ const Signup = () => {
             onClick={(e) => {
                 e.preventDefault();
                 if (showPreview) setShowPreview(false);
-                else if (step === 11) setStep(10);
-                else if (step === 10) setStep(9);
+                else if (step === 10) {
+                    if (pricingMode === "free") setStep(8);
+                    else setStep(9);
+                }
                 else if (step === 9) setStep(8);
-                else if (step === 3 && skinManualSubStep > 0) setSkinManualSubStep(skinManualSubStep - 1);
-                else if (step === 4 && !onboardingPhotoBase64) { setStep(3); setSkinManualSubStep(2); }
+                else if (step === 8) setShowPreview(true);
                 else if (step > 2) setStep(step - 1);
                 else if (step === 2) navigate("/onboarding");
                 else navigate("/onboarding");
@@ -527,37 +290,40 @@ const Signup = () => {
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (step === 8 && onboardingPhotoBase64 && !showDiagnostic) {
+        if (step === 7 && onboardingPhotoBase64 && !showDiagnostic) {
             setShowDiagnostic(true);
             window.scrollTo(0, 0);
             return;
         }
         if (showDiagnostic) {
             setShowDiagnostic(false);
-            setStep(9);
+            setStep(8);
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step === 3 && skinManualSubStep < 2) {
-            setSkinManualSubStep(skinManualSubStep + 1);
+        if (step === 8) {
+            if (pricingMode === "free") {
+                setStep(10);
+            } else {
+                setStep(9);
+            }
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step < 11) {
+        if (step < 10) {
             // Si photo prise et on est au step 2, sauter carnation (step 3)
             if (step === 2 && onboardingPhotoBase64) {
                 setStep(4);
             } else {
-                if (step === 3) setSkinManualSubStep(0); // reset pour retour éventuel
                 setStep(step + 1);
             }
             window.scrollTo(0, 0);
             return;
         }
 
-        // Step 11: Final Signup
+        // Step 10: Final Signup
         if (!firstName || !lastName || !email || !password) return;
         setLoading(true);
         try {
@@ -590,110 +356,32 @@ const Signup = () => {
                 used_channels: usedChannels.length > 0 ? usedChannels.map(c => c === "Autre" ? `Autre: ${otherChannel}` : c) : null,
                 age: age ? parseInt(age) : null,
                 gender: gender || null,
-                skin_type: correctedSkinType || skinType || null,
-                skin_problems: (() => {
-                    const merged = [...new Set([...correctedProblems, ...skinProblems])];
-                    return merged.length > 0 ? merged : null;
-                })(),
+                skin_type: correctedSkinType || skinType || onboardingAnalysis?.type_peau_detecte || null,
+                skin_problems: correctedProblems.length > 0 ? correctedProblems : (skinProblems.length > 0 ? skinProblems : null),
                 skin_goals: skinGoals.length > 0 ? skinGoals : null,
-                carnation: carnation || onboardingAnalysis?.carnation_detectee || null,
+                carnation: carnation || normalizeCarnation(onboardingAnalysis?.carnation_detectee) || null,
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
                 manual_location: locationMode === "manual" ? manualCity || null : null,
-                default_factors: onboardingDefaultFactors.length > 0
-                    ? Object.fromEntries(ONBOARDING_TAGS.map(t => [t.key, onboardingDefaultFactors.includes(t.key)]))
-                    : null,
-                device_type: /iPhone|iPad|iPod/i.test(navigator.userAgent)
-                    ? "iOS"
-                    : /Android/i.test(navigator.userAgent)
-                    ? "Android"
-                    : "Web",
             });
 
             if (selectedOnboardingProducts.length > 0) {
                 await (supabase as any).from("user_products").insert(
-                    selectedOnboardingProducts.map(p => {
-                        const slot = resolveProductTiming(p.product_type);
-                        const forcedEvening = inciWarnings.has(p.product_name);
-                        const morning = !forcedEvening && (slot === "morning" || slot === "both");
-                        const evening = forcedEvening || slot === "evening" || slot === "both" || slot === "weekly" || slot === "monthly";
-                        const frequency = slot === "weekly" ? "weekly" : slot === "monthly" ? "monthly" : "daily";
-                        return {
-                            product_name: p.product_name,
-                            brand: p.brand,
-                            photo_url: p.photo_url,
-                            product_type: p.product_type,
-                            user_id: userId,
-                            morning_use: morning,
-                            evening_use: evening,
-                            frequency,
-                            is_active: true,
-                            source: "onboarding",
-                        };
-                    })
-                );
-            }
-
-            if (selectedOnboardingDevices.length > 0) {
-                await (supabase as any).from("user_products").insert(
-                    selectedOnboardingDevices.map(label => ({
-                        product_name: label,
-                        brand: null,
-                        photo_url: null,
-                        product_type: "device",
+                    selectedOnboardingProducts.map(p => ({
+                        product_name: p.product_name,
+                        brand: p.brand,
+                        photo_url: p.photo_url,
+                        product_type: p.product_type,
                         user_id: userId,
-                        morning_use: false,
-                        evening_use: false,
+                        morning_use: true,
+                        evening_use: true,
+                        frequency: "daily",
                         is_active: true,
-                        source: "onboarding",
                     }))
                 );
             }
 
-            // Upload onboarding photo for daily tracking (suivi)
-            if (onboardingPhotoBase64) {
-                try {
-                    const byteCharacters = atob(onboardingPhotoBase64);
-                    const byteNumbers = new Array(byteCharacters.length);
-                    for (let i = 0; i < byteCharacters.length; i++) {
-                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                    }
-                    const byteArray = new Uint8Array(byteNumbers);
-                    const blob = new Blob([byteArray], { type: "image/jpeg" });
-                    const path = `${userId}/${today}.jpg`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from("skin-photos")
-                        .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
-
-                    if (!uploadError) {
-                        await (supabase as any).from("skin_photos").upsert(
-                            { user_id: userId, date: today, storage_path: path },
-                            { onConflict: "user_id,date" }
-                        );
-                    } else {
-                        console.error("Error uploading onboarding photo to storage:", uploadError);
-                    }
-                } catch (photoErr) {
-                    console.error("Error processing onboarding photo for tracking:", photoErr);
-                }
-            }
-
             const baselinePromises: any[] = [];
-            if (onboardingDiagResult) {
-                baselinePromises.push(
-                    (supabase as any).from("professional_diagnostics").insert({
-                        user_id: userId,
-                        source: onboardingDiagResult.source,
-                        raw_metrics: onboardingDiagResult.raw_metrics,
-                        summary: null,
-                    }),
-                    (supabase as any).from("profiles").update({
-                        skin_diagnostic_baseline: onboardingDiagResult.raw_metrics,
-                        skin_diagnostic_source: onboardingDiagResult.source,
-                    }).eq("id", userId)
-                );
-            }
             await Promise.all(baselinePromises);
 
             if (profileError) {
@@ -701,40 +389,42 @@ const Signup = () => {
                 toast.error("Profil créé mais erreur lors de la sauvegarde des réponses.");
             }
 
-            setLoading(false);
             localStorage.removeItem("guestProfile");
+            // Persister l'analyse de peau de l'onboarding (option A2) avant de générer les conseils
+            console.log("[DEBUG] onboardingAnalysis avant insert:", onboardingAnalysis);
+            if (onboardingAnalysis && onboardingPhotoBase64) {
+                // storage_path est NOT NULL sur skin_photos : il faut uploader la photo
+                // avant l'upsert, sinon l'insert échoue silencieusement et analysis_json
+                // n'est jamais écrit (aucune ligne n'est créée pour la journée).
+                const storagePath = `${userId}/${today}.jpg`;
+                const photoBytes = Uint8Array.from(atob(onboardingPhotoBase64), c => c.charCodeAt(0));
+                const { error: uploadError } = await supabase.storage
+                    .from("skin-photos")
+                    .upload(storagePath, photoBytes, { contentType: "image/jpeg", upsert: true });
+                if (uploadError) {
+                    console.error("[DEBUG] skin_photos upload error:", uploadError);
+                }
+
+                const { error: skinPhotoError } = await (supabase as any).from("skin_photos").upsert({
+                    user_id: userId,
+                    date: today,
+                    storage_path: storagePath,
+                    analysis_json: onboardingAnalysis,
+                }, { onConflict: "user_id,date" });
+                if (skinPhotoError) {
+                    console.error("[DEBUG] skin_photos upsert error:", skinPhotoError);
+                }
+            }
+            // Générer les conseils de la semaine (piliers) à partir de l'analyse
+            supabase.functions.invoke("generate-weekly-advice", {
+                body: { user_id: userId },
+            }).catch((e) => console.warn("generate-weekly-advice:", e));
+            setLoading(false);
             navigate("/dashboard");
         } catch (error) {
             console.error("Signup error:", error);
             toast.error("Une erreur est survenue lors de l'inscription.");
             setLoading(false);
-        }
-    };
-
-    const handleOnboardingDiagFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        e.target.value = "";
-        if (file.type !== "application/pdf") { toast.error("Le fichier doit être un PDF"); return; }
-        setOnboardingDiagLoading(true);
-        try {
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve((reader.result as string).split(",")[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-            const { data, error } = await supabase.functions.invoke("diagnostic-import", {
-                body: { pdfBase64: base64 },
-            });
-            if (error) throw new Error(error.message);
-            if (!data?.raw_metrics) throw new Error("Réponse invalide");
-            setOnboardingDiagResult({ source: data.source ?? null, raw_metrics: data.raw_metrics });
-            toast.success("Diagnostic importé ✓");
-        } catch (err: any) {
-            toast.error(`Erreur : ${err?.message ?? "Erreur inconnue"}`);
-        } finally {
-            setOnboardingDiagLoading(false);
         }
     };
 
@@ -828,35 +518,32 @@ const Signup = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 flex flex-col gap-3 min-h-0">
-
-                                    {/* Card Option 1 — Photo */}
-                                    <label className={`flex-1 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 cursor-pointer transition-all active:scale-[0.98] overflow-hidden relative ${
-                                        onboardingPhotoBase64
-                                            ? "border-primary bg-primary/5"
-                                            : "border-border/30 bg-muted/10 hover:border-primary/30"
-                                    }`}>
+                                <div className="flex-1 flex flex-col gap-6">
+                                    {/* Zone photo */}
+                                    <div className="relative rounded-3xl overflow-hidden bg-muted/20 border border-border/40" style={{ height: 320 }}>
                                         {onboardingPhotoBase64 ? (
-                                            <>
-                                                <img
-                                                    src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
-                                                    alt="Photo peau"
-                                                    className="absolute inset-0 w-full h-full object-cover"
-                                                />
-                                                <div className="relative z-10 bg-black/40 rounded-full px-4 py-2 flex items-center gap-2">
-                                                    <Camera size={14} strokeWidth={2} className="text-white" />
-                                                    <span className="text-white text-xs font-bold uppercase tracking-widest">Reprendre</span>
-                                                </div>
-                                            </>
+                                            <img
+                                                src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
+                                                alt="Photo peau"
+                                                className="w-full h-full object-cover"
+                                            />
                                         ) : (
-                                            <>
-                                                <Camera size={32} strokeWidth={1.2} className="text-muted-foreground/50" />
-                                                <div className="text-center">
-                                                    <p className="text-sm font-bold text-foreground">Prendre une photo</p>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Visage démaquillé, face à la lumière</p>
-                                                </div>
-                                            </>
+                                            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground/50">
+                                                <Camera size={40} strokeWidth={1.2} />
+                                                <p className="text-sm">Visage démaquillé, face à la lumière</p>
+                                            </div>
                                         )}
+                                    </div>
+
+                                    {/* Disclaimer RGPD */}
+                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-4">
+                                        Votre photo est utilisée uniquement pour l'analyse de peau, conformément à notre politique de confidentialité.
+                                    </p>
+
+                                    {/* Bouton prendre une photo */}
+                                    <label className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest cursor-pointer hover:opacity-90 transition-all active:scale-[0.98]">
+                                        <Camera size={18} strokeWidth={2} />
+                                        {onboardingPhotoBase64 ? "Reprendre la photo" : "Prendre une photo"}
                                         <input
                                             type="file"
                                             accept="image/*"
@@ -885,78 +572,24 @@ const Signup = () => {
                                                 setAnalysisLoading(true);
                                                 supabase.functions.invoke("skin-analysis", {
                                                     body: { imageBase64: base64, age: age || undefined },
+
                                                 }).then(({ data }) => {
                                                     if (data?.rejected) {
+                                                        // Photo mauvaise qualité → message + reset photo
                                                         setOnboardingPhotoBase64(null);
                                                         setAnalysisLoading(false);
-                                                        toast.error(data.reason ?? "Photo non exploitable — reprends une photo bien éclairée, de face.");
+                                                        toast.error(data.reason ?? "Photo non exploitable, reprends une photo bien eclairee.");
                                                         return;
                                                     }
                                                     if (data?.analysis) {
                                                         setOnboardingAnalysis(data.analysis);
                                                         setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
-                                                        const autoProblems: string[] = [];
-                                                        const cond = data.analysis.conditions_detectees ?? {};
-                                                        if (cond.eczema === true) autoProblems.push("Eczéma");
-                                                        if (cond.rosacea === true) autoProblems.push("Rougeurs");
-                                                        if ((data.analysis.acne?.score ?? 0) >= 2) autoProblems.push("Acné");
-                                                        if ((data.analysis.pigmentation?.type ?? "aucune") !== "aucune") autoProblems.push("Taches");
-                                                        if ((data.analysis.rides?.periorbital ?? 0) >= 3) autoProblems.push("Rides");
-                                                        if ((data.analysis.hydratation?.score ?? 0) <= 1) autoProblems.push("Sécheresse");
-                                                        if (autoProblems.length > 0) setCorrectedProblems(prev => [...new Set([...prev, ...autoProblems])]);
                                                     }
                                                     setAnalysisLoading(false);
                                                 }).catch(() => setAnalysisLoading(false));
                                             }}
                                         />
                                     </label>
-
-                                    {/* Séparateur */}
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className="flex-1 h-px bg-border/30" />
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">ou</p>
-                                        <div className="flex-1 h-px bg-border/30" />
-                                    </div>
-
-                                    {/* Card Option 2 — Diagnostic pro PDF */}
-                                    <button
-                                        type="button"
-                                        onClick={() => onboardingDiagRef.current?.click()}
-                                        disabled={onboardingDiagLoading}
-                                        className={`flex-1 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 transition-all active:scale-[0.98] disabled:opacity-60 ${
-                                            onboardingDiagResult
-                                                ? "border-primary bg-primary/5"
-                                                : "border-border/30 bg-muted/10 hover:border-primary/30"
-                                        }`}
-                                    >
-                                        {onboardingDiagLoading ? (
-                                            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                                        ) : onboardingDiagResult ? (
-                                            <Check size={32} strokeWidth={1.5} className="text-primary" />
-                                        ) : (
-                                            <FileUp size={32} strokeWidth={1.2} className="text-muted-foreground/50" />
-                                        )}
-                                        <div className="text-center">
-                                            <p className="text-sm font-bold text-foreground">
-                                                {onboardingDiagLoading ? "Analyse en cours…" : onboardingDiagResult ? `${onboardingDiagResult.source ?? "Diagnostic"} importé` : "Importer un diagnostic pro"}
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">
-                                                {onboardingDiagResult ? "Baseline enregistrée ✓" : "Rapport PDF (Observ, Visia…)"}
-                                            </p>
-                                        </div>
-                                    </button>
-                                    <input
-                                        ref={onboardingDiagRef}
-                                        type="file"
-                                        accept="application/pdf"
-                                        className="hidden"
-                                        onChange={handleOnboardingDiagFile}
-                                    />
-
-                                    {/* Disclaimer RGPD */}
-                                    <p className="text-[11px] text-muted-foreground text-center leading-relaxed shrink-0">
-                                        Photo utilisée uniquement pour l'analyse de peau.
-                                    </p>
                                 </div>
                             </>
                         )}
@@ -995,87 +628,41 @@ const Signup = () => {
                             </>
                         )}
 
-                        {/* Step 3 — Carnation / Type de peau / Sensibilités (chemin sans photo) */}
+                        {/* Step 3 — Carnation */}
                         {step === 3 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
                                     <div>
-                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">
-                                            {skinManualSubStep === 0 ? "Votre carnation" : skinManualSubStep === 1 ? "Votre type de peau" : "Vos sensibilités"}
-                                        </h1>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
-                                            {skinManualSubStep === 0 ? "Personnalisation colorimétrique" : skinManualSubStep === 1 ? "Pour des conseils adaptés" : "Sélectionnez tout ce qui s'applique"}
-                                        </p>
+                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-3">Votre carnation</h1>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Personnalisation colorimétrique</p>
                                     </div>
                                 </div>
-
-                                {/* Sous-étape 0 : Carnation */}
-                                {skinManualSubStep === 0 && (
-                                    <div className="grid grid-cols-3 gap-4 flex-1">
-                                        {[
-                                            { value: "très_claire", label: "Très claire", color: "#F5E6D8" },
-                                            { value: "claire", label: "Claire", color: "#EAC9A8" },
-                                            { value: "beige_doré", label: "Beige dorée", color: "#C8924F" },
-                                            { value: "olive_caramel", label: "Olive-Caramel", color: "#A0622A" },
-                                            { value: "foncée", label: "Foncée", color: "#6B3A1F" },
-                                            { value: "ébène", label: "Ébène", color: "#2C1810" },
-                                        ].map(swatch => (
-                                            <button
-                                                type="button"
-                                                key={swatch.value}
-                                                onClick={() => setCarnation(swatch.value)}
-                                                className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value
-                                                    ? "border-primary bg-primary/5 premium-shadow"
-                                                    : "border-border/40 bg-background/40"
-                                                    }`}
-                                            >
-                                                <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
-                                                <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">
-                                                    {swatch.label}
-                                                </p>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Sous-étape 1 : Type de peau */}
-                                {skinManualSubStep === 1 && (
-                                    <div className="flex flex-col gap-3 flex-1">
-                                        {["normale", "sèche", "grasse", "mixte", "sensible"].map(t => (
-                                            <button
-                                                type="button"
-                                                key={t}
-                                                onClick={() => setSkinType(t)}
-                                                className={`w-full py-4 px-5 rounded-2xl border-2 text-left transition-all ${skinType === t
-                                                    ? "border-primary bg-primary/5 premium-shadow"
-                                                    : "border-border/40 bg-background/40"
-                                                    }`}
-                                            >
-                                                <p className="text-[11px] font-bold uppercase tracking-widest text-foreground">{t}</p>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Sous-étape 2 : Sensibilités */}
-                                {skinManualSubStep === 2 && (
-                                    <div className="flex flex-wrap gap-3 flex-1 content-start">
-                                        {["Acné", "Rides", "Taches", "Rougeurs", "Cernes", "Sécheresse", "Eczéma"].map(p => (
-                                            <button
-                                                type="button"
-                                                key={p}
-                                                onClick={() => toggleProblem(p)}
-                                                className={`py-3 px-5 rounded-full text-[11px] font-bold border-2 transition-all ${skinProblems.includes(p)
-                                                    ? "bg-primary text-primary-foreground border-primary premium-shadow"
-                                                    : "bg-muted/20 border-border/40 text-foreground/60"
-                                                    }`}
-                                            >
-                                                {p}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="grid grid-cols-3 gap-4 flex-1">
+                                    {[
+                                        { value: "très_claire", label: "Très claire", color: "#F5E6D8" },
+                                        { value: "claire", label: "Claire", color: "#EAC9A8" },
+                                        { value: "beige_doré", label: "Beige dorée", color: "#C8924F" },
+                                        { value: "olive_caramel", label: "Olive-Caramel", color: "#A0622A" },
+                                        { value: "foncée", label: "Foncée", color: "#6B3A1F" },
+                                        { value: "ébène", label: "Ébène", color: "#2C1810" },
+                                    ].map(swatch => (
+                                        <button
+                                            type="button"
+                                            key={swatch.value}
+                                            onClick={() => setCarnation(swatch.value)}
+                                            className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value
+                                                ? "border-primary bg-primary/5 premium-shadow"
+                                                : "border-border/40 bg-background/40"
+                                                }`}
+                                        >
+                                            <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
+                                            <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">
+                                                {swatch.label}
+                                            </p>
+                                        </button>
+                                    ))}
+                                </div>
                             </>
                         )}
 
@@ -1130,128 +717,8 @@ const Signup = () => {
                             </>
                         )}
 
-                        {/* Step 5 — Ton quotidien (default_factors) */}
+                        {/* Step 5 — Localisation météo */}
                         {step === 5 && (
-                            <div className="flex flex-col h-full">
-                                <div className="mb-8 flex items-start gap-4">
-                                    <BackButton />
-                                    <div>
-                                        <h1 className="text-2xl font-display text-foreground leading-tight mb-1">Ton quotidien</h1>
-                                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
-                                            Glisse vers Nacre ce qui façonne ta peau
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Orbe drop zone */}
-                                <div className="flex justify-center mb-6">
-                                    <motion.div
-                                        ref={onboardingOrbRef}
-                                        animate={onboardingOrbAnim}
-                                        className="relative flex items-center justify-center select-none"
-                                        style={{ width: 160, height: 160 }}
-                                    >
-                                        <motion.div
-                                            className="w-full h-full rounded-full"
-                                            animate={{
-                                                background: (
-                                                    onboardingDefaultFactors.reduce((s, k) => {
-                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
-                                                        return s + (t?.score ?? 0);
-                                                    }, 0) >= 2 ? ONBOARDING_ORB.positive.gradient :
-                                                    onboardingDefaultFactors.reduce((s, k) => {
-                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
-                                                        return s + (t?.score ?? 0);
-                                                    }, 0) <= -2 ? ONBOARDING_ORB.negative.gradient :
-                                                    ONBOARDING_ORB.neutral.gradient
-                                                ),
-                                                boxShadow: (
-                                                    onboardingDefaultFactors.reduce((s, k) => {
-                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
-                                                        return s + (t?.score ?? 0);
-                                                    }, 0) >= 2 ? ONBOARDING_ORB.positive.shadow :
-                                                    onboardingDefaultFactors.reduce((s, k) => {
-                                                        const t = ONBOARDING_TAGS.find(t => t.key === k);
-                                                        return s + (t?.score ?? 0);
-                                                    }, 0) <= -2 ? ONBOARDING_ORB.negative.shadow :
-                                                    ONBOARDING_ORB.neutral.shadow
-                                                ),
-                                            }}
-                                            transition={{ duration: 0.6, ease: "easeInOut" }}
-                                        />
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            {onboardingDefaultFactors.length === 0 ? (
-                                                <p className="text-[11px] text-foreground/30 text-center leading-snug px-4 font-medium">Glisse ici</p>
-                                            ) : (
-                                                <span className="text-3xl font-bold text-foreground/30">{onboardingDefaultFactors.length}</span>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                </div>
-
-                                {/* Tags absorbés */}
-                                <AnimatePresence>
-                                    {onboardingDefaultFactors.length > 0 && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: 8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0 }}
-                                            className="mb-5"
-                                        >
-                                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 text-center">Ce que tu as partagé</p>
-                                            <div className="flex flex-wrap gap-2 justify-center">
-                                                {onboardingDefaultFactors.map(key => {
-                                                    const t = ONBOARDING_TAGS.find(t => t.key === key)!;
-                                                    return (
-                                                        <button
-                                                            key={key}
-                                                            type="button"
-                                                            onClick={() => setOnboardingDefaultFactors(prev => prev.filter(k => k !== key))}
-                                                            className="flex items-center gap-1 text-[12px] bg-muted/30 border border-border/30 rounded-full px-3 py-1.5 text-foreground/70 hover:bg-red-50 hover:border-red-200 transition-colors"
-                                                        >
-                                                            {t.emoji} {t.label}
-                                                            <span className="ml-1 text-muted-foreground/50 text-[10px]">×</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Nuage de tags draggables */}
-                                <div className="flex-1 relative">
-                                    <AnimatePresence>
-                                        {ONBOARDING_TAGS.filter(t => !onboardingDefaultFactors.includes(t.key)).length > 0 ? (
-                                            <motion.div layout className="flex flex-wrap gap-2.5 justify-center">
-                                                {ONBOARDING_TAGS.filter(t => !onboardingDefaultFactors.includes(t.key)).map(tag => (
-                                                    <OnboardingDraggableTag
-                                                        key={tag.key}
-                                                        tag={tag}
-                                                        orbRef={onboardingOrbRef}
-                                                        onAbsorb={(key) => {
-                                                            setOnboardingDefaultFactors(prev => [...prev, key]);
-                                                            onboardingOrbAnim.start({ scale: [1, 1.08, 1], transition: { duration: 0.4, ease: "easeOut" } });
-                                                        }}
-                                                    />
-                                                ))}
-                                            </motion.div>
-                                        ) : (
-                                            <motion.p
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                className="text-center text-sm text-muted-foreground py-4"
-                                            >
-                                                Tu as tout partagé avec Nacre 🌿
-                                            </motion.p>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Step 6 — Localisation météo */}
-                        {step === 6 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -1315,8 +782,8 @@ const Signup = () => {
                             </>
                         )}
 
-                        {/* Step 7 — Ajout produits */}
-                        {step === 7 && (
+                        {/* Step 6 — Ajout produits */}
+                        {step === 6 && (
                             <>
                                 <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
@@ -1326,123 +793,59 @@ const Signup = () => {
                                     </div>
                                 </div>
 
-                                {/* Onglets Produits / Accessoires */}
-                                <div className="flex border-b border-border/20 mb-4">
-                                    {(["produits", "accessoires"] as const).map(tab => (
-                                        <button
-                                            key={tab}
-                                            type="button"
-                                            onClick={() => setActiveProductTab(tab)}
-                                            className={`flex-1 py-2.5 text-xs font-semibold transition-all relative ${
-                                                activeProductTab === tab ? "text-foreground" : "text-muted-foreground"
-                                            }`}
-                                        >
-                                            {tab === "produits" ? "Cosmétiques" : "Accessoires"}
-                                            {activeProductTab === tab && (
-                                                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground rounded-full" />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-
                                 <div className="flex-1 overflow-y-auto pb-4 custom-scrollbar space-y-4 pr-1">
-
-                                {/* Onglet Accessoires */}
-                                {activeProductTab === "accessoires" && (
-                                    <div className="premium-card p-5">
-                                        <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-3">
-                                            Mes accessoires beauté
-                                        </h2>
-                                        <p className="text-xs text-muted-foreground mb-4">
-                                            Sélectionne les appareils que tu utilises.
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {PRESET_DEVICES.map(({ emoji, label }) => {
-                                                const active = selectedOnboardingDevices.includes(label);
-                                                return (
-                                                    <button
-                                                        key={label}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setSelectedOnboardingDevices(prev =>
-                                                                active ? prev.filter(d => d !== label) : [...prev, label]
-                                                            )
-                                                        }
-                                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${
-                                                            active
-                                                                ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                                                                : "bg-card border-border text-foreground/70 hover:border-primary/50"
-                                                        }`}
-                                                    >
-                                                        <span>{emoji}</span>
-                                                        <span>{label}</span>
-                                                        {active && <Check size={11} />}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Onglet Cosmétiques */}
-                                {activeProductTab === "produits" && (
-                                    <>
+                                    {/* Search card — même layout que Vanity */}
                                     <div className="premium-card p-0 overflow-hidden">
-                                        <div className="p-4 bg-background/50 border-b border-border/50">
-                                            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-3">Rechercher un produit</h2>
+                                        <div className="p-5 bg-background/50 border-b border-border/50">
+                                            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Rechercher un produit</h2>
                                             <div className="flex gap-2">
                                                 <div className="relative flex-1">
-                                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                                                     <Input
                                                         value={productSearchQuery}
                                                         onChange={(e) => setProductSearchQuery(e.target.value)}
                                                         onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-                                                        placeholder="Produit ou marque..."
-                                                        className="pl-9 text-sm rounded-xl py-5 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
+                                                        placeholder="Chercher un produit ou marque..."
+                                                        className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary"
                                                     />
                                                 </div>
                                                 <button
                                                     type="button"
-                                                    onClick={() => onboardingScanFileRef.current?.click()}
-                                                    className="w-10 h-10 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
+                                                    onClick={() => setOnboardingScannerOpen(true)}
+                                                    className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center"
                                                 >
-                                                    <Scan size={16} strokeWidth={1.5} />
+                                                    <Scan size={18} strokeWidth={1.5} />
                                                 </button>
-                                                <input
-                                                    ref={onboardingScanFileRef}
-                                                    type="file"
-                                                    accept="image/*"
-                                                    capture="environment"
-                                                    className="hidden"
-                                                    onChange={handleOnboardingScan}
-                                                />
                                             </div>
                                         </div>
-                                        <div className="p-3 space-y-2">
+                                        <div className="p-5 space-y-4">
                                             {productCatalogResults.length > 0 ? (
-                                                <div className="flex flex-col gap-2">
+                                                <div className="grid gap-3">
                                                     {productCatalogResults.map(p => {
                                                         const isAdded = selectedOnboardingProducts.some(s => s.id === p.id);
                                                         return (
-                                                            <div key={p.id} className="flex items-center gap-2.5 p-2.5 bg-card border border-border rounded-xl transition-all hover:border-primary/30">
-                                                                <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                            <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm">
+                                                                <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
                                                                     {p.photo_url
                                                                         ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                                                                        : <ImageOff size={14} className="text-muted-foreground/40" />}
+                                                                        : <ImageOff size={18} className="text-muted-foreground/40" />}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
                                                                     <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                                                                    <p className="text-[10px] text-muted-foreground truncate">{p.brand}{p.product_type ? ` · ${p.product_type}` : ""}</p>
+                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                                                    {p.product_type && (
+                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
+                                                                    )}
                                                                 </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleOnboardingProduct(p)}
-                                                                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
+                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
                                                                         ? "bg-primary/10 text-primary cursor-default"
                                                                         : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                                                                         }`}
                                                                 >
-                                                                    {isAdded ? <Check size={14} /> : <Plus size={14} />}
+                                                                    {isAdded ? <Check size={16} /> : <Plus size={16} />}
                                                                 </button>
                                                             </div>
                                                         );
@@ -1486,9 +889,22 @@ const Signup = () => {
                                             </div>
                                         </div>
                                     )}
-                                    </>
-                                )}
                                 </div>
+
+                                {/* Scanner overlay */}
+                                {onboardingScannerOpen && (
+                                    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center gap-6">
+                                        <p className="text-white text-sm font-medium tracking-wide">Scannez un code-barres</p>
+                                        <div id="qr-reader-onboarding" className="w-72 rounded-2xl overflow-hidden" />
+                                        <button
+                                            type="button"
+                                            onClick={() => setOnboardingScannerOpen(false)}
+                                            className="text-white/60 text-sm hover:text-white transition-colors"
+                                        >
+                                            Annuler
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Toast scan */}
                                 {onboardingScanMessage && (
@@ -1499,7 +915,7 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step === 8 && !showDiagnostic && (
+                        {step === 7 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -1554,6 +970,16 @@ const Signup = () => {
                                     </div>
                                 ) : onboardingAnalysis ? (
                                     <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                                        {/* Photo prise */}
+                                        {onboardingPhotoBase64 && (
+                                            <div className="rounded-3xl overflow-hidden border border-border/40 bg-muted/20 flex items-center justify-center" style={{ maxHeight: 280 }}>
+                                                <img
+                                                    src={`data:image/jpeg;base64,${onboardingPhotoBase64}`}
+                                                    alt="Votre photo"
+                                                    className="w-full h-auto max-h-[280px] object-contain"
+                                                />
+                                            </div>
+                                        )}
 
                                         {/* KPIs principaux */}
                                         <div className="grid grid-cols-2 gap-2 p-3 bg-muted/20 rounded-2xl">
@@ -1656,167 +1082,7 @@ const Signup = () => {
                                 )}
                             </div>
                         )}
-                        {/* Step 9 — AHA moment */}
-                        {step === 9 && (
-                            <div className="flex flex-col h-full overflow-y-auto">
-                                {/* Back */}
-                                <div className="mb-6 shrink-0">
-                                    <BackButton />
-                                </div>
-
-                                {/* Hero — objectif + date cible */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 12 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="mb-6 shrink-0"
-                                >
-                                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.3em] mb-2">Ton objectif avec Nacre</p>
-                                    <h1 className="text-[26px] font-display text-foreground leading-tight">
-                                        Une peau <span className="text-primary italic">{ahaGoal.adjective}</span>
-                                    </h1>
-                                    <h1 className="text-[26px] font-display text-foreground leading-tight">
-                                        pour le <span className="text-primary">{ahaGoal.dateLabel}</span>
-                                    </h1>
-                                </motion.div>
-
-                                {/* Stats */}
-                                {selectedOnboardingProducts.length > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: 0.12 }}
-                                        className="grid grid-cols-2 gap-3 mb-4 shrink-0"
-                                    >
-                                        <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
-                                            <p className="text-2xl font-display text-foreground font-bold">
-                                                {(ahaRoutine.morning.length > 0 ? 1 : 0) + (ahaRoutine.evening.length > 0 ? 1 : 0) || 1}
-                                            </p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">routine{((ahaRoutine.morning.length > 0 ? 1 : 0) + (ahaRoutine.evening.length > 0 ? 1 : 0)) > 1 ? "s" : ""} / jour</p>
-                                        </div>
-                                        <div className="bg-muted/20 rounded-2xl p-4 border border-border/20">
-                                            <p className="text-2xl font-display text-foreground font-bold">{selectedOnboardingProducts.length}</p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">produits sélectionnés</p>
-                                        </div>
-                                    </motion.div>
-                                )}
-
-                                {/* Bannière INCI — analyse en cours ou résultat */}
-                                {selectedOnboardingProducts.length > 0 && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.15 }}
-                                        className="mb-5"
-                                    >
-                                        {inciLoading ? (
-                                            <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-muted/20 border border-border/20">
-                                                <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
-                                                <p className="text-[11px] text-muted-foreground">Nacre analyse tes ingrédients actifs…</p>
-                                            </div>
-                                        ) : inciWarnings.size > 0 ? (
-                                            <div className="flex items-start gap-2 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-100">
-                                                <span className="text-sm shrink-0">🧪</span>
-                                                <p className="text-[11px] text-amber-800 leading-relaxed">
-                                                    Nacre a déplacé {inciWarnings.size === 1 ? "1 actif photosensibilisant" : `${inciWarnings.size} actifs photosensibilisants`} au soir pour protéger ta peau du soleil.
-                                                </p>
-                                            </div>
-                                        ) : null}
-                                    </motion.div>
-                                )}
-
-                                {/* Préview routine — matin / soir / soins ponctuels */}
-                                {selectedOnboardingProducts.length > 0 && (() => {
-                                    const renderSection = (
-                                        label: string,
-                                        products: any[],
-                                        baseDelay: number,
-                                        prefix: string
-                                    ) => {
-                                        if (products.length === 0) return null;
-                                        // Grouper par type
-                                        const groups = new Map<string, any[]>();
-                                        for (const p of products) {
-                                            const k = p.product_type ?? "Autre";
-                                            if (!groups.has(k)) groups.set(k, []);
-                                            groups.get(k)!.push(p);
-                                        }
-                                        return (
-                                            <motion.div
-                                                key={prefix}
-                                                initial={{ opacity: 0, y: 8 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: baseDelay }}
-                                            >
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <p className="text-[13px] font-semibold text-foreground">{label}</p>
-                                                    <p className="text-[11px] text-muted-foreground">{products.length} produit{products.length > 1 ? "s" : ""}</p>
-                                                </div>
-                                                <div className="bg-white rounded-2xl border border-border/20 overflow-hidden">
-                                                    {Array.from(groups.entries()).map(([type, prods]) => (
-                                                        <div key={type} className="border-b border-border/10 last:border-b-0">
-                                                            <p className="text-[9px] font-bold text-primary/50 uppercase tracking-widest px-4 pt-2.5 pb-1">{type}</p>
-                                                            {prods.slice(0, 2).map((p: any, i: number) => (
-                                                                <div key={p.id ?? `${prefix}-${type}-${i}`} className="flex items-center gap-3 px-4 py-2">
-                                                                    {p.photo_url ? (
-                                                                        <img src={p.photo_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0 bg-muted/20" />
-                                                                    ) : (
-                                                                        <div className="w-8 h-8 rounded-lg bg-muted/20 shrink-0" />
-                                                                    )}
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-[12px] font-medium text-foreground leading-snug line-clamp-1">{p.product_name}</p>
-                                                                        {p.brand && <p className="text-[10px] text-muted-foreground">{p.brand}</p>}
-                                                                    </div>
-                                                                    {inciWarnings.has(p.product_name) && (
-                                                                        <span className="text-[9px] text-amber-600 font-bold shrink-0">→ soir</span>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                            {prods.length > 2 && (
-                                                                <p className="text-[10px] text-muted-foreground px-4 pb-2.5">+{prods.length - 2} autre{prods.length - 2 > 1 ? "s" : ""}</p>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        );
-                                    };
-                                    return (
-                                        <div className="space-y-4 mb-5">
-                                            {renderSection("☀️ Ma routine du matin", ahaRoutine.morning, 0.2, "m")}
-                                            {renderSection("🌙 Ma routine du soir",  ahaRoutine.evening, 0.28, "e")}
-                                            {renderSection("✨ Soins ponctuels",     ahaRoutine.weekly,  0.36, "w")}
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* Insight cycle (si disponible) */}
-                                {ahaInsights[0] && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 8 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: selectedOnboardingProducts.length > 0 ? 0.35 : 0.15 }}
-                                        className="bg-primary/5 border border-primary/10 rounded-[20px] p-5 mb-6"
-                                    >
-                                        <span className="text-xl mb-2 block">{ahaInsights[0].emoji}</span>
-                                        <p className="text-[13px] text-foreground/80 leading-relaxed">{ahaInsights[0].text}</p>
-                                    </motion.div>
-                                )}
-
-                                {/* CTA */}
-                                <div className="pt-2 pb-2 shrink-0">
-                                    <button
-                                        type="button"
-                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
-                                        className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
-                                    >
-                                        Commencer avec Nacre <ChevronRight size={18} strokeWidth={2.5} />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Step 10 — Pricing */}
-                        {step === 10 && (
+                        {step === 8 && (
                             <div className="space-y-8 h-full flex flex-col">
                                 <div className="mb-6 flex items-start gap-4">
                                     <BackButton />
@@ -1892,14 +1158,14 @@ const Signup = () => {
                                 <div className="space-y-3 pt-2 mt-auto">
                                     <button
                                         type="button"
-                                        onClick={() => { setStep(11); window.scrollTo(0, 0); }}
+                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
                                         className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
                                     >
                                         Passer premium
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => { setStep(11); window.scrollTo(0, 0); }}
+                                        onClick={() => { setStep(10); window.scrollTo(0, 0); }}
                                         className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
                                     >
                                         Commencer mon essai gratuit
@@ -1911,7 +1177,89 @@ const Signup = () => {
                             </div>
                         )}
 
-                        {step === 11 && (
+                        {step === 9 && (
+                            <div className="space-y-8 h-full flex flex-col">
+                                <div className="mb-4 flex items-center gap-4">
+                                    <BackButton />
+                                    <div>
+                                        <p className="text-[10px] font-bold text-primary uppercase tracking-[0.3em] mb-1">Votre essai est terminé</p>
+                                        <h2 className="text-2xl font-display text-foreground leading-tight">Continuez à prendre soin de vous</h2>
+                                    </div>
+                                </div>
+
+                                {/* Segmented Control — Annuel (-40%) left, Mensuel right */}
+                                <div className="bg-muted/20 p-1.5 rounded-full flex mb-8 relative border border-border/40">
+                                    <motion.div
+                                        className="absolute h-[calc(100%-12px)] w-[calc(50%-6px)] bg-white rounded-full shadow-sm"
+                                        animate={{ x: selectedPlan === 'monthly' ? '100%' : '0%' }}
+                                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    />
+                                    <button type="button" onClick={() => setSelectedPlan("yearly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 relative ${selectedPlan === 'yearly' ? 'text-primary' : 'text-muted-foreground'}`}>
+                                        <Badge className="absolute -top-3 -left-2 bg-primary text-primary-foreground text-[8px] px-2 py-0.5 border-none shadow-sm">{PLANS.yearly.badge}</Badge>
+                                        Annuel
+                                    </button>
+                                    <button type="button" onClick={() => setSelectedPlan("monthly")} className={`flex-1 py-3 text-[10px] font-bold uppercase tracking-widest z-10 transition-colors duration-300 ${selectedPlan === 'monthly' ? 'text-primary' : 'text-muted-foreground'}`}>Mensuel</button>
+                                </div>
+
+                                {/* Price Display */}
+                                <motion.div layout className="bg-primary/5 p-8 rounded-[40px] border border-primary/10 text-center mb-6 relative overflow-hidden shadow-sm">
+                                    <AnimatePresence mode="wait">
+                                        <motion.div key={selectedPlan} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="space-y-5">
+                                            {selectedPlan === 'yearly' && (
+                                                <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full mb-2 shadow-sm">
+                                                    <span>-40%</span>
+                                                    <span className="w-1 h-1 bg-white/40 rounded-full" />
+                                                    <span>Offre de lancement</span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-baseline justify-center gap-2">
+                                                <span className="text-5xl font-display text-foreground italic leading-none">{PLANS[selectedPlan].price}</span>
+                                                <span className="text-xl text-muted-foreground italic">{PLANS[selectedPlan].period}</span>
+                                            </div>
+                                            <p className="text-[13px] text-muted-foreground italic tracking-tight leading-relaxed font-medium">{PLANS[selectedPlan].subtext}</p>
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </motion.div>
+
+                                {/* Feature list matching Figma */}
+                                <div className="space-y-4 mb-8">
+                                    {[
+                                        { label: "Accès illimité", desc: "Toutes les fonctionnalités sans restriction" },
+                                        { label: "Sans engagement", desc: "Annulez à tout moment" },
+                                        { label: "Conseils personnalisés", desc: "Adaptés à votre cycle, météo et routine" },
+                                        { label: "Mémoire illimitée", desc: "Historique complet sans limite de temps" },
+                                    ].map((item, idx) => (
+                                        <div key={idx} className="flex items-start gap-4">
+                                            <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5"><Check size={11} strokeWidth={3} /></div>
+                                            <div>
+                                                <p className="text-[13px] font-semibold text-foreground">{item.label}</p>
+                                                <p className="text-[11px] text-muted-foreground italic leading-tight">{item.desc}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-3 pt-4">
+                                    <Button
+                                        type="submit"
+                                        className="w-full h-14 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+                                    >
+                                        Passer premium
+                                    </Button>
+                                    <button
+                                        type="submit"
+                                        className="w-full h-14 border border-border/60 text-muted-foreground rounded-full text-[11px] font-bold uppercase tracking-[0.15em] hover:border-primary hover:text-primary transition-colors"
+                                    >
+                                        Commencer mon essai gratuit
+                                    </button>
+                                    <p className="text-center text-[10px] text-muted-foreground pt-1">
+                                        Renouvelé automatiquement à 9,99€/mois. Annulable à tout moment.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 10 && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
@@ -1975,32 +1323,12 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step !== 9 && step !== 10 && (
+                        {step !== 8 && step !== 9 && (
                             <div className="fixed bottom-0 left-0 right-0 p-8 bg-background/80 backdrop-blur-md border-t border-border/40 z-20 flex flex-col gap-4">
                                 {step === 1 && (
                                     <button
                                         type="button"
                                         onClick={() => setStep(step + 1)}
-                                        className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
-                                    >
-                                        Passer cette étape
-                                    </button>
-                                )}
-
-                                {step === 3 && skinManualSubStep === 2 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => { setSkinProblems([]); setSkinManualSubStep(0); setStep(4); window.scrollTo(0, 0); }}
-                                        className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
-                                    >
-                                        Passer cette étape
-                                    </button>
-                                )}
-
-                                {step === 5 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => { setOnboardingDefaultFactors([]); setStep(6); window.scrollTo(0, 0); }}
                                         className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
                                     >
                                         Passer cette étape
@@ -2013,14 +1341,13 @@ const Signup = () => {
                                         (loading) ||
 
                                         (step === 2 && (!age || !gender)) ||
-                                        (step === 3 && skinManualSubStep === 0 && !carnation) ||
-                                        (step === 3 && skinManualSubStep === 1 && !skinType) ||
-                                        (step === 8 && skinGoals.length === 0) ||
-                                        (step === 11 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
+                                        (step === 3 && !carnation) ||
+                                        (step === 7 && skinGoals.length === 0) ||
+                                        (step === 10 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                     }
                                     className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                                 >
-                                    {loading ? "ENREGISTREMENT..." : step === 11 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
+                                    {loading ? "ENREGISTREMENT..." : step === 10 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
                                 </button>
                             </div>
                         )}
@@ -2030,45 +1357,5 @@ const Signup = () => {
         </div>
     );
 };
-
-type OnboardingDraggableTagProps = {
-    tag: { key: string; emoji: string; label: string };
-    orbRef: React.RefObject<HTMLDivElement>;
-    onAbsorb: (key: string) => void;
-};
-
-function OnboardingDraggableTag({ tag, orbRef, onAbsorb }: OnboardingDraggableTagProps) {
-    const [absorbed, setAbsorbed] = useState(false);
-
-    const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: { point: { x: number; y: number } }) => {
-        const orb = orbRef.current?.getBoundingClientRect();
-        if (!orb) return;
-        const { x, y } = info.point;
-        const hit = x >= orb.left && x <= orb.right && y >= orb.top && y <= orb.bottom;
-        if (hit) {
-            setAbsorbed(true);
-            onAbsorb(tag.key);
-        }
-    };
-
-    if (absorbed) return null;
-
-    return (
-        <motion.button
-            type="button"
-            drag
-            dragSnapToOrigin
-            dragTransition={{ bounceStiffness: 300, bounceDamping: 20 }}
-            onDragEnd={handleDragEnd}
-            whileDrag={{ scale: 1.1, zIndex: 50, cursor: "grabbing" }}
-            whileHover={{ scale: 1.03 }}
-            className="flex items-center gap-1.5 bg-white border border-border/30 rounded-full px-3.5 py-2 text-[13px] text-foreground shadow-sm cursor-grab select-none touch-none hover:border-primary/30 transition-colors"
-            style={{ position: "relative", zIndex: 10 }}
-        >
-            <span>{tag.emoji}</span>
-            <span>{tag.label}</span>
-        </motion.button>
-    );
-}
 
 export default Signup;

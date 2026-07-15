@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhaseForDate } from "@/utils/cycle";
@@ -43,11 +43,20 @@ const Suivi = () => {
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration]   = useState<number>(28);
   const [periodDuration, setPeriodDuration] = useState<number>(5);
+  const [accountCreatedDate, setAccountCreatedDate] = useState<string>("");
+  const todayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      todayRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
+      if (session.user.created_at) setAccountCreatedDate(session.user.created_at.split("T")[0]);
       const { data } = await (supabase as any)
         .from("profiles")
         .select("last_period_date, cycle_duration, period_duration")
@@ -95,11 +104,13 @@ const Suivi = () => {
               const isToday  = date.getTime() === today.getTime();
               const isFuture = date > today;
               const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
-              const phase = calculateCyclePhaseForDate(lastPeriodDate, cycleDuration, periodDuration, dateStr);
+              const beforeAccount = accountCreatedDate !== "" && dateStr < accountCreatedDate;
+              const phase = beforeAccount ? "" : calculateCyclePhaseForDate(lastPeriodDate, cycleDuration, periodDuration, dateStr);
 
               return (
                 <div
                   key={di}
+                  ref={isToday ? todayRef : null}
                   onClick={() => !isFuture && navigate(`/suivi/${dateStr}`)}
                   className={`flex flex-col items-center gap-0.5 py-1.5 ${!isFuture ? "cursor-pointer active:opacity-70" : ""}`}
                 >

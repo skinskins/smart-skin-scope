@@ -3,9 +3,18 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from "child_process";
+
+let gitHash = "unknown";
+try { gitHash = execSync("git rev-parse --short HEAD").toString().trim(); } catch (e) {}
+const buildTime = new Date().toISOString().split("T")[0];
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  define: {
+    __APP_VERSION__: JSON.stringify(gitHash),
+    __BUILD_DATE__: JSON.stringify(buildTime),
+  },
   server: {
     host: "::",
     port: 8080,

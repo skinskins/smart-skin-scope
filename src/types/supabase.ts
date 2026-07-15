@@ -52,6 +52,50 @@ export type Database = {
           },
         ]
       }
+      weekly_advice_log: {
+        Row: {
+          id: string
+          user_id: string
+          week_start: string
+          advice_title: string
+          advice_text: string
+          advice_tip: string | null
+          priority: string | null
+          based_on_photo: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          week_start: string
+          advice_title: string
+          advice_text: string
+          advice_tip?: string | null
+          priority?: string | null
+          based_on_photo?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          week_start?: string
+          advice_title?: string
+          advice_text?: string
+          advice_tip?: string | null
+          priority?: string | null
+          based_on_photo?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_advice_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       daily_advice_log: {
         Row: {
           advice_group: string | null

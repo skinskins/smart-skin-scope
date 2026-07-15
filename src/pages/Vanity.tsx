@@ -65,6 +65,8 @@ const Vanity = () => {
   const [deleteMode, setDeleteMode] = useState(false);
   const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
+  const [morningDone, setMorningDone] = useState(false);
+  const [eveningDone, setEveningDone] = useState(false);
   const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
@@ -85,6 +87,20 @@ const Vanity = () => {
           .eq("user_id", uid)
           .then(({ data }: any) => {
             if (data) setUserProducts(data);
+          });
+        // Lire l'etat de la routine du jour
+        const todayStr = new Date().toISOString().split("T")[0];
+        (supabase as any)
+          .from("routine_logs")
+          .select("morning_routine_done, evening_routine_done")
+          .eq("user_id", uid)
+          .eq("date", todayStr)
+          .maybeSingle()
+          .then(({ data }: any) => {
+            if (data) {
+              setMorningDone(!!data.morning_routine_done);
+              setEveningDone(!!data.evening_routine_done);
+            }
           });
       }
     });
@@ -124,6 +140,27 @@ const Vanity = () => {
     });
   };
 
+  const setRoutineDone = async (moment: "morning" | "evening", done: boolean) => {
+    if (!userId) return;
+    const todayStr = new Date().toISOString().split("T")[0];
+    const field = moment === "morning" ? "morning_routine_done" : "evening_routine_done";
+    // Optimistic UI
+    if (moment === "morning") setMorningDone(done);
+    else setEveningDone(done);
+    const { error } = await (supabase as any)
+      .from("routine_logs")
+      .upsert(
+        { user_id: userId, date: todayStr, [field]: done },
+        { onConflict: "user_id,date" }
+      );
+    if (error) {
+      console.warn("routine_logs upsert:", error.message);
+      // Rollback si echec
+      if (moment === "morning") setMorningDone(!done);
+      else setEveningDone(!done);
+    }
+  };
+
   useEffect(() => {
     const search = async () => {
       if (searchQuery.length < 2 && !typeFilter) {
@@ -132,30 +169,35 @@ const Vanity = () => {
       }
       setIsSearching(true);
       try {
-        let query = (supabase as any)
-          .from("user_products")
-          .select("*")
-          .is("user_id", null);
-
         if (searchQuery.length >= 2) {
-          query = query.or(
-            `product_name.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%`
-          );
+          // Recherche texte -> Open Beauty Facts (catalogue large)
+          const { data, error } = await supabase.functions.invoke("product-search", {
+            body: { query: searchQuery },
+          });
+          if (!error && data?.products) {
+            setCatalogResults(data.products);
+          } else {
+            setCatalogResults([]);
+          }
+        } else if (typeFilter) {
+          // Filtre par type seul -> catalogue interne
+          const { data, error } = await (supabase as any)
+            .from("user_products")
+            .select("*")
+            .is("user_id", null)
+            .eq("product_type", typeFilter)
+            .limit(8);
+          if (!error && data) setCatalogResults(data);
         }
-        if (typeFilter) {
-          query = query.eq("product_type", typeFilter);
-        }
-
-        const { data, error } = await query.limit(8);
-        if (!error && data) setCatalogResults(data);
       } catch (e) {
         console.error(e);
+        setCatalogResults([]);
       } finally {
         setIsSearching(false);
       }
     };
 
-    const timer = setTimeout(search, 300);
+    const timer = setTimeout(search, 400);
     return () => clearTimeout(timer);
   }, [searchQuery, typeFilter]);
 
@@ -432,7 +474,7 @@ const Vanity = () => {
 
           <div className="p-6 space-y-6">
             {/* Type filter pills */}
-            {productTypes.length > 0 && (
+            {false && productTypes.length > 0 && ( /* filtre masque en V0 - a rebrancher (backlog 21) */
               <div className="space-y-3">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Filtrer par type</p>
                 <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar -mx-1 px-1">
@@ -735,6 +777,16 @@ const Vanity = () => {
                     onToggle={toggleRoutineProduct}
                     showPhotos
                   />
+                  <button
+                    onClick={() => setRoutineDone("morning", !morningDone)}
+                    className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${
+                      morningDone
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-primary/40 text-primary bg-primary/5"
+                    }`}
+                  >
+                    {morningDone ? "Routine du matin faite \u2713" : "J'ai fait ma routine du matin"}
+                  </button>
                 </div>
               )}
               {eveningProducts.length > 0 && (
@@ -749,6 +801,16 @@ const Vanity = () => {
                     onToggle={toggleRoutineProduct}
                     showPhotos
                   />
+                  <button
+                    onClick={() => setRoutineDone("evening", !eveningDone)}
+                    className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${
+                      eveningDone
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-primary/40 text-primary bg-primary/5"
+                    }`}
+                  >
+                    {eveningDone ? "Routine du soir faite \u2713" : "J'ai fait ma routine du soir"}
+                  </button>
                 </div>
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
