@@ -67,6 +67,10 @@ const Vanity = () => {
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
   const [morningDone, setMorningDone] = useState(false);
   const [eveningDone, setEveningDone] = useState(false);
+  const [optimizedMorning, setOptimizedMorning] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
+  const [optimizedEvening, setOptimizedEvening] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
+  const [lastRoutineRefresh, setLastRoutineRefresh] = useState<string | null>(null);
+  const [refreshingRoutine, setRefreshingRoutine] = useState(false);
   const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
@@ -100,6 +104,23 @@ const Vanity = () => {
             if (data) {
               setMorningDone(!!data.morning_routine_done);
               setEveningDone(!!data.evening_routine_done);
+            }
+          });
+        // Lire la routine optimisee du jour (cache inci-analysis)
+        (supabase as any)
+          .from("daily_routine_log")
+          .select("period, product_ids, inci_message, created_at")
+          .eq("user_id", uid)
+          .eq("date", todayStr)
+          .then(({ data }: any) => {
+            if (data && data.length > 0) {
+              const morning = data.find((r: any) => r.period === "morning");
+              const evening = data.find((r: any) => r.period === "evening");
+              if (morning) setOptimizedMorning({ product_ids: morning.product_ids ?? [], inci_message: morning.inci_message });
+              if (evening) setOptimizedEvening({ product_ids: evening.product_ids ?? [], inci_message: evening.inci_message });
+              const mostRecent = data.reduce((latest: string | null, r: any) =>
+                !latest || r.created_at > latest ? r.created_at : latest, null);
+              setLastRoutineRefresh(mostRecent);
             }
           });
       }
@@ -158,6 +179,49 @@ const Vanity = () => {
       // Rollback si echec
       if (moment === "morning") setMorningDone(!done);
       else setEveningDone(!done);
+    }
+  };
+
+  const routineRefreshAvailable = (() => {
+    if (!lastRoutineRefresh) return true;
+    const last = new Date(lastRoutineRefresh).getTime();
+    const now = Date.now();
+    return now - last >= 24 * 60 * 60 * 1000;
+  })();
+
+  const routineRefreshHoursLeft = (() => {
+    if (!lastRoutineRefresh) return 0;
+    const last = new Date(lastRoutineRefresh).getTime();
+    const now = Date.now();
+    const remaining = 24 * 60 * 60 * 1000 - (now - last);
+    return Math.max(0, Math.ceil(remaining / (60 * 60 * 1000)));
+  })();
+
+  const refreshRoutine = async () => {
+    if (!userId || !routineRefreshAvailable || refreshingRoutine) return;
+    setRefreshingRoutine(true);
+    try {
+      const [morningRes, eveningRes] = await Promise.all([
+        supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
+        supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
+      ]);
+      if (morningRes.data?.routine) {
+        setOptimizedMorning({
+          product_ids: morningRes.data.routine.map((p: any) => p.product_id),
+          inci_message: morningRes.data.explanation ?? null,
+        });
+      }
+      if (eveningRes.data?.routine) {
+        setOptimizedEvening({
+          product_ids: eveningRes.data.routine.map((p: any) => p.product_id),
+          inci_message: eveningRes.data.explanation ?? null,
+        });
+      }
+      setLastRoutineRefresh(new Date().toISOString());
+    } catch (e) {
+      console.warn("refreshRoutine:", e);
+    } finally {
+      setRefreshingRoutine(false);
     }
   };
 
@@ -765,6 +829,24 @@ const Vanity = () => {
           {/* Contenu */}
           {activeRoutineTab === "daily" ? (
             <div className="space-y-6">
+              <div>
+                <button
+                  onClick={refreshRoutine}
+                  disabled={!routineRefreshAvailable || refreshingRoutine}
+                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                    routineRefreshAvailable
+                      ? "bg-foreground text-background"
+                      : "bg-muted/30 text-muted-foreground cursor-not-allowed"
+                  }`}
+                >
+                  {refreshingRoutine ? "Optimisation en cours..." : "Recharger ma routine avec mes nouveaux produits"}
+                </button>
+                {!routineRefreshAvailable && (
+                  <p className="text-[11px] text-muted-foreground text-center mt-2">
+                    De nouveau disponible dans {routineRefreshHoursLeft}h
+                  </p>
+                )}
+              </div>
               {morningProducts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-3 px-1">
@@ -773,10 +855,14 @@ const Vanity = () => {
                   </div>
                   <RoutineCard
                     products={morningProducts}
-                    checkedIds={checkedRoutineProducts}
-                    onToggle={toggleRoutineProduct}
                     showPhotos
                   />
+                  {optimizedMorning?.inci_message && (
+                    <div className="bg-primary/5 rounded-2xl p-4 mt-3 border border-primary/10">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5">Conseil d'application</p>
+                      <p className="text-[13px] text-foreground/85 leading-relaxed">{optimizedMorning.inci_message}</p>
+                    </div>
+                  )}
                   <button
                     onClick={() => setRoutineDone("morning", !morningDone)}
                     className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${
@@ -797,10 +883,14 @@ const Vanity = () => {
                   </div>
                   <RoutineCard
                     products={eveningProducts}
-                    checkedIds={checkedRoutineProducts}
-                    onToggle={toggleRoutineProduct}
                     showPhotos
                   />
+                  {optimizedEvening?.inci_message && (
+                    <div className="bg-primary/5 rounded-2xl p-4 mt-3 border border-primary/10">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5">Conseil d'application</p>
+                      <p className="text-[13px] text-foreground/85 leading-relaxed">{optimizedEvening.inci_message}</p>
+                    </div>
+                  )}
                   <button
                     onClick={() => setRoutineDone("evening", !eveningDone)}
                     className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${
