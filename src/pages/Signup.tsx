@@ -222,14 +222,24 @@ const Signup = () => {
     useEffect(() => {
         if (productSearchQuery.length < 2) { setProductCatalogResults([]); return; }
         const timer = setTimeout(async () => {
-            const { data } = await (supabase as any)
-                .from("user_products")
-                .select("id, product_name, brand, photo_url, product_type")
-                .is("user_id", null)
-                .or(`product_name.ilike.%${productSearchQuery}%,brand.ilike.%${productSearchQuery}%`)
-                .limit(8);
-            if (data) setProductCatalogResults(data);
-        }, 300);
+            const { data, error } = await supabase.functions.invoke("product-search", {
+                body: { query: productSearchQuery },
+            });
+            if (!error && data?.products) {
+                setProductCatalogResults(
+                    data.products.map((p: any, i: number) => ({
+                        id: `search-${Date.now()}-${i}`,
+                        product_name: p.product_name,
+                        brand: p.brand,
+                        photo_url: p.photo_url,
+                        product_type: p.product_type,
+                        ingredients: p.ingredients,
+                    }))
+                );
+            } else {
+                setProductCatalogResults([]);
+            }
+        }, 400);
         return () => clearTimeout(timer);
     }, [productSearchQuery]);
 
