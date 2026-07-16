@@ -122,7 +122,7 @@ const Routine = () => {
   };
 
   return (
-    <div className="min-h-screen pb-24 px-5 pt-10 max-w-lg mx-auto">
+    <div className="min-h-screen pb-24 px-3 sm:px-5 pt-10 max-w-lg mx-auto">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-display text-foreground leading-tight">Mes Produits</h1>
         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mt-2">Votre inventaire skincare</p>
@@ -131,7 +131,7 @@ const Routine = () => {
       <div className="space-y-8 flex flex-col">
         {/* Search + Filter Section */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="premium-card p-0 overflow-hidden order-1">
-          <div className="p-6 bg-background/50 border-b border-border/50">
+          <div className="p-4 sm:p-6 bg-background/50 border-b border-border/50">
             <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">Ajouter des produits</h2>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -149,7 +149,7 @@ const Routine = () => {
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6">
             {/* Type filter pills */}
             {productTypes.length > 0 && (
               <div className="space-y-3">
@@ -162,13 +162,12 @@ const Routine = () => {
                       <button
                         key={type}
                         onClick={() => setTypeFilter(isSelected ? null : type)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-semibold whitespace-nowrap shrink-0 ${
-                          hasProductOfType
+                        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-xs font-semibold whitespace-nowrap shrink-0 ${hasProductOfType
                             ? "border-primary bg-primary/5 text-primary shadow-sm"
                             : isSelected
-                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                            : "border-border bg-card text-foreground/80 hover:bg-accent"
-                        }`}
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : "border-border bg-card text-foreground/80 hover:bg-accent"
+                          }`}
                       >
                         {type}
                         {hasProductOfType ? (
@@ -199,30 +198,31 @@ const Routine = () => {
                     return (
                       <div
                         key={p.id}
-                        className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm"
+                        className="flex flex-col gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm sm:flex-row sm:items-center sm:gap-3"
                       >
-                        <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                          {p.photo_url ? (
-                            <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                          ) : (
-                            <ImageOff size={18} className="text-muted-foreground/40" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
-                          {p.product_type && (
-                            <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
-                          )}
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                            {p.photo_url ? (
+                              <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                            ) : (
+                              <ImageOff size={18} className="text-muted-foreground/40" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <p className="text-xs font-bold text-foreground break-words">{p.product_name}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-tighter break-words">{p.brand}</p>
+                            {p.product_type && (
+                              <p className="text-[10px] text-primary/70 mt-0.5 break-words">{p.product_type}</p>
+                            )}
+                          </div>
                         </div>
                         <button
                           onClick={() => addProductToRoutine(p)}
                           disabled={alreadyAdded}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${
-                            alreadyAdded
+                          className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 self-end sm:self-auto ml-auto sm:ml-0 ${alreadyAdded
                               ? "bg-primary/10 text-primary cursor-default"
                               : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
-                          }`}
+                            }`}
                         >
                           {alreadyAdded ? <Check size={16} /> : <Plus size={16} />}
                         </button>
@@ -240,7 +240,7 @@ const Routine = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="premium-card p-8 order-2"
+          className="premium-card p-4 sm:p-8 order-2"
         >
           <p className="text-[10px] font-bold text-foreground/80 tracking-widest mb-6 uppercase">Mes Produits enregistrés</p>
           <div className="flex flex-col gap-3">

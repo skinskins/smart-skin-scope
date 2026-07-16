@@ -50,6 +50,7 @@ const nextCycleEvent = (cycleDay: number, cycleDuration: number): string => {
 const Dashboard = () => {
   const [checkinStatus] = useState<"loading" | "done">("done");
   const [routineProducts, setRoutineProducts] = useState<any[]>([]);
+  const [routineTreated, setRoutineTreated] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -414,7 +415,7 @@ const Dashboard = () => {
         ) : null}
 
         {/* Routine du jour */}
-        {!routineTreated && userProducts.length > 0 ? (
+        {!routineTreated && routineProducts.length > 0 ? (
           <div className="mb-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Ma routine</p>
             <div className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10 text-sm text-muted-foreground flex items-center justify-center gap-2">

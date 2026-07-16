@@ -101,7 +101,7 @@ const RoutineSetupOnboarding = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background p-6 flex flex-col relative overflow-hidden">
+        <div className="min-h-screen bg-background p-3 sm:p-6 flex flex-col relative overflow-hidden">
             {/* Decorative Background */}
             <div className="absolute top-[10%] left-[-20%] w-72 h-72 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
 
@@ -120,12 +120,12 @@ const RoutineSetupOnboarding = () => {
 
                     <div className="relative shrink-0 mt-4 mb-2">
                         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input 
-                            value={customProductInput} 
-                            onChange={e => setCustomProductInput(e.target.value)} 
-                            placeholder="Rechercher un produit ou marque..." 
-                            className="pl-12 text-sm rounded-2xl py-7 bg-muted/30 border-none focus-visible:ring-2 focus-visible:ring-primary/50 shadow-inner" 
-                            onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }} 
+                        <Input
+                            value={customProductInput}
+                            onChange={e => setCustomProductInput(e.target.value)}
+                            placeholder="Rechercher un produit ou marque..."
+                            className="pl-12 text-sm rounded-2xl py-7 bg-muted/30 border-none focus-visible:ring-2 focus-visible:ring-primary/50 shadow-inner"
+                            onKeyDown={e => { if (e.key === 'Enter') addCustomSetupProduct() }}
                         />
                         {isSearching && (
                             <div className="absolute right-4 top-1/2 -translate-y-1/2">
@@ -141,21 +141,23 @@ const RoutineSetupOnboarding = () => {
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Résultats trouvés</p>
                                 <div className="grid gap-3">
                                     {dbProducts.map((p) => (
-                                        <div key={p.id} className="flex items-center gap-4 p-4 bg-card border border-border rounded-2xl group transition-all hover:border-primary/40 shadow-sm">
-                                            <div className="w-16 h-16 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50">
-                                                {p.photo_url ? (
-                                                    <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain transition-transform group-hover:scale-105" />
-                                                ) : (
-                                                    <ImageOff size={20} className="text-muted-foreground/40" />
-                                                )}
+                                        <div key={p.id} className="flex flex-col gap-3 p-4 bg-card border border-border rounded-2xl group transition-all hover:border-primary/40 shadow-sm sm:flex-row sm:items-center sm:gap-4">
+                                            <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                <div className="w-16 h-16 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                    {p.photo_url ? (
+                                                        <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain transition-transform group-hover:scale-105" />
+                                                    ) : (
+                                                        <ImageOff size={20} className="text-muted-foreground/40" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1 overflow-hidden">
+                                                    <p className="text-sm font-bold text-foreground break-words">{p.product_name}</p>
+                                                    <p className="text-[11px] text-muted-foreground uppercase tracking-wider break-words mt-0.5">{p.brand}</p>
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-foreground truncate">{p.product_name}</p>
-                                                <p className="text-[11px] text-muted-foreground uppercase tracking-wider truncate mt-0.5">{p.brand}</p>
-                                            </div>
-                                            <button 
+                                            <button
                                                 onClick={() => addProductFromDb(p.product_name, p.brand)}
-                                                className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all shrink-0 shadow-sm"
+                                                className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all shrink-0 shadow-sm self-end sm:self-auto ml-auto sm:ml-0"
                                             >
                                                 <Plus size={20} />
                                             </button>

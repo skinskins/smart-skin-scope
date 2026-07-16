@@ -847,23 +847,25 @@ const Signup = () => {
                                                     {productCatalogResults.map(p => {
                                                         const isAdded = selectedOnboardingProducts.some(s => s.id === p.id);
                                                         return (
-                                                            <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm">
-                                                                <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                                                                    {p.photo_url
-                                                                        ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
-                                                                        : <ImageOff size={18} className="text-muted-foreground/40" />}
-                                                                </div>
-                                                                <div className="flex-1 min-w-0 overflow-hidden">
-                                                                    <p className="text-xs font-bold text-foreground truncate max-w-full">{p.product_name}</p>
-                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate max-w-full">{p.brand}</p>
-                                                                    {p.product_type && (
-                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate max-w-full">{p.product_type}</p>
-                                                                    )}
+                                                            <div key={p.id} className="justify-center flex gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm sm:flex-row sm:items-center sm:gap-3">
+                                                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                                                    <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                                        {p.photo_url
+                                                                            ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
+                                                                            : <ImageOff size={18} className="text-muted-foreground/40" />}
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1 overflow-hidden">
+                                                                        <p className="text-xs font-bold text-foreground break-words">{p.product_name}</p>
+                                                                        <p className="text-[10px] text-muted-foreground uppercase tracking-tighter break-words">{p.brand}</p>
+                                                                        {p.product_type && (
+                                                                            <p className="text-[10px] text-primary/70 mt-0.5 break-words">{p.product_type}</p>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleOnboardingProduct(p)}
-                                                                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isAdded
+                                                                    className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 self-end sm:self-auto ml-auto sm:ml-0 transition-all ${isAdded
                                                                         ? "bg-primary/10 text-primary cursor-default"
                                                                         : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                                                                         }`}
