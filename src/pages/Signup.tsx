@@ -149,8 +149,8 @@ const Signup = () => {
     const [loading, setLoading] = useState(false);
 
     const PLANS = {
-        monthly: { id: "monthly_plan", price: "9,99€", period: "/mois", subtext: "Facturé mensuellement" },
-        yearly: { id: "yearly_plan", price: "5,99€", period: "/mois", subtext: "71,88€ facturés une fois par an", badge: "-40%" }
+        monthly: { id: "monthly_plan", price: "11,99€", period: "/mois", subtext: "Facturé mensuellement" },
+        yearly: { id: "yearly_plan", price: "6,99€", period: "/mois", subtext: "71,88€ facturés une fois par an", badge: "-40%" }
     };
 
     useEffect(() => {
