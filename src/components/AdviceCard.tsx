@@ -22,7 +22,7 @@ export const sortConseils = (list: Conseil[]) =>
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   observation: { label: "Observation", color: "text-blue-600", bg: "bg-blue-50" },
   astuce:      { label: "Astuce",      color: "text-green-600", bg: "bg-green-50" },
-  alerte:      { label: "Alerte",      color: "text-orange-600", bg: "bg-orange-50" },
+  alerte:      { label: "A surveiller", color: "text-orange-600", bg: "bg-orange-50" },
   warning:     { label: "Attention",   color: "text-red-500",    bg: "bg-red-50" },
 };
 

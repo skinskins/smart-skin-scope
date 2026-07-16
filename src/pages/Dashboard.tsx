@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ImageOff, Plus, RefreshCw, Camera, ChevronRight } from "lucide-react";
 import { ProductPhoto } from "@/components/ProductPhoto";
+import { ProductTypeIcon } from "@/components/ProductTypeIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWeatherData } from "@/hooks/useWeatherData";
@@ -393,9 +394,9 @@ const Dashboard = () => {
               {routineProducts.map(p => (
                 <div key={p.id} className="flex flex-col items-center gap-1 shrink-0 w-14">
                   <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
-                    <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={14} />
+                    <ProductTypeIcon type={p.product_type} size={28} />
                   </div>
-                  <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.brand || p.product_name}</p>
+                  <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.product_name || p.brand}</p>
                 </div>
               ))}
             </div>
@@ -548,8 +549,8 @@ const Dashboard = () => {
           )}
         </motion.div>
 
-        {/* Carte 4 — Comparaison photos */}
-        {skinPhotos.length > 0 && (
+        {/* Carte 4 — Comparaison photos (masquee en V0, jugee inutile sur le dashboard - backlog) */}
+        {false && skinPhotos.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
