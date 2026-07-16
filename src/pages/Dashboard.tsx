@@ -122,6 +122,10 @@ const Dashboard = () => {
   useEffect(() => { fetchRoutineProducts(); }, [fetchRoutineProducts]);
 
   // ── Photo de la semaine prise ? ───────────────────────────────────────────
+  const [photoPendingRetry, setPhotoPendingRetry] = useState(false);
+  useEffect(() => {
+    setPhotoPendingRetry(localStorage.getItem("nacre_photo_pending_retry") === "1");
+  }, []);
   useEffect(() => {
     const checkWeekPhoto = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -371,6 +375,24 @@ const Dashboard = () => {
               <span className="font-semibold text-foreground">Photo de la semaine</span> — pour un diagnostic a jour
             </p>
             <ChevronRight size={16} className="text-muted-foreground/60 flex-shrink-0 group-active:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+      )}
+      {photoPendingRetry && (
+        <div className="px-5 pt-3">
+          <button
+            onClick={() => {
+              localStorage.removeItem("nacre_photo_pending_retry");
+              setPhotoPendingRetry(false);
+              navigate(`/suivi/${today}`);
+            }}
+            className="w-full flex items-center gap-3 py-2.5 px-3 rounded-2xl bg-amber-50 border border-amber-100 text-left group"
+          >
+            <Camera size={16} strokeWidth={1.8} className="text-amber-600 flex-shrink-0" />
+            <p className="flex-1 text-[13px] text-amber-800">
+              <span className="font-semibold">Ta photo n'a pas pu être analysée</span> — reprends-en une pour un diagnostic complet
+            </p>
+            <ChevronRight size={16} className="text-amber-600/60 flex-shrink-0 group-active:translate-x-0.5 transition-transform" />
           </button>
         </div>
       )}

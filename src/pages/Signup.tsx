@@ -592,12 +592,14 @@ const Signup = () => {
                                                         // Photo mauvaise qualité → message + reset photo
                                                         setOnboardingPhotoBase64(null);
                                                         setAnalysisLoading(false);
+                                                        localStorage.setItem("nacre_photo_pending_retry", "1");
                                                         toast.error(data.reason ?? "Photo non exploitable, reprends une photo bien eclairee.");
                                                         return;
                                                     }
                                                     if (data?.analysis) {
                                                         setOnboardingAnalysis(data.analysis);
                                                         setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
+                                                        localStorage.removeItem("nacre_photo_pending_retry");
                                                     }
                                                     setAnalysisLoading(false);
                                                 }).catch(() => setAnalysisLoading(false));
