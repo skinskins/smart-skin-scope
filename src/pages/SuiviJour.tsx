@@ -362,8 +362,8 @@ const SuiviJour = () => {
                       </div>
                     )}
 
-                    {/* Observation générale */}
-                    {skinAnalysis.observations_libres && (
+                    {/* Observation générale (masquee temporairement - a remettre plus tard) */}
+                    {false && skinAnalysis.observations_libres && (
                       <div className="bg-muted/10 rounded-2xl p-4 border border-border/30">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">En résumé</p>
                         <p className="text-[13px] text-foreground/85 leading-relaxed text-left">{skinAnalysis.observations_libres}</p>
@@ -416,8 +416,8 @@ const SuiviJour = () => {
               </div>
             </div>
 
-            {/* Message INCI */}
-            {inciMessageFromLog && (
+            {/* Message INCI (masque temporairement - a remettre plus tard) */}
+            {false && inciMessageFromLog && (
               <div className="premium-card p-4">
                 <p className="text-sm text-muted-foreground leading-snug">{inciMessageFromLog}</p>
               </div>
