@@ -96,11 +96,18 @@ const Dashboard = () => {
           .map((id: string) => products.find((p: any) => p.id === id))
           .filter(Boolean);
         setRoutineProducts(ordered);
+        setRoutineTreated(true);
         return;
       }
     }
 
-    // Fallback : tous les produits quotidiens actifs
+    setRoutineTreated(!!logData);
+    if (!logData) {
+      setRoutineProducts([]);
+      return;
+    }
+
+    // Fallback (routine traitee mais vide) : produits quotidiens actifs
     const { data: fallback } = await (supabase as any)
       .from("user_products")
       .select("id, product_name, brand, photo_url, product_type")
@@ -115,6 +122,10 @@ const Dashboard = () => {
   useEffect(() => { fetchRoutineProducts(); }, [fetchRoutineProducts]);
 
   // ── Photo de la semaine prise ? ───────────────────────────────────────────
+  const [photoPendingRetry, setPhotoPendingRetry] = useState(false);
+  useEffect(() => {
+    setPhotoPendingRetry(localStorage.getItem("nacre_photo_pending_retry") === "1");
+  }, []);
   useEffect(() => {
     const checkWeekPhoto = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -367,6 +378,24 @@ const Dashboard = () => {
           </button>
         </div>
       )}
+      {photoPendingRetry && (
+        <div className="px-5 pt-3">
+          <button
+            onClick={() => {
+              localStorage.removeItem("nacre_photo_pending_retry");
+              setPhotoPendingRetry(false);
+              navigate(`/suivi/${today}`);
+            }}
+            className="w-full flex items-center gap-3 py-2.5 px-3 rounded-2xl bg-amber-50 border border-amber-100 text-left group"
+          >
+            <Camera size={16} strokeWidth={1.8} className="text-amber-600 flex-shrink-0" />
+            <p className="flex-1 text-[13px] text-amber-800">
+              <span className="font-semibold">Ta photo n'a pas pu être analysée</span> — reprends-en une pour un diagnostic complet
+            </p>
+            <ChevronRight size={16} className="text-amber-600/60 flex-shrink-0 group-active:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+      )}
 
       {/* Hero */}
       <div className="px-5 pt-6 pb-3 bg-white">
@@ -385,7 +414,15 @@ const Dashboard = () => {
         ) : null}
 
         {/* Routine du jour */}
-        {routineProducts.length > 0 ? (
+        {!routineTreated && userProducts.length > 0 ? (
+          <div className="mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Ma routine</p>
+            <div className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10 text-sm text-muted-foreground flex items-center justify-center gap-2">
+              <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
+              Routine en cours de préparation...
+            </div>
+          </div>
+        ) : routineProducts.length > 0 ? (
           <div className="mb-3">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
               {new Date().getHours() < 15 ? "Routine du matin" : "Routine du soir"}

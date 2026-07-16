@@ -591,11 +591,11 @@ const Vanity = () => {
                         <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
                           <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={18} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <p className="text-xs font-bold text-foreground truncate max-w-full">{p.product_name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate max-w-full">{p.brand}</p>
                           {p.product_type && (
-                            <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
+                            <p className="text-[10px] text-primary/70 mt-0.5 truncate max-w-full">{p.product_type}</p>
                           )}
                         </div>
                         <button

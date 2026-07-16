@@ -592,12 +592,14 @@ const Signup = () => {
                                                         // Photo mauvaise qualité → message + reset photo
                                                         setOnboardingPhotoBase64(null);
                                                         setAnalysisLoading(false);
+                                                        localStorage.setItem("nacre_photo_pending_retry", "1");
                                                         toast.error(data.reason ?? "Photo non exploitable, reprends une photo bien eclairee.");
                                                         return;
                                                     }
                                                     if (data?.analysis) {
                                                         setOnboardingAnalysis(data.analysis);
                                                         setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
+                                                        localStorage.removeItem("nacre_photo_pending_retry");
                                                     }
                                                     setAnalysisLoading(false);
                                                 }).catch(() => setAnalysisLoading(false));
@@ -851,11 +853,11 @@ const Signup = () => {
                                                                         ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
                                                                         : <ImageOff size={18} className="text-muted-foreground/40" />}
                                                                 </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                                                <div className="flex-1 min-w-0 overflow-hidden">
+                                                                    <p className="text-xs font-bold text-foreground truncate max-w-full">{p.product_name}</p>
+                                                                    <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate max-w-full">{p.brand}</p>
                                                                     {p.product_type && (
-                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate">{p.product_type}</p>
+                                                                        <p className="text-[10px] text-primary/70 mt-0.5 truncate max-w-full">{p.product_type}</p>
                                                                     )}
                                                                 </div>
                                                                 <button
@@ -922,7 +924,7 @@ const Signup = () => {
                             </>
                         )}
 
-                        {step === 7 && (
+                        {step === 7 && !showDiagnostic && (
                             <>
                                 <div className="mb-10 flex items-start gap-4">
                                     <BackButton />
