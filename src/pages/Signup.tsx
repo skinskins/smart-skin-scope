@@ -886,26 +886,26 @@ const Signup = () => {
 
                                     {/* Selected products card */}
                                     {selectedOnboardingProducts.length > 0 && (
-                                        <div className="premium-card p-5">
+                                        <div className="premium-card p-5 max-w-full">
                                             <p className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
                                                 {selectedOnboardingProducts.length} produit{selectedOnboardingProducts.length > 1 ? "s" : ""} sélectionné{selectedOnboardingProducts.length > 1 ? "s" : ""}
                                             </p>
                                             <div className="grid gap-2">
                                                 {selectedOnboardingProducts.map(p => (
-                                                    <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl shadow-sm">
+                                                    <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl shadow-sm w-full max-w-full">
                                                         <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
                                                             {p.photo_url
                                                                 ? <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain" />
                                                                 : <ImageOff size={14} className="text-muted-foreground/40" />}
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
-                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
+                                                        <div className="flex flex-1 min-w-0 flex-col">
+                                                            <p className="text-xs font-bold text-foreground break-words">{p.product_name}</p>
+                                                            <p className="text-[10px] text-muted-foreground uppercase tracking-tighter break-words">{p.brand}</p>
                                                         </div>
                                                         <button
                                                             type="button"
                                                             onClick={() => toggleOnboardingProduct(p)}
-                                                            className="w-7 h-7 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shrink-0"
+                                                            className="w-7 h-7 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shrink-0 flex-shrink-0"
                                                         >
                                                             <X size={13} />
                                                         </button>

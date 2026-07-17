@@ -143,7 +143,7 @@ const RoutineSetupOnboarding = () => {
                                     {dbProducts.map((p) => (
                                         <div key={p.id} className="flex flex-col gap-3 p-4 bg-card border border-border rounded-2xl group transition-all hover:border-primary/40 shadow-sm sm:flex-row sm:items-center sm:gap-4">
                                             <div className="flex items-start gap-3 min-w-0 flex-1">
-                                                <div className="w-16 h-16 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                                                <div className="w-16 bg-red-500 h-16 bg-muted/150 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
                                                     {p.photo_url ? (
                                                         <img src={p.photo_url} alt={p.product_name} className="w-full h-full object-contain transition-transform group-hover:scale-105" />
                                                     ) : (
