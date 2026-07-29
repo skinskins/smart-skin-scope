@@ -317,6 +317,11 @@ const Profile = () => {
             onClick={() => setDeleteOpen(true)}
           />
           <Row label="Se déconnecter" onClick={handleLogout} destructive />
+        </div>
+
+        <SectionTitle>AUTRE</SectionTitle>
+        <div>
+          <Row label="À propos" onClick={() => navigate("/about")} />
           <Row label="Version" badge="Bêta" value={`v${__APP_VERSION__}`} />
         </div>
 
