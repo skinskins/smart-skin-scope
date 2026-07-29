@@ -6,24 +6,30 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import FactorsPicker, { FACTOR_LABELS } from "@/components/FactorsPicker";
 
 const CARNATION_LABELS: Record<string, string> = {
-  très_claire:   "Très claire",
-  claire:        "Claire",
-  beige_doré:    "Beige dorée",
+  très_claire: "Très claire",
+  claire: "Claire",
+  beige_doré: "Beige dorée",
   olive_caramel: "Olive-Caramel",
-  foncée:        "Foncée",
-  ébène:         "Ébène",
+  foncée: "Foncée",
+  ébène: "Ébène",
 };
 
 const CARNATION_COLORS: Record<string, string> = {
-  très_claire:   "#F5E6D8",
-  claire:        "#EAC9A8",
-  beige_doré:    "#C8924F",
+  très_claire: "#F5E6D8",
+  claire: "#EAC9A8",
+  beige_doré: "#C8924F",
   olive_caramel: "#A0622A",
-  foncée:        "#6B3A1F",
-  ébène:         "#2C1810",
+  foncée: "#6B3A1F",
+  ébène: "#2C1810",
 };
+
+const CYCLE_OPTIONS: { label: string; value: "unknown" | "none" }[] = [
+  { label: "Je ne sais pas", value: "unknown" },
+  { label: "Pas de règles", value: "none" },
+];
 
 // ─── Composants locaux ────────────────────────────────────────────────────────
 
@@ -35,28 +41,35 @@ const SectionTitle = ({ children }: { children: React.ReactNode }) => (
 
 type RowProps = {
   label: string;
+  subtitle?: string;
   value?: string;
   onClick?: () => void;
   destructive?: boolean;
   badge?: string;
   swatchColor?: string;
+  wrapValue?: boolean;
 };
 
-const Row = ({ label, value, onClick, destructive, badge, swatchColor }: RowProps) => {
+const Row = ({ label, subtitle, value, onClick, destructive, badge, swatchColor, wrapValue }: RowProps) => {
   const clickable = !!onClick;
   return (
     <button
       type="button"
       disabled={!clickable}
       onClick={onClick}
-      className={`w-full flex items-center justify-between py-3 border-b border-border/20 last:border-b-0 text-left transition-colors ${clickable ? "hover:bg-muted/5 active:bg-muted/10" : "cursor-default"}`}
+      className={`w-full flex ${wrapValue || subtitle ? "items-start" : "items-center"} justify-between gap-x-2 py-3 border-b border-border/20 last:border-b-0 text-left transition-colors ${clickable ? "hover:bg-muted/5 active:bg-muted/10" : "cursor-default"}`}
     >
-      <span className={`text-[14px] ${destructive ? "text-red-500" : "text-foreground"}`}>
-        {label}
-      </span>
-      <div className="flex items-center gap-2">
+      <div className="flex-shrink-0">
+        <span className={`text-[14px] block ${destructive ? "text-red-500" : "text-foreground"}`}>
+          {label}
+        </span>
+        {subtitle && (
+          <span className="text-[12px] text-muted-foreground block mt-0.5">{subtitle}</span>
+        )}
+      </div>
+      <div className={`flex items-center gap-2 ${wrapValue ? "min-w-0" : ""}`}>
         {badge && (
-          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+          <span className="text-xs bg-[#593914]/60 text-white px-2 py-0.5 rounded-full">
             {badge}
           </span>
         )}
@@ -67,7 +80,13 @@ const Row = ({ label, value, onClick, destructive, badge, swatchColor }: RowProp
           />
         )}
         {value && (
-          <span className="text-[13px] text-muted-foreground max-w-[140px] truncate text-right">
+          <span
+            className={
+              wrapValue
+                ? "text-[13px] text-muted-foreground text-right whitespace-normal break-words"
+                : "text-[13px] text-muted-foreground max-w-[140px] truncate text-right"
+            }
+          >
             {value}
           </span>
         )}
@@ -83,18 +102,21 @@ const Row = ({ label, value, onClick, destructive, badge, swatchColor }: RowProp
 
 const Profile = () => {
   const navigate = useNavigate();
-  const [loading,  setLoading]  = useState(true);
-  const [saving,   setSaving]   = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [firstName,      setFirstName]      = useState("");
-  const [lastName,       setLastName]       = useState("");
-  const [skinType,       setSkinType]       = useState("");
-  const [skinProblems,   setSkinProblems]   = useState<string[]>([]);
-  const [skinGoals,      setSkinGoals]      = useState<string[]>([]);
-  const [carnation,      setCarnation]      = useState<string | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [skinType, setSkinType] = useState("");
+  const [skinProblems, setSkinProblems] = useState<string[]>([]);
+  const [skinGoals, setSkinGoals] = useState<string[]>([]);
+  const [carnation, setCarnation] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string | null>(null);
-  const [cycleDuration,  setCycleDuration]  = useState<number>(28);
-  const [age,            setAge]            = useState<number | null>(null);
+  const [cycleDuration, setCycleDuration] = useState<number>(28);
+  const [cycleStatus, setCycleStatus] = useState<"unknown" | "none" | null>(null);
+  const [age, setAge] = useState<number | null>(null);
+  const [defaultFactors, setDefaultFactors] = useState<string[]>([]);
+  const [factorsOpen, setFactorsOpen] = useState(false);
 
   const [editingField, setEditingField] = useState<
     "name" | "type" | "problems" | "goals" | "cycle" | "carnation" | "age" | null
@@ -106,22 +128,29 @@ const Profile = () => {
       if (session) {
         const meta = session.user.user_metadata as any;
         if (meta?.first_name) setFirstName(meta.first_name);
-        if (meta?.last_name)  setLastName(meta.last_name);
+        if (meta?.last_name) setLastName(meta.last_name);
         const { data } = await (supabase as any)
           .from("profiles")
-          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age")
+          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age, default_factors")
           .eq("id", session.user.id)
           .single();
         if (data) {
-          if (data.first_name)      setFirstName(data.first_name);
-          if (data.last_name)      setLastName(data.last_name);
-          if (data.skin_type)       setSkinType(data.skin_type);
-          if (data.skin_problems)   setSkinProblems(data.skin_problems);
-          if (data.skin_goals)      setSkinGoals(data.skin_goals);
-          if (data.carnation)       setCarnation(data.carnation);
+          if (data.first_name) setFirstName(data.first_name);
+          if (data.last_name) setLastName(data.last_name);
+          if (data.skin_type) setSkinType(data.skin_type);
+          if (data.skin_problems) setSkinProblems(data.skin_problems);
+          if (data.skin_goals) setSkinGoals(data.skin_goals);
+          if (data.carnation) setCarnation(data.carnation);
           if (data.last_period_date) setLastPeriodDate(data.last_period_date);
-          if (data.cycle_duration)  setCycleDuration(data.cycle_duration);
-          if (data.age)             setAge(data.age);
+          if (data.cycle_duration) setCycleDuration(data.cycle_duration);
+          if (data.age) setAge(data.age);
+          if (data.default_factors) {
+            setDefaultFactors(
+              Object.entries(data.default_factors as Record<string, boolean>)
+                .filter(([, active]) => active)
+                .map(([key]) => key)
+            );
+          }
         }
       }
       setLoading(false);
@@ -141,15 +170,15 @@ const Profile = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         await (supabase as any).from("profiles").update({
-          first_name:      firstName,
-          last_name:       lastName,
-          skin_type:       skinType,
-          skin_problems:   skinProblems,
-          skin_goals:      skinGoals,
-          carnation:       carnation,
-          age:             age,
+          first_name: firstName,
+          last_name: lastName,
+          skin_type: skinType,
+          skin_problems: skinProblems,
+          skin_goals: skinGoals,
+          carnation: carnation,
+          age: age,
           last_period_date: lastPeriodDate,
-          cycle_duration:  cycleDuration,
+          cycle_duration: cycleDuration,
         }).eq("id", session.user.id);
         await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } });
         toast.success("Profil mis à jour");
@@ -184,11 +213,11 @@ const Profile = () => {
   const carnationLabel = carnation ? (CARNATION_LABELS[carnation] ?? carnation) : "–";
   const cycleValue = cycleCalc
     ? `${cycleCalc.phase} · Jour ${cycleCalc.day}`
-    : "–";
-  const lastPeriodValue = lastPeriodDate
-    ? new Date(lastPeriodDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })
-    : "–";
-
+    : cycleStatus === "unknown"
+      ? "Je ne sais pas"
+      : cycleStatus === "none"
+        ? "Pas de règles"
+        : "–";
   return (
     <div className="min-h-screen pb-32 max-w-lg mx-auto bg-background">
 
@@ -202,9 +231,7 @@ const Profile = () => {
             <h1 className="text-2xl font-display text-white truncate">
               {[firstName, lastName].filter(Boolean).join(" ") || "Mon profil"}
             </h1>
-            {skinType && (
-              <p className="text-[13px] text-white/50 mt-0.5">{skinType}</p>
-            )}
+
           </div>
           <button
             onClick={handleLogout}
@@ -221,23 +248,22 @@ const Profile = () => {
 
         <SectionTitle>MA PEAU</SectionTitle>
         <div>
-          <Row label="Type de peau"  value={skinType || "–"}          onClick={() => setEditingField("type")} />
-          <Row label="Carnation"     value={carnationLabel}            swatchColor={carnation ? CARNATION_COLORS[carnation] : undefined} onClick={() => setEditingField("carnation")} />
-          <Row label="Âge"           value={age != null ? `${age} ans` : "–"} onClick={() => setEditingField("age")} />
-          <Row label="Sensibilités"  value={skinProblems.join(", ") || "Aucune"} onClick={() => setEditingField("problems")} />
-          <Row label="Objectifs"     value={skinGoals.join(", ") || "Aucun"}     onClick={() => setEditingField("goals")} />
-        </div>
-
-        <SectionTitle>MON CYCLE</SectionTitle>
-        <div>
-          <Row label="Phase actuelle"   value={cycleValue}                          onClick={() => setEditingField("cycle")} />
-          <Row label="Durée du cycle"   value={`${cycleDuration} jours`}            onClick={() => setEditingField("cycle")} />
-          <Row label="Dernières règles" value={lastPeriodValue}                     onClick={() => setEditingField("cycle")} />
+          <Row label="Type de peau" value={skinType || "–"} onClick={() => setEditingField("type")} />
+          <Row label="Carnation" value={carnationLabel} swatchColor={carnation ? CARNATION_COLORS[carnation] : undefined} onClick={() => setEditingField("carnation")} />
+          <Row label="Âge" value={age != null ? `${age} ans` : "–"} onClick={() => setEditingField("age")} />
+          <Row label="Sensibilités" value={skinProblems.join(", ") || "Aucune"} onClick={() => setEditingField("problems")} />
+          <Row label="Objectifs" value={skinGoals.join(", ") || "Aucun"} onClick={() => setEditingField("goals")} />
         </div>
 
         <SectionTitle>MON QUOTIDIEN</SectionTitle>
         <div>
-          <Row label="Mes facteurs" value="Modifier" onClick={() => navigate("/onboarding/factors")} />
+          <Row label="Mon cycle" value={cycleValue} onClick={() => setEditingField("cycle")} />
+          <Row
+            label="Mes facteurs"
+            value={defaultFactors.length > 0 ? defaultFactors.map(k => FACTOR_LABELS[k] ?? k).join(", ") : "Aucun"}
+            wrapValue
+            onClick={() => setFactorsOpen(true)}
+          />
         </div>
 
         <SectionTitle>MON SUIVI</SectionTitle>
@@ -245,30 +271,22 @@ const Profile = () => {
           <Row label="Passeport de peau" onClick={() => navigate("/passport/preview")} />
         </div>
 
-        <SectionTitle>ABONNEMENT</SectionTitle>
-        <div>
-          <Row label="Plan actuel"          value="Beta gratuite" />
-          <Row label="Renouvellement"       value="—" />
-          <Row label="Gérer mon abonnement" badge="À venir" />
-        </div>
-
-        <SectionTitle>CONNEXIONS</SectionTitle>
-        <div>
-          <Row label="Accessoires beauté"  value="Gérer →" onClick={() => navigate("/vanity")} />
-          <Row label="Diagnostic pro"      value="Importer un PDF" onClick={() => navigate("/vanity")} />
-        </div>
-
-        <SectionTitle>AIDE</SectionTitle>
-        <div>
-          <Row label="Soumettre un bug"          onClick={() => window.open("mailto:bugs@nacre.app")} />
-          <Row label="Suggérer une amélioration" onClick={() => window.open("mailto:suggestions@nacre.app")} />
-        </div>
 
         <SectionTitle>COMPTE</SectionTitle>
         <div>
           <Row label="Modifier mon profil" value={[firstName, lastName].filter(Boolean).join(" ") || "–"} onClick={() => setEditingField("name")} />
-          <Row label="Confidentialité"     onClick={() => navigate("/privacy")} />
-          <Row label="Se déconnecter"      onClick={handleLogout} destructive />
+          <Row
+            label="Feedback et suggestions"
+            subtitle="Bugs, idées, retours d'usage"
+            onClick={() => window.open("mailto:lulua.skin26@gmail.com?subject=Feedback%20Nacre")}
+          />
+          <Row label="Confidentialité" onClick={() => navigate("/rgpd")} />
+          <Row
+            label="Supprimer mes données"
+            onClick={() => window.open("mailto:lulua.skin26@gmail.com?subject=Suppression%20de%20mes%20donn%C3%A9es")}
+          />
+          <Row label="Se déconnecter" onClick={handleLogout} destructive />
+          <Row label="Version" badge="Bêta" value={`v${__APP_VERSION__}`} />
         </div>
 
       </div>
@@ -278,13 +296,13 @@ const Profile = () => {
         <DialogContent className="max-w-sm rounded-[40px] border-none bg-background premium-shadow p-8">
           <DialogHeader className="mb-6">
             <DialogTitle className="text-2xl font-display text-foreground italic">
-              {editingField === "name"      && "Mon profil"}
-              {editingField === "type"      && "Nature de peau"}
-              {editingField === "problems"  && "Sensibilités"}
-              {editingField === "goals"     && "Mes priorités"}
-              {editingField === "cycle"     && "Mon cycle"}
+              {editingField === "name" && "Mon profil"}
+              {editingField === "type" && "Nature de peau"}
+              {editingField === "problems" && "Sensibilités"}
+              {editingField === "goals" && "Mes priorités"}
+              {editingField === "cycle" && "Mon cycle"}
               {editingField === "carnation" && "Carnation"}
-              {editingField === "age"       && "Âge"}
+              {editingField === "age" && "Âge"}
             </DialogTitle>
           </DialogHeader>
 
@@ -352,7 +370,10 @@ const Profile = () => {
                     type="date"
                     className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display px-6 focus:ring-1 ring-primary/20 w-full"
                     value={lastPeriodDate || ""}
-                    onChange={(e) => setLastPeriodDate(e.target.value || null)}
+                    onChange={(e) => {
+                      setLastPeriodDate(e.target.value || null);
+                      setCycleStatus(null);
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
@@ -367,6 +388,21 @@ const Profile = () => {
                     value={cycleDuration}
                     onChange={(e) => setCycleDuration(parseInt(e.target.value) || 28)}
                   />
+                </div>
+                <div className="flex gap-3">
+                  {CYCLE_OPTIONS.map(({ label, value }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setLastPeriodDate(null);
+                        setCycleStatus(value);
+                      }}
+                      className={`flex-1 py-4 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${cycleStatus === value ? "bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]" : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -406,6 +442,25 @@ const Profile = () => {
               {saving ? "Enregistrement…" : "Enregistrer"}
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog "Mes facteurs" */}
+      <Dialog open={factorsOpen} onOpenChange={setFactorsOpen}>
+        <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto rounded-[40px] border-none bg-background premium-shadow p-8">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-2xl font-display text-foreground italic">Ton quotidien</DialogTitle>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+              Glisse vers Nacre ce qui façonne ta peau
+            </p>
+          </DialogHeader>
+          <FactorsPicker
+            initialSelected={defaultFactors}
+            onDone={(selected) => {
+              setDefaultFactors(selected);
+              setFactorsOpen(false);
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>
