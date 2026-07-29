@@ -28,6 +28,7 @@ import DefaultFactors from "./pages/DefaultFactors";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import RGPD from "./pages/RGPD";
+import About from "./pages/About";
 import ProfileFeedback from "./pages/ProfileFeedback";
 import StravaConnect from "./pages/StravaConnect";
 import Callback from "./pages/Callback";
@@ -158,6 +159,7 @@ const App = () => (
           <Route path="/strava-connect" element={<StravaConnect />} />
           <Route path="/callback" element={<Callback />} />
           <Route path="/rgpd" element={<RGPD />} />
+          <Route path="/about" element={<About />} />
           
           <Route path="/passport/preview" element={<AuthGuard><PassportPreview /></AuthGuard>} />
           <Route path="/passport/symptoms" element={<AuthGuard><PassportScreen2 /></AuthGuard>} />

@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import type { SignupStepProps } from "@/pages/signup/types";
@@ -59,6 +60,19 @@ const StepConsent = ({
                         <p className="text-sm text-muted-foreground">Partage avec nos outils publicitaires.</p>
                     </div>
                     <Switch checked={marketingShareConsent} onCheckedChange={setMarketingShareConsent} className="shrink-0 mt-1" />
+                </div>
+
+                <div className="flex gap-3 p-4 bg-muted/20 rounded-2xl">
+                    <Info size={16} className="text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="space-y-2">
+                        <p className="text-xs font-bold text-foreground uppercase tracking-wide">Disclaimer</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            Les conseils proposés par Nacre sont fournis à titre informatif et ne constituent pas un avis, un diagnostic ou un traitement médical. Nacre ne remplace pas un médecin, un dermatologue ou tout autre professionnel de santé.
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                            En cas de problème de peau, de symptômes persistants ou de doute concernant votre santé, consultez un professionnel de santé avant de suivre les recommandations de l'application.
+                        </p>
+                    </div>
                 </div>
             </div>
         </>
