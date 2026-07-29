@@ -16,6 +16,15 @@ const CARNATION_LABELS: Record<string, string> = {
   ébène:         "Ébène",
 };
 
+const CARNATION_COLORS: Record<string, string> = {
+  très_claire:   "#F5E6D8",
+  claire:        "#EAC9A8",
+  beige_doré:    "#C8924F",
+  olive_caramel: "#A0622A",
+  foncée:        "#6B3A1F",
+  ébène:         "#2C1810",
+};
+
 // ─── Composants locaux ────────────────────────────────────────────────────────
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -30,9 +39,10 @@ type RowProps = {
   onClick?: () => void;
   destructive?: boolean;
   badge?: string;
+  swatchColor?: string;
 };
 
-const Row = ({ label, value, onClick, destructive, badge }: RowProps) => {
+const Row = ({ label, value, onClick, destructive, badge, swatchColor }: RowProps) => {
   const clickable = !!onClick;
   return (
     <button
@@ -49,6 +59,12 @@ const Row = ({ label, value, onClick, destructive, badge }: RowProps) => {
           <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
             {badge}
           </span>
+        )}
+        {swatchColor && (
+          <span
+            className="w-4 h-4 rounded-full border border-border/40 flex-shrink-0"
+            style={{ backgroundColor: swatchColor }}
+          />
         )}
         {value && (
           <span className="text-[13px] text-muted-foreground max-w-[140px] truncate text-right">
@@ -71,6 +87,7 @@ const Profile = () => {
   const [saving,   setSaving]   = useState(false);
 
   const [firstName,      setFirstName]      = useState("");
+  const [lastName,       setLastName]       = useState("");
   const [skinType,       setSkinType]       = useState("");
   const [skinProblems,   setSkinProblems]   = useState<string[]>([]);
   const [skinGoals,      setSkinGoals]      = useState<string[]>([]);
@@ -87,13 +104,17 @@ const Profile = () => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        const meta = session.user.user_metadata as any;
+        if (meta?.first_name) setFirstName(meta.first_name);
+        if (meta?.last_name)  setLastName(meta.last_name);
         const { data } = await (supabase as any)
           .from("profiles")
-          .select("first_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age")
+          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age")
           .eq("id", session.user.id)
           .single();
         if (data) {
           if (data.first_name)      setFirstName(data.first_name);
+          if (data.last_name)      setLastName(data.last_name);
           if (data.skin_type)       setSkinType(data.skin_type);
           if (data.skin_problems)   setSkinProblems(data.skin_problems);
           if (data.skin_goals)      setSkinGoals(data.skin_goals);
@@ -121,6 +142,7 @@ const Profile = () => {
       if (session) {
         await (supabase as any).from("profiles").update({
           first_name:      firstName,
+          last_name:       lastName,
           skin_type:       skinType,
           skin_problems:   skinProblems,
           skin_goals:      skinGoals,
@@ -129,7 +151,7 @@ const Profile = () => {
           last_period_date: lastPeriodDate,
           cycle_duration:  cycleDuration,
         }).eq("id", session.user.id);
-        await supabase.auth.updateUser({ data: { first_name: firstName } });
+        await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } });
         toast.success("Profil mis à jour");
         setEditingField(null);
       }
@@ -178,7 +200,7 @@ const Profile = () => {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-display text-white truncate">
-              {firstName || "Mon profil"}
+              {[firstName, lastName].filter(Boolean).join(" ") || "Mon profil"}
             </h1>
             {skinType && (
               <p className="text-[13px] text-white/50 mt-0.5">{skinType}</p>
@@ -200,7 +222,7 @@ const Profile = () => {
         <SectionTitle>MA PEAU</SectionTitle>
         <div>
           <Row label="Type de peau"  value={skinType || "–"}          onClick={() => setEditingField("type")} />
-          <Row label="Carnation"     value={carnationLabel}            onClick={() => setEditingField("carnation")} />
+          <Row label="Carnation"     value={carnationLabel}            swatchColor={carnation ? CARNATION_COLORS[carnation] : undefined} onClick={() => setEditingField("carnation")} />
           <Row label="Âge"           value={age != null ? `${age} ans` : "–"} onClick={() => setEditingField("age")} />
           <Row label="Sensibilités"  value={skinProblems.join(", ") || "Aucune"} onClick={() => setEditingField("problems")} />
           <Row label="Objectifs"     value={skinGoals.join(", ") || "Aucun"}     onClick={() => setEditingField("goals")} />
@@ -232,7 +254,6 @@ const Profile = () => {
 
         <SectionTitle>CONNEXIONS</SectionTitle>
         <div>
-          <Row label="Cycle (Flo / Clue)"  value="Non connecté" />
           <Row label="Accessoires beauté"  value="Gérer →" onClick={() => navigate("/vanity")} />
           <Row label="Diagnostic pro"      value="Importer un PDF" onClick={() => navigate("/vanity")} />
         </div>
@@ -245,7 +266,7 @@ const Profile = () => {
 
         <SectionTitle>COMPTE</SectionTitle>
         <div>
-          <Row label="Modifier mon profil" onClick={() => setEditingField("name")} />
+          <Row label="Modifier mon profil" value={[firstName, lastName].filter(Boolean).join(" ") || "–"} onClick={() => setEditingField("name")} />
           <Row label="Confidentialité"     onClick={() => navigate("/privacy")} />
           <Row label="Se déconnecter"      onClick={handleLogout} destructive />
         </div>
@@ -257,7 +278,7 @@ const Profile = () => {
         <DialogContent className="max-w-sm rounded-[40px] border-none bg-background premium-shadow p-8">
           <DialogHeader className="mb-6">
             <DialogTitle className="text-2xl font-display text-foreground italic">
-              {editingField === "name"      && "Prénom"}
+              {editingField === "name"      && "Mon profil"}
               {editingField === "type"      && "Nature de peau"}
               {editingField === "problems"  && "Sensibilités"}
               {editingField === "goals"     && "Mes priorités"}
@@ -269,14 +290,23 @@ const Profile = () => {
 
           <div className="py-2">
             {editingField === "name" && (
-              <Input
-                type="text"
-                placeholder="Votre prénom"
-                className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display italic px-6 focus:ring-1 ring-primary/20"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                autoFocus
-              />
+              <div className="space-y-3">
+                <Input
+                  type="text"
+                  placeholder="Votre prénom"
+                  className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display italic px-6 focus:ring-1 ring-primary/20"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  autoFocus
+                />
+                <Input
+                  type="text"
+                  placeholder="Votre nom"
+                  className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display italic px-6 focus:ring-1 ring-primary/20"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
             )}
 
             {editingField === "type" && (
@@ -345,7 +375,8 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(CARNATION_LABELS).map(([key, label]) => (
                   <button key={key} onClick={() => setCarnation(key)}
-                    className={`py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${carnation === key ? "bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]" : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20"}`}>
+                    className={`flex items-center justify-center gap-2 py-5 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${carnation === key ? "bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]" : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20"}`}>
+                    <span className="w-3.5 h-3.5 rounded-full border border-black/10 flex-shrink-0" style={{ backgroundColor: CARNATION_COLORS[key] }} />
                     {label}
                   </button>
                 ))}

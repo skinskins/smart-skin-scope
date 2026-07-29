@@ -22,8 +22,8 @@ interface WeatherData {
 
 interface PearlHeroProps {
   firstName?: string;
-  cyclePhase: CyclePhase;
-  cycleDay: number;
+  cyclePhase: CyclePhase | null;
+  cycleDay: number | null;
   cycleDuration?: number;
   weather?: WeatherData;
   checkin?: DailyCheckin;
@@ -90,6 +90,18 @@ const PEARL_CONFIG: Record<CyclePhase, {
     blob2: "#A83050",
     conseil: "Peau au plus fragile. Uniquement cleanser doux, hydratant et SPF — pas besoin d'en faire plus.",
   },
+};
+
+const GREY_PEARL_CONFIG = {
+  name: "Perle grise",
+  label: "Cycle non renseigné",
+  subtitle: "Complète ton cycle menstruel",
+  gradient: "linear-gradient(145deg, #E0E0E0 0%, #B8B8B8 45%, #909090 100%)",
+  pulseColor: "#B8B8B8",
+  detailGradient: "linear-gradient(160deg, #B8B8B8 0%, #909090 55%, #707070 100%)",
+  blob1: "#CCCCCC",
+  blob2: "#909090",
+  conseil: "Renseigne la date de tes dernières règles pour des conseils adaptés à ton cycle.",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -179,7 +191,8 @@ export function PearlHero({
     setCamUploading(false);
   };
 
-  const cfg = PEARL_CONFIG[cyclePhase];
+  const hasCycleData = cyclePhase !== null && cycleDay !== null;
+  const cfg = hasCycleData ? PEARL_CONFIG[cyclePhase] : GREY_PEARL_CONFIG;
   const uvCritical = getUVLevel(weather?.uv_index ?? 0) === "critical";
   const factors = getActiveFactors(checkin);
   const hasFac = factors.length > 0;
@@ -278,21 +291,23 @@ export function PearlHero({
                 </motion.div>
 
                 {/* Chip cycle — gauche */}
-                <div style={{
-                  position: "absolute", left: -44, top: "50%", transform: "translateY(-50%)",
-                  background: "rgba(255,255,255,0.92)",
-                  border: "0.5px solid rgba(0,0,0,0.1)",
-                  borderRadius: 20,
-                  padding: "5px 10px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                }}>
-                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 9, fontWeight: 400, color: "#8B7355", letterSpacing: "0.06em", textTransform: "uppercase" }}>Cycle</span>
-                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>{cfg.label}</span>
-                  <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>J{cycleDay}/{cycleDuration}</span>
-                </div>
+                {hasCycleData && (
+                  <div style={{
+                    position: "absolute", left: -44, top: "50%", transform: "translateY(-50%)",
+                    background: "rgba(255,255,255,0.92)",
+                    border: "0.5px solid rgba(0,0,0,0.1)",
+                    borderRadius: 20,
+                    padding: "5px 10px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  }}>
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 9, fontWeight: 400, color: "#8B7355", letterSpacing: "0.06em", textTransform: "uppercase" }}>Cycle</span>
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>{cfg.label}</span>
+                    <span style={{ fontFamily: "var(--font-inter)", fontSize: 12, fontWeight: 500, color: "#2C1810" }}>J{cycleDay}/{cycleDuration}</span>
+                  </div>
+                )}
 
                 {/* Chip UV — droite */}
                 <div style={{

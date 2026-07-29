@@ -40,8 +40,17 @@ export interface SignupStepProps {
   setLastPeriodDate?: Dispatch<SetStateAction<string>>;
   cycleDuration?: number;
   setCycleDuration?: Dispatch<SetStateAction<number>>;
+  cycleStatus?: "unknown" | "none" | null;
+  setCycleStatus?: Dispatch<SetStateAction<"unknown" | "none" | null>>;
   carnation?: string;
   setCarnation?: Dispatch<SetStateAction<string>>;
+  skinType?: string;
+  setSkinType?: Dispatch<SetStateAction<string>>;
+  skinProblems?: string[];
+  toggleProblem?: (problem: string) => void;
+  defaultFactors?: string[];
+  addDefaultFactor?: (key: string) => void;
+  removeDefaultFactor?: (key: string) => void;
   selectedPlan?: "monthly" | "yearly";
   setSelectedPlan?: Dispatch<SetStateAction<"monthly" | "yearly">>;
   PLANS?: Record<"monthly" | "yearly", { id: string; price: string; period: string; subtext: string; badge?: string }>;

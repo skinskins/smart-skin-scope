@@ -1,5 +1,6 @@
-import { ArrowLeft, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Sparkles } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { normalizeCarnation } from "@/utils/carnation";
 import type { SignupStepProps } from "@/pages/signup/types";
 
@@ -10,6 +11,8 @@ const SKIN_TYPES = [
     { value: "mixte", label: "Mixte" },
     { value: "sensible", label: "Sensible" },
 ];
+
+const SKIN_PROBLEMS = ['Acné', 'Rides', 'Taches', 'Rougeurs', 'Cernes', 'Sécheresse', 'Eczéma'];
 
 const CARNATION_OPTIONS = [
     { value: "très_claire", label: "Très claire", color: "#F5E6D8" },
@@ -31,11 +34,14 @@ const StepDiagnosticReview = ({
     setEditingDiagnostic,
     correctedSkinType,
     setCorrectedSkinType,
-    correctedProblems,
+    correctedProblems = [],
     setCorrectedProblems,
     carnation,
     setCarnation,
 }: SignupStepProps) => {
+    const toggleProblem = (problem: string) => {
+        setCorrectedProblems?.((prev) => prev.includes(problem) ? prev.filter((x) => x !== problem) : [...prev, problem]);
+    };
     const skinTypeValue = correctedSkinType || (onboardingAnalysis?.type_peau_detecte ?? "").toLowerCase();
     const carnationValue = carnation || normalizeCarnation(onboardingAnalysis?.carnation_detectee) || "";
     const selectedCarnation = CARNATION_OPTIONS.find((c) => c.value === carnationValue);
@@ -48,7 +54,7 @@ const StepDiagnosticReview = ({
                         <ArrowLeft size={20} strokeWidth={1.8} className="text-foreground mt-1" />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-display text-foreground leading-tight mb-1">Votre diagnostic de peau</h1>
+                        <h1 className="text-2xl font-display text-foreground leading-tight mb-1">Votre analyse de peau</h1>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Basé sur votre photo</p>
                     </div>
                 </div>
@@ -115,6 +121,30 @@ const StepDiagnosticReview = ({
                         </div>
 
                         <div className="bg-white rounded-xl p-3 border border-border/40">
+                            <p className="text-[10px] text-muted-foreground font-medium mb-1">Sensibilités</p>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button type="button" className={`${kpiSelectTriggerClass} flex items-center justify-between gap-2`}>
+                                        <span className="truncate text-left">{correctedProblems.length > 0 ? correctedProblems.join(", ") : "—"}</span>
+                                        <ChevronDown size={14} className="opacity-40 shrink-0" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-56">
+                                    {SKIN_PROBLEMS.map((problem) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={problem}
+                                            checked={correctedProblems.includes(problem)}
+                                            onCheckedChange={() => toggleProblem(problem)}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            {problem}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+
+                        <div className="bg-white rounded-xl p-3 border border-border/40 col-span-2">
                             <p className="text-[10px] text-muted-foreground font-medium mb-1">Éclat</p>
                             <p className="text-sm font-bold text-foreground capitalize">{onboardingAnalysis.eclat_global ? `${onboardingAnalysis.eclat_global}/10` : '—'}</p>
                         </div>
@@ -170,8 +200,8 @@ const StepDiagnosticReview = ({
                             <div>
                                 <p className="text-[11px] font-bold text-foreground mb-2">Préoccupations</p>
                                 <div className="flex flex-wrap gap-2">
-                                    {['Acné', 'Rides', 'Taches', 'Rougeurs', 'Cernes', 'Sécheresse', 'Eczéma'].map((p) => (
-                                        <button type="button" key={p} onClick={() => setCorrectedProblems((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])} className={`py-1.5 px-3 rounded-full text-[10px] font-bold border transition-all ${correctedProblems.includes(p) ? 'bg-primary text-white border-primary' : 'bg-muted/10 border-border/40 text-foreground/60'}`}>
+                                    {SKIN_PROBLEMS.map((p) => (
+                                        <button type="button" key={p} onClick={() => toggleProblem(p)} className={`py-1.5 px-3 rounded-full text-[10px] font-bold border transition-all ${correctedProblems.includes(p) ? 'bg-primary text-white border-primary' : 'bg-muted/10 border-border/40 text-foreground/60'}`}>
                                             {p}
                                         </button>
                                     ))}

@@ -24,7 +24,7 @@ serve(async (req) => {
     const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
     if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY non configurée");
 
-    const prompt = `Tu es un expert en analyse cutanée clinique. Tu reçois le rapport PDF généré par une machine de diagnostic de peau professionnelle (type Observ, Visia, ou équivalent).
+    const prompt = `Tu es un expert en analyse cutanée clinique. Tu reçois le rapport PDF généré par une machine d'analye de peau professionnelle (type Observ, Visia, ou équivalent).
 
 Analyse ce rapport et extrais les métriques de peau pertinentes.
 

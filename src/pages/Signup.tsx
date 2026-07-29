@@ -13,9 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import matrixData from "@/data/skincare_matrix.json";
 import StepProfilePhysical from "@/pages/signup/steps/StepProfilePhysical";
 import StepConsent from "@/pages/signup/steps/StepConsent";
+import StepFactors, { FACTOR_TAG_KEYS } from "@/pages/signup/steps/StepFactors";
 import StepPhotoDiagnostic from "@/pages/signup/steps/StepPhotoDiagnostic";
-// Étape "Votre carnation" désactivée temporairement — décommenter pour la restaurer
-// import StepCarnation from "@/pages/signup/steps/StepCarnation";
+import StepCarnation from "@/pages/signup/steps/StepCarnation";
 import StepCycle from "@/pages/signup/steps/StepCycle";
 import StepLocation from "@/pages/signup/steps/StepLocation";
 import StepProducts from "@/pages/signup/steps/StepProducts";
@@ -82,6 +82,7 @@ const Signup = () => {
     const [skinType, setSkinType] = useState("");
     const [skinProblems, setSkinProblems] = useState<string[]>([]);
     const [skinGoals, setSkinGoals] = useState<string[]>([]);
+    const [defaultFactors, setDefaultFactors] = useState<string[]>([]);
     const [quizStarted, setQuizStarted] = useState(false);
     const [quizStep, setQuizStep] = useState(1);
     const [quizAnswers, setQuizAnswers] = useState({ q1: "", q2: "", q3: "", q4: "" });
@@ -97,6 +98,7 @@ const Signup = () => {
     // Step 4 — Cycle
     const [lastPeriodDate, setLastPeriodDate] = useState("");
     const [cycleDuration, setCycleDuration] = useState(28);
+    const [cycleStatus, setCycleStatus] = useState<"unknown" | "none" | null>(null);
 
     // Step 5 — Location
     const [locationMode, setLocationMode] = useState<"geo" | "manual" | null>(null);
@@ -279,21 +281,26 @@ const Signup = () => {
             whileTap={{ scale: 0.95 }}
             onClick={(e) => {
                 e.preventDefault();
-                if (showPreview) setShowPreview(false);
+                if (showPreview) {
+                    setShowPreview(false);
+                    if (onboardingPhotoBase64) setShowDiagnostic(true);
+                    else setStep(6);
+                }
                 else if (step === 10) {
                     if (pricingMode === "free") setStep(8);
                     else setStep(9);
                 }
                 else if (step === 9) setStep(8);
                 else if (step === 8) setShowPreview(true);
-                // Étape "Votre carnation" (step 3) désactivée temporairement — on saute toujours de 4 à 2.
-                // Supprimer ce cas particulier pour restaurer la navigation normale via "step > 2".
-                else if (step === 4) setStep(2);
-                // Étape "Cycle menstruel" (step 4) non proposée aux utilisateurs Homme — on saute de 5 à 2.
-                else if (step === 5 && gender === "Homme") setStep(2);
+                else if (step === 4) setStep(3.5);
+                // Étape "Cycle menstruel" (step 4) non proposée aux utilisateurs Homme — on revient à l'étape Objectifs.
+                else if (step === 5 && gender === "Homme") setStep(3.5);
+                // Étape "Votre carnation" (step 3) sautée à l'aller si une photo a été prise — on la resaute au retour.
+                else if (step === 3.5) setStep(onboardingPhotoBase64 ? 2 : 3);
                 else if (step > 2) setStep(step - 1);
+                else if (step === 2) setStep(1.8);
+                else if (step === 1.8) setStep(1.5);
                 else if (step === 1.5) setStep(1);
-                else if (step === 2) navigate("/onboarding");
                 else navigate("/onboarding");
             }}
             className="w-10 h-10 flex items-center justify-center rounded-full border border-border/40 bg-white/50 hover:bg-white transition-all shadow-sm shrink-0 mt-1"
@@ -326,16 +333,34 @@ const Signup = () => {
         }
     };
 
+    const addDefaultFactor = (key: string) => {
+        setDefaultFactors(prev => prev.includes(key) ? prev : [...prev, key]);
+    };
+
+    const removeDefaultFactor = (key: string) => {
+        setDefaultFactors(prev => prev.filter(k => k !== key));
+    };
+
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (step === 7 && onboardingPhotoBase64 && !showDiagnostic) {
-            setShowDiagnostic(true);
+        if (step === 6 && !showDiagnostic && !showPreview) {
+            if (onboardingPhotoBase64) {
+                setShowDiagnostic(true);
+            } else {
+                setShowPreview(true);
+            }
             window.scrollTo(0, 0);
             return;
         }
         if (showDiagnostic) {
             setShowDiagnostic(false);
+            setShowPreview(true);
+            window.scrollTo(0, 0);
+            return;
+        }
+        if (showPreview) {
+            setShowPreview(false);
             setStep(8);
             window.scrollTo(0, 0);
             return;
@@ -357,20 +382,24 @@ const Signup = () => {
             return;
         }
         if (step === 1.5) {
+            setStep(1.8);
+            window.scrollTo(0, 0);
+            return;
+        }
+        if (step === 1.8) {
             setStep(2);
             window.scrollTo(0, 0);
             return;
         }
 
         if (step < 10) {
-            // Étape "Votre carnation" (step 3) désactivée temporairement — on saute toujours de 2 à 4.
-            // Décommenter le bloc ci-dessous et supprimer le "if (step === 2)" pour la restaurer.
-            // if (step === 2 && onboardingPhotoBase64) {
-            //     setStep(4);
-            // } else {
-            //     setStep(step + 1);
-            // }
             if (step === 2) {
+                // Photo prise → le type de peau et la carnation seront déduits de l'analyse (étape diagnostic).
+                // Photo passée → on demande le type de peau et la carnation manuellement (étape 3).
+                setStep(onboardingPhotoBase64 ? 3.5 : 3);
+            } else if (step === 3) {
+                setStep(3.5);
+            } else if (step === 3.5) {
                 // Étape "Cycle menstruel" (step 4) non proposée aux utilisateurs Homme.
                 setStep(gender === "Homme" ? 5 : 4);
             } else {
@@ -416,6 +445,9 @@ const Signup = () => {
                 skin_type: correctedSkinType || skinType || onboardingAnalysis?.type_peau_detecte || null,
                 skin_problems: correctedProblems.length > 0 ? correctedProblems : (skinProblems.length > 0 ? skinProblems : null),
                 skin_goals: skinGoals.length > 0 ? skinGoals : null,
+                default_factors: defaultFactors.length > 0
+                    ? Object.fromEntries(FACTOR_TAG_KEYS.map(key => [key, defaultFactors.includes(key)]))
+                    : null,
                 carnation: carnation || normalizeCarnation(onboardingAnalysis?.carnation_detectee) || null,
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
@@ -587,6 +619,15 @@ const Signup = () => {
                             />
                         )}
 
+                        {step === 1.8 && (
+                            <StepFactors
+                                BackButton={BackButton}
+                                defaultFactors={defaultFactors}
+                                addDefaultFactor={addDefaultFactor}
+                                removeDefaultFactor={removeDefaultFactor}
+                            />
+                        )}
+
                         {step === 2 && (
                             <StepPhotoDiagnostic
                                 BackButton={BackButton}
@@ -596,18 +637,29 @@ const Signup = () => {
                                 setAnalysisLoading={setAnalysisLoading}
                                 setOnboardingAnalysis={setOnboardingAnalysis}
                                 setCorrectedSkinType={setCorrectedSkinType}
+                                setCorrectedProblems={setCorrectedProblems}
                             />
                         )}
 
-                        {/* Étape "Votre carnation" désactivée temporairement — décommenter pour la restaurer
                         {step === 3 && (
                             <StepCarnation
                                 BackButton={BackButton}
                                 carnation={carnation}
                                 setCarnation={setCarnation}
+                                skinType={skinType}
+                                setSkinType={setSkinType}
+                                skinProblems={skinProblems}
+                                toggleProblem={toggleProblem}
                             />
                         )}
-                        */}
+
+                        {step === 3.5 && (
+                            <StepGoals
+                                BackButton={BackButton}
+                                skinGoals={skinGoals}
+                                toggleGoal={toggleGoal}
+                            />
+                        )}
 
                         {step === 4 && (
                             <StepCycle
@@ -616,6 +668,8 @@ const Signup = () => {
                                 setLastPeriodDate={setLastPeriodDate}
                                 cycleDuration={cycleDuration}
                                 setCycleDuration={setCycleDuration}
+                                cycleStatus={cycleStatus}
+                                setCycleStatus={setCycleStatus}
                             />
                         )}
 
@@ -631,7 +685,7 @@ const Signup = () => {
                             />
                         )}
 
-                        {step === 6 && (
+                        {step === 6 && !showDiagnostic && (
                             <StepProducts
                                 BackButton={BackButton}
                                 productSearchQuery={productSearchQuery}
@@ -645,13 +699,6 @@ const Signup = () => {
                             />
                         )}
 
-                        {step === 7 && !showDiagnostic && (
-                            <StepGoals
-                                BackButton={BackButton}
-                                skinGoals={skinGoals}
-                                toggleGoal={toggleGoal}
-                            />
-                        )}
                         {showDiagnostic && (
                             <StepDiagnosticReview
                                 age={age}
@@ -706,7 +753,7 @@ const Signup = () => {
                                 {step === 2 && (
                                     <button
                                         type="button"
-                                        onClick={() => setStep(gender === "Homme" ? 5 : 4)}
+                                        onClick={() => setStep(3)}
                                         className="w-full text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors"
                                     >
                                         Passer cette étape
@@ -720,9 +767,9 @@ const Signup = () => {
 
                                         (step === 1 && (!age || !gender)) ||
                                         (step === 1.5 && (!personalizedRecommendationsConsent || !aiLearningConsent)) ||
-                                        // Étape "Votre carnation" (step 3) désactivée temporairement — décommenter pour la restaurer
-                                        // (step === 3 && !carnation) ||
-                                        (step === 7 && skinGoals.length === 0) ||
+                                        (step === 3 && (!carnation || !skinType)) ||
+                                        (step === 3.5 && skinGoals.length === 0) ||
+                                        (step === 4 && !lastPeriodDate && !cycleStatus) ||
                                         (step === 10 && (!firstName || !lastName || !email || password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)))
                                     }
                                     className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"

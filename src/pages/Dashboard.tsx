@@ -411,19 +411,17 @@ const Dashboard = () => {
 
       {/* Hero */}
       <div className="px-5 pt-6 pb-3 bg-white">
-        {cyclePhase && cycleDay ? (
-          <div className="mb-3">
-            <PearlHero
-              hidePhotoButton
-              firstName={userName ?? undefined}
-              cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle"}
-              cycleDay={cycleDay}
-              cycleDuration={cycleDuration}
-              weather={{ uv_index: liveWeather.uv ?? 0 }}
-              streakCount={streakCount}
-            />
-          </div>
-        ) : null}
+        <div className="mb-3">
+          <PearlHero
+            hidePhotoButton
+            firstName={userName ?? undefined}
+            cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle" | null}
+            cycleDay={cycleDay}
+            cycleDuration={cycleDuration}
+            weather={{ uv_index: liveWeather.uv ?? 0 }}
+            streakCount={streakCount}
+          />
+        </div>
 
         {/* Routine du jour */}
         {!routineTreated && routineProducts.length > 0 ? (

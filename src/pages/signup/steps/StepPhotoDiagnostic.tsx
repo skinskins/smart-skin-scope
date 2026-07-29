@@ -4,7 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ChangeEvent } from "react";
 import type { SignupStepProps } from "@/pages/signup/types";
 
-const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboardingPhotoBase64, setAnalysisLoading, setOnboardingAnalysis, setCorrectedSkinType }: SignupStepProps) => {
+const inferSkinProblems = (analysis: any): string[] => {
+    const problems: string[] = [];
+    if ((analysis.acne?.score ?? 0) >= 1) problems.push("Acné");
+    const maxRide = Math.max(analysis.rides?.periorbital ?? 0, analysis.rides?.front ?? 0, analysis.rides?.periorale ?? 0);
+    if (maxRide >= 2) problems.push("Rides");
+    if (analysis.pigmentation?.type && analysis.pigmentation.type !== "aucune") problems.push("Taches");
+    if ((analysis.erytheme?.score ?? 0) >= 1 || analysis.conditions_detectees?.rosacea) problems.push("Rougeurs");
+    if ((analysis.hydratation?.score ?? 0) >= 2) problems.push("Sécheresse");
+    if ((analysis.cernes?.score ?? 0) >= 1) problems.push("Cernes");
+    if (analysis.conditions_detectees?.eczema) problems.push("Eczéma");
+    return problems;
+};
+
+const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboardingPhotoBase64, setAnalysisLoading, setOnboardingAnalysis, setCorrectedSkinType, setCorrectedProblems }: SignupStepProps) => {
     const handlePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -39,6 +52,7 @@ const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboar
             if (data?.analysis) {
                 setOnboardingAnalysis(data.analysis);
                 setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
+                setCorrectedProblems?.(inferSkinProblems(data.analysis));
                 localStorage.removeItem("nacre_photo_pending_retry");
             }
             setAnalysisLoading(false);

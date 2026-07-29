@@ -121,6 +121,10 @@ Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
       "score": "0-4",
       "zones": "description courte ou null"
     },
+    "cernes": {
+      "score": "Sévérité des cernes (coloration bleutée/brunâtre ou creux sous les yeux, distincte des rides periorbitales). 0 = absents, 4 = très marqués",
+      "zones": "description courte ou null"
+    },
     "acne": {
       "score": "0-4",
       "type": "aucune | comédons | papules | pustules | mixte",

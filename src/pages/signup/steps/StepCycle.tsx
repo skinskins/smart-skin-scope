@@ -1,8 +1,14 @@
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 import type { SignupStepProps } from "@/pages/signup/types";
 
-const StepCycle = ({ BackButton, lastPeriodDate, setLastPeriodDate, cycleDuration, setCycleDuration }: SignupStepProps) => {
+const CYCLE_OPTIONS: { label: string; value: "unknown" | "none" }[] = [
+    { label: "Je ne sais pas", value: "unknown" },
+    { label: "Pas de règles", value: "none" },
+];
+
+const StepCycle = ({ BackButton, lastPeriodDate, setLastPeriodDate, cycleDuration, setCycleDuration, cycleStatus, setCycleStatus }: SignupStepProps) => {
     return (
         <>
             <div className="mb-10 flex items-start gap-4">
@@ -15,7 +21,16 @@ const StepCycle = ({ BackButton, lastPeriodDate, setLastPeriodDate, cycleDuratio
             <div className="space-y-8 flex-1">
                 <div className="space-y-4">
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Vos dernières règles</label>
-                    <Input type="date" value={lastPeriodDate} onChange={(e) => setLastPeriodDate(e.target.value)} className="h-14 rounded-2xl font-mono" max={new Date().toISOString().split("T")[0]} />
+                    <Input
+                        type="date"
+                        value={lastPeriodDate}
+                        onChange={(e) => {
+                            setLastPeriodDate(e.target.value);
+                            setCycleStatus(null);
+                        }}
+                        className="h-14 rounded-2xl font-mono"
+                        max={new Date().toISOString().split("T")[0]}
+                    />
                 </div>
                 <div className="space-y-6 pt-6 border-t border-border/40">
                     <div className="flex justify-between items-center px-1">
@@ -26,9 +41,20 @@ const StepCycle = ({ BackButton, lastPeriodDate, setLastPeriodDate, cycleDuratio
                     <p className="text-[10px] text-muted-foreground text-center italic">21 jours — 45 jours · Défaut : 28 jours</p>
                 </div>
                 <div className="flex gap-3">
-                    {['Je ne sais pas', 'Pas de règles'].map((opt) => (
-                        <button key={opt} type="button" onClick={() => setLastPeriodDate("")} className="flex-1 py-3 rounded-2xl border border-border/40 text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:border-primary transition-all">
-                            {opt}
+                    {CYCLE_OPTIONS.map(({ label, value }) => (
+                        <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                                setLastPeriodDate("");
+                                setCycleStatus(value);
+                            }}
+                            className={cn(
+                                "flex-1 py-3 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all",
+                                cycleStatus === value ? "border-primary text-primary bg-primary/5" : "border-border/40 text-muted-foreground hover:border-primary"
+                            )}
+                        >
+                            {label}
                         </button>
                     ))}
                 </div>
