@@ -12,7 +12,7 @@ const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/rgpd", "/", "/reset-password", "/callback", "/strava-connect", "/routine-player", "/daily-conversation", "/weekly-plan", "/onboarding/factors"];
+  const hiddenRoutes = ["/onboarding", "/login", "/signup", "/checkin", "/post-signup", "/setup-routine", "/rgpd", "/", "/reset-password", "/callback", "/strava-connect", "/routine-player", "/daily-conversation", "/weekly-plan", "/onboarding/factors", "/profile/feedback"];
   if (hiddenRoutes.includes(location.pathname) || location.pathname.startsWith("/passport")) return null;
 
   return (

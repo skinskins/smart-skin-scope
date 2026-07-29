@@ -452,6 +452,10 @@ const Signup = () => {
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
                 manual_location: locationMode === "manual" ? manualCity || null : null,
+                personalized_recommendations_consent: personalizedRecommendationsConsent,
+                ai_learning_consent: aiLearningConsent,
+                product_research_consent: productResearchConsent,
+                marketing_share_consent: marketingShareConsent,
             });
 
             if (selectedOnboardingProducts.length > 0) {

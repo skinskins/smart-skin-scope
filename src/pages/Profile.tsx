@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 import FactorsPicker, { FACTOR_LABELS } from "@/components/FactorsPicker";
 
 const CARNATION_LABELS: Record<string, string> = {
@@ -117,6 +120,9 @@ const Profile = () => {
   const [age, setAge] = useState<number | null>(null);
   const [defaultFactors, setDefaultFactors] = useState<string[]>([]);
   const [factorsOpen, setFactorsOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [editingField, setEditingField] = useState<
     "name" | "type" | "problems" | "goals" | "cycle" | "carnation" | "age" | null
@@ -189,6 +195,31 @@ const Profile = () => {
       toast.error("Erreur de sauvegarde");
     }
     setSaving(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmed || deleting) return;
+    setDeleting(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("Vous devez être connecté(e) pour envoyer cette demande");
+      setDeleting(false);
+      return;
+    }
+    const { error } = await (supabase as any).from("feedback").insert({
+      user_id: session.user.id,
+      type: "deletion_request",
+      message: `Demande de suppression de compte et de données (${[firstName, lastName].filter(Boolean).join(" ") || session.user.email || session.user.id}).`,
+    });
+    setDeleting(false);
+    if (error) {
+      console.error(error);
+      toast.error("Erreur lors de l'envoi, réessayez");
+      return;
+    }
+    toast.success("Demande de suppression envoyée");
+    setDeleteOpen(false);
+    setDeleteConfirmed(false);
   };
 
   const handleLogout = async () => {
@@ -278,12 +309,12 @@ const Profile = () => {
           <Row
             label="Feedback et suggestions"
             subtitle="Bugs, idées, retours d'usage"
-            onClick={() => window.open("mailto:lulua.skin26@gmail.com?subject=Feedback%20Nacre")}
+            onClick={() => navigate("/profile/feedback")}
           />
           <Row label="Confidentialité" onClick={() => navigate("/rgpd")} />
           <Row
             label="Supprimer mes données"
-            onClick={() => window.open("mailto:lulua.skin26@gmail.com?subject=Suppression%20de%20mes%20donn%C3%A9es")}
+            onClick={() => setDeleteOpen(true)}
           />
           <Row label="Se déconnecter" onClick={handleLogout} destructive />
           <Row label="Version" badge="Bêta" value={`v${__APP_VERSION__}`} />
@@ -463,6 +494,50 @@ const Profile = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Sheet "Supprimer mes données" */}
+      <Sheet
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open);
+          if (!open) setDeleteConfirmed(false);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="flex flex-col gap-6 max-w-lg mx-auto rounded-t-[40px] border-none bg-background premium-shadow p-8 [&>button]:hidden"
+        >
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-2xl font-display text-foreground italic">Supprimer mes données</SheetTitle>
+          </SheetHeader>
+
+          <p className="text-[14px] leading-[1.4] text-muted-foreground">
+            Votre profil de peau, votre historique de cycle et vos routines seront supprimés sous 30 jours. Cette action est définitive et ne peut pas être annulée.
+          </p>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <Checkbox
+              checked={deleteConfirmed}
+              onCheckedChange={(checked) => setDeleteConfirmed(checked === true)}
+              className="mt-0.5 size-5 rounded-[4px] border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
+            <span className="text-[14px] font-medium text-foreground">
+              Je comprends que cette action est irréversible
+            </span>
+          </label>
+
+          <div>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={!deleteConfirmed || deleting}
+              variant="destructive"
+              className="w-full disabled:opacity-100 disabled:bg-border/30 disabled:text-[hsl(var(--text-disabled))] disabled:shadow-none"
+            >
+              {deleting ? "Envoi…" : "Confirmer la suppression"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
