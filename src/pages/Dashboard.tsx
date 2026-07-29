@@ -10,6 +10,7 @@ import { PearlHero } from "@/components/PearlHero";
 import { PageHeader } from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdviceCard, Conseil } from "@/components/AdviceCard";
+import { BetaWelcomeModal } from "@/components/BetaWelcomeModal";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
 type SkinPhotoRow = { date: string; analysis_json: any; storage_path: string; publicUrl?: string };
@@ -127,6 +128,16 @@ const Dashboard = () => {
   useEffect(() => {
     setPhotoPendingRetry(localStorage.getItem("nacre_photo_pending_retry") === "1");
   }, []);
+
+  // ── Bienvenue bêta (une seule fois, juste après la fin de l'onboarding) ───
+  const [showBetaWelcome, setShowBetaWelcome] = useState(false);
+  useEffect(() => {
+    setShowBetaWelcome(localStorage.getItem("nacre_show_beta_welcome") === "1");
+  }, []);
+  const dismissBetaWelcome = () => {
+    localStorage.removeItem("nacre_show_beta_welcome");
+    setShowBetaWelcome(false);
+  };
   useEffect(() => {
     const checkWeekPhoto = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -400,19 +411,17 @@ const Dashboard = () => {
 
       {/* Hero */}
       <div className="px-5 pt-6 pb-3 bg-white">
-        {cyclePhase && cycleDay ? (
-          <div className="mb-3">
-            <PearlHero
-              hidePhotoButton
-              firstName={userName ?? undefined}
-              cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle"}
-              cycleDay={cycleDay}
-              cycleDuration={cycleDuration}
-              weather={{ uv_index: liveWeather.uv ?? 0 }}
-              streakCount={streakCount}
-            />
-          </div>
-        ) : null}
+        <div className="mb-3">
+          <PearlHero
+            hidePhotoButton
+            firstName={userName ?? undefined}
+            cyclePhase={cyclePhase as "Folliculaire" | "Ovulatoire" | "Lutéale" | "Menstruelle" | null}
+            cycleDay={cycleDay}
+            cycleDuration={cycleDuration}
+            weather={{ uv_index: liveWeather.uv ?? 0 }}
+            streakCount={streakCount}
+          />
+        </div>
 
         {/* Routine du jour */}
         {!routineTreated && routineProducts.length > 0 ? (
@@ -657,6 +666,8 @@ const Dashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <BetaWelcomeModal open={showBetaWelcome} onClose={dismissBetaWelcome} />
     </div>
   );
 };

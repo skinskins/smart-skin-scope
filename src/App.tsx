@@ -28,6 +28,7 @@ import DefaultFactors from "./pages/DefaultFactors";
 
 import DailyCheckin from "./pages/DailyCheckin";
 import RGPD from "./pages/RGPD";
+import ProfileFeedback from "./pages/ProfileFeedback";
 import StravaConnect from "./pages/StravaConnect";
 import Callback from "./pages/Callback";
 import PassportPreview from "./features/passport/pages/PassportPreview";
@@ -142,6 +143,7 @@ const App = () => (
           <Route path="/tips" element={<AuthGuard><Tips /></AuthGuard>} />
           <Route path="/progress" element={<AuthGuard><Progress /></AuthGuard>} />
           <Route path="/profile" element={<AuthGuard><Profile /></AuthGuard>} />
+          <Route path="/profile/feedback" element={<AuthGuard><ProfileFeedback /></AuthGuard>} />
           <Route path="/vanity" element={<AuthGuard><Vanity /></AuthGuard>} />
           <Route path="/setup-routine" element={<AuthGuard><RoutineSetupOnboarding /></AuthGuard>} />
           <Route path="/routine-player" element={<AuthGuard><RoutinePlayer /></AuthGuard>} />

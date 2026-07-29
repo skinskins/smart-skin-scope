@@ -1,68 +1,143 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ShieldCheck, Mail, Trash2, Lock } from "lucide-react";
+import { ArrowLeft, Camera, MapPin, Bell, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+
+const PERMISSIONS = [
+    { icon: Camera, label: "Caméra" },
+    { icon: MapPin, label: "Localisation" },
+    { icon: Bell, label: "Notifications" },
+];
 
 const RGPD = () => {
     const navigate = useNavigate();
 
-    return (
-        <div className="min-h-screen bg-background p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+    const [personalizedRecommendationsConsent, setPersonalizedRecommendationsConsent] = useState(true);
+    const [aiLearningConsent, setAiLearningConsent] = useState(true);
+    const [productResearchConsent, setProductResearchConsent] = useState(false);
+    const [marketingShareConsent, setMarketingShareConsent] = useState(false);
 
-            <motion.button
+    useEffect(() => {
+        const fetchConsents = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const { data } = await (supabase as any)
+                .from("profiles")
+                .select("personalized_recommendations_consent, ai_learning_consent, product_research_consent, marketing_share_consent")
+                .eq("id", session.user.id)
+                .single();
+            if (data) {
+                if (data.personalized_recommendations_consent != null) setPersonalizedRecommendationsConsent(data.personalized_recommendations_consent);
+                if (data.ai_learning_consent != null) setAiLearningConsent(data.ai_learning_consent);
+                if (data.product_research_consent != null) setProductResearchConsent(data.product_research_consent);
+                if (data.marketing_share_consent != null) setMarketingShareConsent(data.marketing_share_consent);
+            }
+        };
+        fetchConsents();
+    }, []);
+
+    const saveConsent = async (field: string, value: boolean) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        await (supabase as any).from("profiles").update({ [field]: value }).eq("id", session.user.id);
+    };
+
+    const handleToggle = (
+        field: string,
+        setter: (value: boolean) => void,
+    ) => (value: boolean) => {
+        setter(value);
+        saveConsent(field, value);
+    };
+
+    return (
+        <div className="min-h-screen bg-background max-w-lg mx-auto pb-24">
+            <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                onClick={() => navigate(-1)}
-                className="w-12 h-12 flex items-center justify-center rounded-full border border-border/60 bg-white/50 mb-12 mt-4 z-10 relative hover:bg-white transition-all shadow-sm"
+                className="flex items-center gap-6 p-3"
             >
-                <ArrowLeft size={18} strokeWidth={1.5} className="text-foreground" />
-            </motion.button>
+                <button
+                    type="button"
+                    onClick={() => navigate(-1)}
+                    className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted/20 transition-colors shrink-0"
+                    aria-label="Retour"
+                >
+                    <ArrowLeft size={20} strokeWidth={1.5} className="text-foreground" />
+                </button>
+                <h1 className="text-2xl text-foreground">Confidentialité</h1>
+            </motion.div>
 
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-2xl mx-auto space-y-8 pb-20"
+                transition={{ delay: 0.05 }}
+                className="flex flex-col gap-6 px-5 pt-2"
             >
-                <div className="text-center space-y-6">
-                    <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
-                        <ShieldCheck size={36} strokeWidth={1.2} />
+                <div>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1 px-1">Consentements</p>
+
+                    <div className="flex items-center gap-4 py-3 border-b border-border/20">
+                        <p className="flex-1 text-[14px] text-foreground">Recommandations personnalisées</p>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                            <Badge className="bg-primary/50 text-primary-foreground border-transparent">Requis</Badge>
+                            <Switch
+                                checked={personalizedRecommendationsConsent}
+                                onCheckedChange={handleToggle("personalized_recommendations_consent", setPersonalizedRecommendationsConsent)}
+                            />
+                        </div>
                     </div>
-                    <h1 className="text-2xl font-display text-foreground leading-tight">Politique de Confidentialité</h1>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Votre vie privée est notre priorité absolue</p>
+
+                    <div className="flex items-center gap-4 py-3 border-b border-border/20">
+                        <p className="flex-1 text-[14px] text-foreground">Analyse IA et apprentissage</p>
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                            <Badge className="bg-primary/50 text-primary-foreground border-transparent">Requis</Badge>
+                            <Switch
+                                checked={aiLearningConsent}
+                                onCheckedChange={handleToggle("ai_learning_consent", setAiLearningConsent)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 py-3 border-b border-border/20">
+                        <p className="flex-1 text-[14px] text-foreground">Amélioration du produit</p>
+                        <Switch
+                            checked={productResearchConsent}
+                            onCheckedChange={handleToggle("product_research_consent", setProductResearchConsent)}
+                            className="shrink-0"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-4 py-3 border-b border-border/20 last:border-b-0">
+                        <p className="flex-1 text-[14px] text-foreground">Partage marketing</p>
+                        <Switch
+                            checked={marketingShareConsent}
+                            onCheckedChange={handleToggle("marketing_share_consent", setMarketingShareConsent)}
+                            className="shrink-0"
+                        />
+                    </div>
                 </div>
 
-                <div className="grid gap-6">
-                    <section className="premium-card p-8 bg-white/60 space-y-4">
-                        <div className="flex items-center gap-3 text-primary">
-                            <Lock size={18} strokeWidth={1.5} />
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest">Protection des données</h2>
-                        </div>
-                        <p className="text-sm leading-relaxed text-muted-foreground italic">
-                            Chez Nacre, nous collectons uniquement les informations nécessaires pour vous fournir des conseils personnalisés sur votre routine de soin de la peau. Vos données de cycle, alimentation, et santé sont stockées de manière sécurisée et ne sont jamais partagées avec des tiers à des fins commerciales.
-                        </p>
-                    </section>
+                <div>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1 px-1">Autorisations</p>
 
-                    <section className="premium-card p-8 bg-white/60 space-y-4">
-                        <div className="flex items-center gap-3 text-primary">
-                            <Trash2 size={18} strokeWidth={1.5} />
-                            <h2 className="text-[10px] font-bold uppercase tracking-widest">Droit à l'oubli</h2>
-                        </div>
-                        <p className="text-sm leading-relaxed text-muted-foreground italic">
-                            Conformément au Règlement Général sur la Protection des Données (RGPD), vous disposez d'un droit d'accès, de rectification et de suppression de vos données personnelles.
-                        </p>
-                        <div className="bg-primary/5 p-6 rounded-3xl flex items-start gap-4 border border-primary/10 mt-6">
-                            <Mail size={18} strokeWidth={1.5} className="text-primary mt-1" />
-                            <div className="space-y-2">
-                                <p className="text-xs font-bold uppercase tracking-wider text-foreground">Comment supprimer mon compte ?</p>
-                                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                                    Pour supprimer l'intégralité de vos données, envoyez simplement un mail à :
-                                    <a href="mailto:lulua.skin26@gmail.com" className="text-primary font-bold block mt-2 hover:opacity-70 transition-all underline underline-offset-4">
-                                        lulua.skin26@gmail.com
-                                    </a>
-                                </p>
+                    {PERMISSIONS.map(({ icon: Icon, label }) => (
+                        <div key={label} className="flex items-center gap-4 py-3 border-b border-border/20">
+                            <div className="flex flex-1 items-center gap-2 min-w-0">
+                                <Icon size={16} strokeWidth={1.8} className="text-muted-foreground shrink-0" />
+                                <p className="flex-1 text-[14px] text-foreground">{label}</p>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                                <p className="text-[13px]">Activé</p>
                             </div>
                         </div>
-                    </section>
+                    ))}
+                    <p className="text-xs text-muted-foreground/70 pt-2 px-1">
+                        Gérez ces autorisations depuis les réglages de votre téléphone.
+                    </p>
                 </div>
             </motion.div>
         </div>

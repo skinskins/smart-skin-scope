@@ -324,10 +324,46 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          bug_type: string | null
+          created_at: string
+          id: string
+          message: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          bug_type?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          bug_type?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age: number | null
           ai_confidence_score: number | null
+          ai_learning_consent: boolean | null
           alcohol_drinks: number | null
           am_routine: string[] | null
           carnation: string | null
@@ -346,8 +382,11 @@ export type Database = {
           last_period_date: string | null
           makeup_removed: boolean | null
           manual_location: string | null
+          marketing_share_consent: boolean | null
           period_duration: number | null
+          personalized_recommendations_consent: boolean | null
           pm_routine: string[] | null
+          product_research_consent: boolean | null
           profession: string | null
           skin_goals: string[] | null
           skin_problems: string[] | null
@@ -361,6 +400,7 @@ export type Database = {
         Insert: {
           age?: number | null
           ai_confidence_score?: number | null
+          ai_learning_consent?: boolean | null
           alcohol_drinks?: number | null
           am_routine?: string[] | null
           carnation?: string | null
@@ -379,8 +419,11 @@ export type Database = {
           last_period_date?: string | null
           makeup_removed?: boolean | null
           manual_location?: string | null
+          marketing_share_consent?: boolean | null
           period_duration?: number | null
+          personalized_recommendations_consent?: boolean | null
           pm_routine?: string[] | null
+          product_research_consent?: boolean | null
           profession?: string | null
           skin_goals?: string[] | null
           skin_problems?: string[] | null
@@ -394,6 +437,7 @@ export type Database = {
         Update: {
           age?: number | null
           ai_confidence_score?: number | null
+          ai_learning_consent?: boolean | null
           alcohol_drinks?: number | null
           am_routine?: string[] | null
           carnation?: string | null
@@ -412,8 +456,11 @@ export type Database = {
           last_period_date?: string | null
           makeup_removed?: boolean | null
           manual_location?: string | null
+          marketing_share_consent?: boolean | null
           period_duration?: number | null
+          personalized_recommendations_consent?: boolean | null
           pm_routine?: string[] | null
+          product_research_consent?: boolean | null
           profession?: string | null
           skin_goals?: string[] | null
           skin_problems?: string[] | null

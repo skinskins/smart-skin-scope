@@ -11,23 +11,23 @@ import type { RoutineProduct } from "@/hooks/useRoutineProducts";
 
 const PHASE_TO_PEARL: Record<string, string> = {
   "Folliculaire": "Perle douce",
-  "Ovulatoire":   "Perle lumineuse",
-  "Lutéale":      "Perle terne",
-  "Menstruelle":  "Perle fragile",
+  "Ovulatoire": "Perle lumineuse",
+  "Lutéale": "Perle terne",
+  "Menstruelle": "Perle fragile",
 };
 
 const PEARL_GRADIENT: Record<string, { gradient: string; pulseColor: string }> = {
-  "Folliculaire":  { gradient: "linear-gradient(145deg, #B8D4E8 0%, #7EB3D4 45%, #4A8AB8 100%)", pulseColor: "#7EB3D4" },
-  "Ovulatoire":    { gradient: "linear-gradient(145deg, #F5E6A3 0%, #F0C060 45%, #E89020 100%)", pulseColor: "#F0C060" },
-  "Lutéale":       { gradient: "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)", pulseColor: "#A07850" },
-  "Menstruelle":   { gradient: "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)", pulseColor: "#D06070" },
+  "Folliculaire": { gradient: "linear-gradient(145deg, #B8D4E8 0%, #7EB3D4 45%, #4A8AB8 100%)", pulseColor: "#7EB3D4" },
+  "Ovulatoire": { gradient: "linear-gradient(145deg, #F5E6A3 0%, #F0C060 45%, #E89020 100%)", pulseColor: "#F0C060" },
+  "Lutéale": { gradient: "linear-gradient(145deg, #C4A882 0%, #A07850 45%, #785030 100%)", pulseColor: "#A07850" },
+  "Menstruelle": { gradient: "linear-gradient(145deg, #E8A4A8 0%, #D06070 45%, #A83050 100%)", pulseColor: "#D06070" },
 };
 
 const PEARL_SUBTITLES: Record<string, string> = {
   "Perle lumineuse": "Votre peau est au top",
-  "Perle douce":     "Votre peau est équilibrée",
-  "Perle terne":     "Votre peau a besoin de douceur",
-  "Perle fragile":   "La douceur et la simplicité sont de mise aujourd'hui",
+  "Perle douce": "Votre peau est équilibrée",
+  "Perle terne": "Votre peau a besoin de douceur",
+  "Perle fragile": "La douceur et la simplicité sont de mise aujourd'hui",
 };
 
 const getPearlForDate = (
@@ -38,15 +38,15 @@ const getPearlForDate = (
 ): { pearlName: string | null; phase: string | null; cycleDay: number | null } => {
   if (!lastPeriodDate) return { pearlName: null, phase: null, cycleDay: null };
   const periodStart = new Date(lastPeriodDate); periodStart.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);             target.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr); target.setHours(0, 0, 0, 0);
   if (target < periodStart) return { pearlName: null, phase: null, cycleDay: null };
   const diffDays = Math.floor((target.getTime() - periodStart.getTime()) / 86400000);
   const day = (diffDays % cycleDuration) + 1;
   let phase: string;
-  if (day <= periodDuration)                              phase = "Menstruelle";
-  else if (day <= Math.floor(cycleDuration / 2) - 1)     phase = "Folliculaire";
-  else if (day <= Math.floor(cycleDuration / 2) + 2)     phase = "Ovulatoire";
-  else                                                    phase = "Lutéale";
+  if (day <= periodDuration) phase = "Menstruelle";
+  else if (day <= Math.floor(cycleDuration / 2) - 1) phase = "Folliculaire";
+  else if (day <= Math.floor(cycleDuration / 2) + 2) phase = "Ovulatoire";
+  else phase = "Lutéale";
   return { pearlName: PHASE_TO_PEARL[phase] ?? null, phase, cycleDay: day };
 };
 
@@ -91,8 +91,8 @@ const SuiviJour = () => {
 
       if (profileRes.data) {
         if (profileRes.data.last_period_date) setLastPeriodDate(profileRes.data.last_period_date);
-        if (profileRes.data.cycle_duration)   setCycleDuration(profileRes.data.cycle_duration);
-        if (profileRes.data.period_duration)  setPeriodDuration(profileRes.data.period_duration);
+        if (profileRes.data.cycle_duration) setCycleDuration(profileRes.data.cycle_duration);
+        if (profileRes.data.period_duration) setPeriodDuration(profileRes.data.period_duration);
       }
 
       if (photoRes.data?.analysis_json) setSkinAnalysis(photoRes.data.analysis_json);
@@ -224,8 +224,8 @@ const SuiviJour = () => {
   const isToday = date === today;
   const displayWeather = weather
     ?? (isToday && liveWeather.pollution !== "..."
-        ? { temp: liveWeather.temp, uv: liveWeather.uv, pollution: liveWeather.pollution }
-        : null);
+      ? { temp: liveWeather.temp, uv: liveWeather.uv, pollution: liveWeather.pollution }
+      : null);
 
   const dateLabel = date
     ? new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
@@ -284,7 +284,8 @@ const SuiviJour = () => {
                     }}
                   />
                   {/* Layer 3 — facteurs (pas de données checkin sur cette page) */}
-                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", opacity: 0,
+                  <div style={{
+                    position: "absolute", inset: 0, borderRadius: "50%", opacity: 0,
                     background: "radial-gradient(circle at 20% 78%, rgba(110,60,180,0.75) 0%, rgba(80,40,150,0.35) 38%, transparent 62%)",
                   }} />
                 </div>
@@ -298,6 +299,31 @@ const SuiviJour = () => {
                 </p>
               )}
             </div>
+
+            {/* Cartes contextuelles */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="premium-card p-4 flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</p>
+                <p className="text-sm font-bold text-foreground">{phase ?? "–"}</p>
+                {cycleDay && (
+                  <p className="text-[10px] text-muted-foreground">Jour {cycleDay} sur {cycleDuration}</p>
+                )}
+              </div>
+              <div className="premium-card p-4 flex flex-col gap-1.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Qualité d'air</p>
+                <p className="text-sm font-bold text-foreground">{displayWeather?.pollution ?? "–"}</p>
+                {displayWeather && (
+                  <p className="text-[10px] text-muted-foreground">Indice UV à {displayWeather.uv}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Message INCI (masque temporairement - a remettre plus tard) */}
+            {false && inciMessageFromLog && (
+              <div className="premium-card p-4">
+                <p className="text-sm text-muted-foreground leading-snug">{inciMessageFromLog}</p>
+              </div>
+            )}
 
             {/* Photo peau */}
             {skinPhotoUrl ? (
@@ -398,30 +424,7 @@ const SuiviJour = () => {
               <p className="text-xs text-red-500 text-center mt-2 px-2">{uploadError}</p>
             )}
 
-            {/* Cartes contextuelles */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="premium-card p-4 flex flex-col gap-1.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cycle</p>
-                <p className="text-sm font-bold text-foreground">{phase ?? "–"}</p>
-                {cycleDay && (
-                  <p className="text-[10px] text-muted-foreground">Jour {cycleDay} sur {cycleDuration}</p>
-                )}
-              </div>
-              <div className="premium-card p-4 flex flex-col gap-1.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Qualité d'air</p>
-                <p className="text-sm font-bold text-foreground">{displayWeather?.pollution ?? "–"}</p>
-                {displayWeather && (
-                  <p className="text-[10px] text-muted-foreground">Indice UV à {displayWeather.uv}</p>
-                )}
-              </div>
-            </div>
 
-            {/* Message INCI (masque temporairement - a remettre plus tard) */}
-            {false && inciMessageFromLog && (
-              <div className="premium-card p-4">
-                <p className="text-sm text-muted-foreground leading-snug">{inciMessageFromLog}</p>
-              </div>
-            )}
 
             {/* Produits utilisés */}
             {loggedProducts.length > 0 && (
