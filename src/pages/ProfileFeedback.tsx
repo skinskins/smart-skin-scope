@@ -1,23 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Camera, Lightbulb, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
-const BUG_TYPES = [
-  "L'app fige",
-  "Affichage cassé",
-  "Un bouton ne répond pas",
-  "Connexion ou compte",
-  "Problème de sauvegarde",
-  "Mon cycle affiche des informations incorrectes",
-  "Scan de produits qui échoue",
-  "Notification manquante",
-  "Autre",
+const BUG_GUIDE = [
+  "Comment/quand le bug est apparu : quelle action avez-vous faite juste avant ?",
+  "À quel endroit précis dans l'application : quelle page/quel écran ?",
+  "Est-ce que ça arrive à chaque fois, ou c'est arrivé une seule fois ?",
 ];
 
 type Tab = "bug" | "suggestion";
@@ -25,12 +18,27 @@ type Tab = "bug" | "suggestion";
 const ProfileFeedback = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("bug");
-  const [bugType, setBugType] = useState("");
   const [bugDescription, setBugDescription] = useState("");
   const [suggestion, setSuggestion] = useState("");
   const [sending, setSending] = useState(false);
+  const [bugPhoto, setBugPhoto] = useState<File | null>(null);
+  const [bugPhotoPreview, setBugPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isValid = tab === "bug" ? !!bugType && bugDescription.trim().length > 0 : suggestion.trim().length > 0;
+  const isValid = tab === "bug" ? bugDescription.trim().length > 0 : suggestion.trim().length > 0;
+
+  const handlePhotoSelect = (file: File) => {
+    setPhotoError(null);
+    setBugPhoto(file);
+    setBugPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handlePhotoRemove = () => {
+    setBugPhoto(null);
+    setBugPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleSend = async () => {
     if (!isValid || sending) return;
@@ -41,11 +49,28 @@ const ProfileFeedback = () => {
       setSending(false);
       return;
     }
+
+    let photoPath: string | null = null;
+    if (tab === "bug" && bugPhoto) {
+      const ext = bugPhoto.name.split(".").pop() ?? "jpg";
+      const path = `${session.user.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("feedback-photos")
+        .upload(path, bugPhoto);
+      if (uploadError) {
+        console.error(uploadError);
+        setPhotoError("Erreur lors de l'envoi de la photo, réessayez");
+        setSending(false);
+        return;
+      }
+      photoPath = path;
+    }
+
     const { error } = await (supabase as any).from("feedback").insert({
       user_id: session.user.id,
       type: tab,
-      bug_type: tab === "bug" ? bugType : null,
       message: tab === "bug" ? bugDescription : suggestion,
+      photo_path: photoPath,
     });
     setSending(false);
     if (error) {
@@ -108,27 +133,60 @@ const ProfileFeedback = () => {
 
         {tab === "bug" ? (
           <div className="flex flex-col gap-8">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm text-foreground">Type de bug</label>
-              <Select value={bugType} onValueChange={setBugType}>
-                <SelectTrigger className="h-auto rounded-[6px] px-3 py-3 text-base">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {BUG_TYPES.map((type) => (
-                    <SelectItem key={type} value={type} className="text-base focus:bg-muted">
-                      {type}
-                    </SelectItem>
+            <div className="flex flex-col gap-4">
+              <div className="premium-card p-4 flex flex-col gap-2.5">
+                <div className="flex items-center gap-2">
+                  <Lightbulb size={16} strokeWidth={1.5} className="text-primary shrink-0" />
+                  <p className="text-sm font-medium text-foreground">Pour nous aider à comprendre le problème</p>
+                </div>
+                <ul className="flex flex-col gap-1.5 pl-1">
+                  {BUG_GUIDE.map((tip) => (
+                    <li key={tip} className="flex gap-2 text-sm text-muted-foreground leading-snug">
+                      <span className="text-primary/60 shrink-0">•</span>
+                      <span>{tip}</span>
+                    </li>
                   ))}
-                </SelectContent>
-              </Select>
+                </ul>
+              </div>
+              <Textarea
+                value={bugDescription}
+                onChange={(e) => setBugDescription(e.target.value)}
+                placeholder="Que s'est-il passé, et qu'attendiez-vous à la place ?"
+                className="h-[138px] rounded-[6px] resize-none text-base"
+              />
             </div>
-            <Textarea
-              value={bugDescription}
-              onChange={(e) => setBugDescription(e.target.value)}
-              placeholder="Que s'est-il passé, et qu'attendiez-vous à la place ?"
-              className="h-[138px] rounded-[6px] resize-none text-base"
-            />
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-foreground">Photo ou capture d'écran (optionnel)</label>
+              {bugPhotoPreview ? (
+                <div className="relative rounded-[6px] overflow-hidden border border-border/40 w-fit">
+                  <img src={bugPhotoPreview} alt="Aperçu du bug" className="max-h-48 object-contain" />
+                  <button
+                    type="button"
+                    onClick={handlePhotoRemove}
+                    aria-label="Retirer la photo"
+                    className="absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full bg-background/90 hover:bg-background transition-colors"
+                  >
+                    <X size={14} strokeWidth={1.5} className="text-foreground" />
+                  </button>
+                </div>
+              ) : (
+                <label className="block cursor-pointer">
+                  <div className="w-full h-[120px] bg-muted/20 rounded-[6px] border-2 border-dashed border-border/40 flex flex-col items-center justify-center gap-2 hover:bg-muted/30 transition-colors">
+                    <Camera size={22} strokeWidth={1.5} className="text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">Joindre une photo</p>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handlePhotoSelect(e.target.files[0])}
+                  />
+                </label>
+              )}
+              {photoError && <p className="text-xs text-red-500">{photoError}</p>}
+            </div>
           </div>
         ) : (
           <Textarea

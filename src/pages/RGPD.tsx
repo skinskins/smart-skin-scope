@@ -18,7 +18,6 @@ const RGPD = () => {
     const [personalizedRecommendationsConsent, setPersonalizedRecommendationsConsent] = useState(true);
     const [aiLearningConsent, setAiLearningConsent] = useState(true);
     const [productResearchConsent, setProductResearchConsent] = useState(false);
-    const [marketingShareConsent, setMarketingShareConsent] = useState(false);
 
     useEffect(() => {
         const fetchConsents = async () => {
@@ -26,14 +25,13 @@ const RGPD = () => {
             if (!session) return;
             const { data } = await (supabase as any)
                 .from("profiles")
-                .select("personalized_recommendations_consent, ai_learning_consent, product_research_consent, marketing_share_consent")
+                .select("personalized_recommendations_consent, ai_learning_consent, product_research_consent")
                 .eq("id", session.user.id)
                 .single();
             if (data) {
                 if (data.personalized_recommendations_consent != null) setPersonalizedRecommendationsConsent(data.personalized_recommendations_consent);
                 if (data.ai_learning_consent != null) setAiLearningConsent(data.ai_learning_consent);
                 if (data.product_research_consent != null) setProductResearchConsent(data.product_research_consent);
-                if (data.marketing_share_consent != null) setMarketingShareConsent(data.marketing_share_consent);
             }
         };
         fetchConsents();
@@ -102,20 +100,11 @@ const RGPD = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 py-3 border-b border-border/20">
+                    <div className="flex items-center gap-4 py-3 border-b border-border/20 last:border-b-0">
                         <p className="flex-1 text-[14px] text-foreground">Amélioration du produit</p>
                         <Switch
                             checked={productResearchConsent}
                             onCheckedChange={handleToggle("product_research_consent", setProductResearchConsent)}
-                            className="shrink-0"
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-4 py-3 border-b border-border/20 last:border-b-0">
-                        <p className="flex-1 text-[14px] text-foreground">Partage marketing</p>
-                        <Switch
-                            checked={marketingShareConsent}
-                            onCheckedChange={handleToggle("marketing_share_consent", setMarketingShareConsent)}
                             className="shrink-0"
                         />
                     </div>

@@ -72,6 +72,4 @@ export interface SignupStepProps {
   setAiLearningConsent?: Dispatch<SetStateAction<boolean>>;
   productResearchConsent?: boolean;
   setProductResearchConsent?: Dispatch<SetStateAction<boolean>>;
-  marketingShareConsent?: boolean;
-  setMarketingShareConsent?: Dispatch<SetStateAction<boolean>>;
 }

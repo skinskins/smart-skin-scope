@@ -330,6 +330,7 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          photo_path: string | null
           type: string
           user_id: string
         }
@@ -338,6 +339,7 @@ export type Database = {
           created_at?: string
           id?: string
           message: string
+          photo_path?: string | null
           type: string
           user_id: string
         }
@@ -346,6 +348,7 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string
+          photo_path?: string | null
           type?: string
           user_id?: string
         }
@@ -382,7 +385,6 @@ export type Database = {
           last_period_date: string | null
           makeup_removed: boolean | null
           manual_location: string | null
-          marketing_share_consent: boolean | null
           period_duration: number | null
           personalized_recommendations_consent: boolean | null
           pm_routine: string[] | null
@@ -419,7 +421,6 @@ export type Database = {
           last_period_date?: string | null
           makeup_removed?: boolean | null
           manual_location?: string | null
-          marketing_share_consent?: boolean | null
           period_duration?: number | null
           personalized_recommendations_consent?: boolean | null
           pm_routine?: string[] | null
@@ -456,7 +457,6 @@ export type Database = {
           last_period_date?: string | null
           makeup_removed?: boolean | null
           manual_location?: string | null
-          marketing_share_consent?: boolean | null
           period_duration?: number | null
           personalized_recommendations_consent?: boolean | null
           pm_routine?: string[] | null

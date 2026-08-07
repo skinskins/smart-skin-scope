@@ -76,7 +76,6 @@ const Signup = () => {
     const [personalizedRecommendationsConsent, setPersonalizedRecommendationsConsent] = useState(false);
     const [aiLearningConsent, setAiLearningConsent] = useState(false);
     const [productResearchConsent, setProductResearchConsent] = useState(false);
-    const [marketingShareConsent, setMarketingShareConsent] = useState(false);
 
     // Step 3: Diagnostic peau + Objectifs
     const [skinType, setSkinType] = useState("");
@@ -455,7 +454,6 @@ const Signup = () => {
                 personalized_recommendations_consent: personalizedRecommendationsConsent,
                 ai_learning_consent: aiLearningConsent,
                 product_research_consent: productResearchConsent,
-                marketing_share_consent: marketingShareConsent,
             });
 
             if (selectedOnboardingProducts.length > 0) {
@@ -618,8 +616,6 @@ const Signup = () => {
                                 setAiLearningConsent={setAiLearningConsent}
                                 productResearchConsent={productResearchConsent}
                                 setProductResearchConsent={setProductResearchConsent}
-                                marketingShareConsent={marketingShareConsent}
-                                setMarketingShareConsent={setMarketingShareConsent}
                             />
                         )}
 

@@ -11,8 +11,6 @@ const StepConsent = ({
     setAiLearningConsent,
     productResearchConsent,
     setProductResearchConsent,
-    marketingShareConsent,
-    setMarketingShareConsent,
 }: SignupStepProps) => {
     return (
         <>
@@ -52,14 +50,6 @@ const StepConsent = ({
                         <p className="text-sm text-muted-foreground">Données anonymisées pour améliorer nos modèles.</p>
                     </div>
                     <Switch checked={productResearchConsent} onCheckedChange={setProductResearchConsent} className="shrink-0 mt-1" />
-                </div>
-
-                <div className="flex items-start gap-3 justify-between pb-6 border-b border-border/40">
-                    <div className="space-y-2">
-                        <h3 className="text-lg text-foreground">Partage marketing</h3>
-                        <p className="text-sm text-muted-foreground">Partage avec nos outils publicitaires.</p>
-                    </div>
-                    <Switch checked={marketingShareConsent} onCheckedChange={setMarketingShareConsent} className="shrink-0 mt-1" />
                 </div>
 
                 <div className="flex gap-3 p-4 bg-muted/20 rounded-2xl">
