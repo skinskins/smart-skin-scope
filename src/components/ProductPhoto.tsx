@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { ImageOff } from "lucide-react";
+import { ProductTypeIcon } from "@/components/ProductTypeIcon";
 
 interface ProductPhotoProps {
   url: string | null;
   name: string;
+  type?: string | null;
   iconSize?: number;
   imgClassName?: string;
 }
 
-export const ProductPhoto = ({ url, name, iconSize = 14, imgClassName = "w-full h-full object-contain" }: ProductPhotoProps) => {
+export const ProductPhoto = ({ url, name, type, iconSize = 14, imgClassName = "w-full h-full object-contain" }: ProductPhotoProps) => {
   const [error, setError] = useState(false);
   if (!url || error) {
-    return <ImageOff size={iconSize} className="text-muted-foreground/40" />;
+    return <ProductTypeIcon type={type} size={iconSize * 2} />;
   }
   return (
     <img

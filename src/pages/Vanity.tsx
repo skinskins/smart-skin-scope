@@ -587,8 +587,8 @@ const Vanity = () => {
                           className="flex gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm sm:flex-row sm:items-center sm:gap-3"
                         >
                           <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <div className="w-14 max-h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                              <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={18} />
+                            <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                              <ProductPhoto url={p.photo_url} name={p.product_name} type={p.product_type} iconSize={18} />
                             </div>
                             <div className="min-w-0 flex-1 overflow-hidden">
                               <p className="text-xs font-bold text-foreground break-words">{p.product_name}</p>
@@ -684,7 +684,7 @@ const Vanity = () => {
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                                  <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={14} />
+                                  <ProductPhoto url={p.photo_url} name={p.product_name} type={p.product_type} iconSize={14} />
                                 </div>
                                 <div className="min-w-0">
                                   <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
