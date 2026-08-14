@@ -24,7 +24,7 @@ const StepProfilePhysical = ({ BackButton, age, setAge, gender, setGender }: Sig
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Sexe</label>
                     <div className="grid grid-cols-3 gap-3">
                         {['Femme', 'Homme', 'Autre'].map((g) => (
-                            <button type="button" key={g} onClick={() => setGender(g)} className={`py-4 px-2 border rounded-full transition-all text-[10px] font-bold uppercase tracking-widest ${gender === g ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                            <button type="button" key={g} onClick={() => setGender(g)} className={`py-4 px-2 rounded-2xl border-2 text-[10px] font-bold uppercase tracking-widest transition-all ${gender === g ? "border-primary bg-primary/5 text-primary premium-shadow" : "border-border/40 bg-background/40 text-foreground/60"}`}>
                                 {g}
                             </button>
                         ))}

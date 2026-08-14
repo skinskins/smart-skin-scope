@@ -50,8 +50,8 @@ const StepCycle = ({ BackButton, lastPeriodDate, setLastPeriodDate, cycleDuratio
                                 setCycleStatus(value);
                             }}
                             className={cn(
-                                "flex-1 py-3 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all",
-                                cycleStatus === value ? "border-primary text-primary bg-primary/5" : "border-border/40 text-muted-foreground hover:border-primary"
+                                "flex-1 py-3 rounded-2xl border-2 text-[10px] font-bold uppercase tracking-widest transition-all",
+                                cycleStatus === value ? "border-primary bg-primary/5 text-primary premium-shadow" : "border-border/40 bg-background/40 text-foreground/60"
                             )}
                         >
                             {label}
