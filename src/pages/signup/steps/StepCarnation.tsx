@@ -1,3 +1,4 @@
+import SelectableOption from "@/pages/signup/components/SelectableOption";
 import type { SignupStepProps } from "@/pages/signup/types";
 
 const swatches = [
@@ -28,14 +29,9 @@ const StepCarnation = ({ BackButton, carnation, setCarnation, skinType, setSkinT
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Type de peau</label>
                     <div className="grid grid-cols-3 gap-3">
                         {SKIN_TYPES.map((type) => (
-                            <button
-                                type="button"
-                                key={type}
-                                onClick={() => setSkinType(type)}
-                                className={`py-4 rounded-2xl border-2 text-[10px] font-bold uppercase tracking-widest transition-all ${skinType === type ? "border-primary bg-primary/5 text-primary premium-shadow" : "border-border/40 bg-background/40 text-foreground/60"}`}
-                            >
+                            <SelectableOption key={type} selected={skinType === type} onClick={() => setSkinType(type)}>
                                 {type}
-                            </button>
+                            </SelectableOption>
                         ))}
                     </div>
                 </div>
@@ -44,15 +40,15 @@ const StepCarnation = ({ BackButton, carnation, setCarnation, skinType, setSkinT
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Carnation</label>
                     <div className="grid grid-cols-3 gap-4">
                         {swatches.map((swatch) => (
-                            <button
-                                type="button"
+                            <SelectableOption
                                 key={swatch.value}
+                                selected={carnation === swatch.value}
                                 onClick={() => setCarnation(swatch.value)}
-                                className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${carnation === swatch.value ? "border-primary bg-primary/5 premium-shadow" : "border-border/40 bg-background/40"}`}
+                                className="flex flex-col items-center gap-3 p-4"
                             >
                                 <div className="w-12 h-12 rounded-full shadow-sm" style={{ backgroundColor: swatch.color }} />
                                 <p className="text-[10px] font-bold text-foreground uppercase tracking-widest text-center leading-tight">{swatch.label}</p>
-                            </button>
+                            </SelectableOption>
                         ))}
                     </div>
                 </div>
@@ -61,14 +57,9 @@ const StepCarnation = ({ BackButton, carnation, setCarnation, skinType, setSkinT
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Sensibilités</label>
                     <div className="grid grid-cols-2 gap-3">
                         {SKIN_PROBLEMS.map((problem) => (
-                            <button
-                                type="button"
-                                key={problem}
-                                onClick={() => toggleProblem?.(problem)}
-                                className={`py-4 px-2 rounded-2xl border-2 text-[10px] font-bold uppercase tracking-widest transition-all ${skinProblems.includes(problem) ? "border-primary bg-primary/5 text-primary premium-shadow" : "border-border/40 bg-background/40 text-foreground/60"}`}
-                            >
+                            <SelectableOption key={problem} selected={skinProblems.includes(problem)} onClick={() => toggleProblem?.(problem)}>
                                 {problem}
-                            </button>
+                            </SelectableOption>
                         ))}
                     </div>
                 </div>
