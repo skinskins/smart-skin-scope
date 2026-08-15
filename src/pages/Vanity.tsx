@@ -10,6 +10,7 @@ import { RoutineCard } from "@/components/RoutineCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PRESET_DEVICES } from "@/data/presetDevices";
+import RoutineLoadingMessage from "@/components/RoutineLoadingMessage";
 
 type CatalogProduct = {
   id: string;
@@ -855,39 +856,42 @@ const Vanity = () => {
             )}
           </motion.div>
 
-          {/* Mes accessoires beauté */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="premium-card p-6 order-3"
-          >
-            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
-              Mes accessoires beauté
-            </h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Sélectionne les appareils que tu utilises pour que ton assistant en tienne compte dans tes conseils.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_DEVICES.map(({ emoji, label }) => {
-                const active = userDeviceLabels.has(label);
-                return (
-                  <button
-                    key={label}
-                    onClick={() => toggleDevice(label)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${active
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-card border-border text-foreground/70 hover:border-primary/50 hover:bg-muted/20"
-                      }`}
-                  >
-                    <span>{emoji}</span>
-                    <span>{label}</span>
-                    {active && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
+          {/* Mes accessoires beauté — masqué (désactivé sur demande car pas réellement pris en
+              compte dans la génération des conseils/routine), code conservé */}
+          {false && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="premium-card p-6 order-3"
+            >
+              <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
+                Mes accessoires beauté
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Sélectionne les appareils que tu utilises pour que ton assistant en tienne compte dans tes conseils.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_DEVICES.map(({ emoji, label }) => {
+                  const active = userDeviceLabels.has(label);
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => toggleDevice(label)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${active
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card border-border text-foreground/70 hover:border-primary/50 hover:bg-muted/20"
+                        }`}
+                    >
+                      <span>{emoji}</span>
+                      <span>{label}</span>
+                      {active && <Check size={11} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
           {/* Import analyse professionnelle — masqué (désactivé sur demande), code conservé */}
           {false && (
@@ -1036,10 +1040,7 @@ const Vanity = () => {
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
                 <div className="text-center py-12 space-y-3">
                   {autoCurating ? (
-                    <div className="flex items-center justify-center gap-2.5">
-                      <span className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
-                      <p className="text-sm text-muted-foreground">Sélection de votre routine idéale…</p>
-                    </div>
+                    <RoutineLoadingMessage />
                   ) : dailyProducts.length === 0 ? (
                     <>
                       <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>

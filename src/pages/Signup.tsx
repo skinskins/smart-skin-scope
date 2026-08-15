@@ -516,10 +516,11 @@ const Signup = () => {
                     console.error("[DEBUG] skin_photos upsert error:", skinPhotoError);
                 }
             }
-            // Générer les conseils de la semaine (piliers) à partir de l'analyse
-            supabase.functions.invoke("generate-weekly-advice", {
-                body: { user_id: userId },
-            }).catch((e) => console.warn("generate-weekly-advice:", e));
+            // La génération des conseils de la semaine est laissée au premier chargement du
+            // Dashboard (fetchAdvice) plutôt que déclenchée ici en fire-and-forget : les deux
+            // appels en parallèle (celui-ci + celui du Dashboard juste après la redirection)
+            // passaient chacun le check "déjà généré ?" avant que l'autre ait inséré ses lignes,
+            // doublant le nombre de conseils insérés pour la même semaine.
             localStorage.setItem("nacre_show_beta_welcome", "1");
             setLoading(false);
             navigate("/dashboard");

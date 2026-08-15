@@ -16,6 +16,16 @@ function getMonday(dateStr: string): string {
   return d.toISOString().split("T")[0];
 }
 
+// Doit rester synchro avec le mapping utilise par inci-analysis pour les memes cles.
+const DEFAULT_FACTOR_LABELS: Record<string, string> = {
+  poor_sleep: "manque de sommeil habituel", good_sleep: "dort bien en général",
+  high_stress: "niveau de stress élevé habituellement", serene: "plutôt sereine habituellement",
+  high_sugar: "alimentation sucrée/grasse habituelle", low_water: "hydratation insuffisante habituelle",
+  balanced_diet: "alimentation équilibrée habituelle", sport: "sport régulier",
+  sedentary: "mode de vie sédentaire", sun: "exposition solaire fréquente",
+  screens: "beaucoup d'écrans", smoking: "fumeuse", hormonal: "contraception hormonale",
+};
+
 // Plafond de régénérations MANUELLES (force:true) par semaine — la génération automatique
 // de début de semaine (force:false, aucun conseil encore présent) ne compte pas dedans,
 // elle est toujours autorisée une fois. Ça évite qu'un clic répété sur "Mettre à jour mes
@@ -153,6 +163,51 @@ serve(async (req) => {
 
     const cosmetics = (products ?? []).filter((p) => p.product_type !== "device");
 
+    // ── 4bis. Check-in du jour — capte les facteurs fraichement saisis (chat quotidien /
+    // routine du soir) pour qu'une regeneration manuelle en tienne compte immediatement,
+    // pas seulement inci-analysis. Fallback sur les facteurs habituels si rien aujourd'hui.
+    const { data: checkin } = await supabase
+      .from("daily_checkins")
+      .select("stress_level, sleep_hours, food_quality, alcohol_drinks, extra_factors")
+      .eq("user_id", user_id)
+      .eq("date", today)
+      .maybeSingle();
+
+    let lifestyleBlock: string;
+    if (checkin) {
+      const factors: string[] = [];
+      if (checkin.stress_level !== null) {
+        if (checkin.stress_level >= 4)      factors.push("stress très élevé aujourd'hui");
+        else if (checkin.stress_level === 3) factors.push("stress modéré");
+        else if (checkin.stress_level === 1) factors.push("sereine");
+      }
+      if (checkin.sleep_hours !== null) {
+        if (checkin.sleep_hours <= 5)       factors.push(`sommeil insuffisant (${checkin.sleep_hours}h)`);
+        else if (checkin.sleep_hours >= 7)  factors.push(`bon sommeil (${checkin.sleep_hours}h)`);
+      }
+      if (checkin.food_quality === "Grasses / Sucrées") factors.push("alimentation grasse/sucrée");
+      else if (checkin.food_quality === "Équilibrée")   factors.push("alimentation équilibrée");
+      if ((checkin.alcohol_drinks ?? 0) >= 1)           factors.push("consommation d'alcool");
+      if (checkin.extra_factors?.sun_exposure)          factors.push("exposition solaire");
+      if (checkin.extra_factors?.medication)            factors.push("prise de médicament");
+      if (checkin.extra_factors?.travel)                factors.push("voyage/changement d'environnement");
+      lifestyleBlock = factors.length > 0
+        ? `Check-in du jour : ${factors.join(", ")}`
+        : "Check-in effectué aujourd'hui — aucun facteur particulier noté";
+    } else {
+      const defaultFactors = profile.default_factors as Record<string, boolean> | null;
+      if (defaultFactors) {
+        const active = Object.entries(defaultFactors)
+          .filter(([, v]) => v)
+          .map(([k]) => DEFAULT_FACTOR_LABELS[k] ?? k);
+        lifestyleBlock = active.length > 0
+          ? `Mode de vie habituel déclaré (pas de check-in aujourd'hui) : ${active.join(", ")}`
+          : "Mode de vie déclaré sans facteur particulier, pas de check-in aujourd'hui";
+      } else {
+        lifestyleBlock = "Aucun check-in aujourd'hui et aucun mode de vie habituel déclaré";
+      }
+    }
+
     // ── 5. Blocs de prompt ──────────────────────────────────────────────────
     const skinAnalysis = lastPhoto?.analysis_json as Record<string, any> | undefined;
 
@@ -189,6 +244,9 @@ Nous sommes en debut de semaine. Genere le PLAN DE LA SEMAINE : 2 a 3 conseils P
 ## ETAT DE PEAU${lastPhoto?.date ? ` (analyse du ${lastPhoto.date})` : ""}
 ${skinStateBlock}
 
+## MODE DE VIE
+${lifestyleBlock}
+
 ## PRODUITS EN ROUTINE (avec moments d'application)
 ${productsBlock}
 
@@ -197,7 +255,7 @@ Genere 2 a 3 conseils PILIERS pour la semaine qui :
 1. Definissent les PRIORITES de la semaine selon l'etat de peau observe
 2. Evaluent, parmi les produits possedes listes ci-dessus, lesquels sont reellement adaptes a son type de peau, ses problemes et ses objectifs — possede un produit ne veut pas dire qu'il lui convient
 3. S'appuient sur les ingredients actifs des produits pertinents (cite les actifs precis : niacinamide, retinol, acide hyaluronique, etc.) et signalent clairement si un produit possede ne convient pas ou est a utiliser avec prudence, plutot que de l'ignorer silencieusement
-4. Tiennent compte de la phase du cycle
+4. Tiennent compte de la phase du cycle ET du mode de vie ci-dessus (stress, sommeil, alimentation...) quand un facteur du jour est pertinent pour la priorite de la semaine
 5. Sont structurants (une direction pour la semaine, pas un geste ponctuel)
 6. Restent actionnables et experts
 
@@ -296,6 +354,28 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
       // Claude respecte la consigne — on garde les plus prioritaires si jamais il en renvoie plus.
       .sort((a: { priority: string }, b: { priority: string }) => Number(a.priority) - Number(b.priority))
       .slice(0, MAX_ADVICE_COUNT);
+
+    // ── 9bis. Re-verification anti-course juste avant l'ecriture ────────────
+    // Le check "existingWeek" de l'etape 1 a un trou : deux appels concurrents pour le
+    // meme utilisateur (ex. un appel en fire-and-forget en fin d'onboarding + le premier
+    // chargement du Dashboard juste apres la redirection) peuvent tous les deux le passer
+    // avant que l'un des deux ait ecrit quoi que ce soit, doublant le nombre de conseils
+    // inseres pour la semaine. On reverifie donc juste avant d'ecrire, au plus pres de
+    // l'insertion, pour reduire la fenetre de course a la duree d'une lecture DB.
+    const { data: raceCheck } = await supabase
+      .from("weekly_advice_log")
+      .select("id, advice_title, advice_text, advice_tip, priority, advice_group, based_on_photo")
+      .eq("user_id", user_id)
+      .eq("week_start", weekStart)
+      .order("priority", { ascending: true });
+
+    if (raceCheck && raceCheck.length > 0) {
+      console.log(`[generate-weekly-advice] user=${user_id} → course évitée (conseils déjà insérés par un appel concurrent)`);
+      return new Response(
+        JSON.stringify({ cached: true, conseils: raceCheck }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const { error: insertError } = await supabase
       .from("weekly_advice_log")

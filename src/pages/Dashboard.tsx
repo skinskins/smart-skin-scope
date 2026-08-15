@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { motion } from "framer-motion";
 import { AdviceCard, Conseil, pilierGroupFromPriority } from "@/components/AdviceCard";
 import { BetaWelcomeModal } from "@/components/BetaWelcomeModal";
+import RoutineLoadingMessage from "@/components/RoutineLoadingMessage";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
 type SkinPhotoRow = { date: string; analysis_json: any; storage_path: string; publicUrl?: string };
@@ -90,7 +91,8 @@ const nextCycleEvent = (cycleDay: number, cycleDuration: number): string => {
 const Dashboard = () => {
   const [checkinStatus] = useState<"loading" | "done">("done");
   const [routineProducts, setRoutineProducts] = useState<any[]>([]);
-  const [routineTreated, setRoutineTreated] = useState(false);
+  const [routineCurating, setRoutineCurating] = useState(false);
+  const autoCurationTriggeredRef = useRef(false);
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -112,7 +114,25 @@ const Dashboard = () => {
 
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
 
-  // ── Routine produits — daily_routine_log en priorité, fallback user_products ─
+  // Hydrate routineProducts a partir d'une liste ordonnee de product_id (routine curee).
+  const hydrateRoutineProducts = useCallback(async (productIds: string[]) => {
+    if (productIds.length === 0) { setRoutineProducts([]); return; }
+    const { data: products } = await (supabase as any)
+      .from("user_products")
+      .select("id, product_name, brand, photo_url, product_type")
+      .in("id", productIds);
+    if (!products) { setRoutineProducts([]); return; }
+    const ordered = productIds
+      .map((id: string) => products.find((p: any) => p.id === id))
+      .filter(Boolean);
+    setRoutineProducts(ordered);
+  }, []);
+
+  // ── Routine produits — daily_routine_log en priorité, curation automatique sinon ─────
+  // Meme logique que la page Vanity : la routine affichee est celle decidee par
+  // inci-analysis (pertinence au profil), jamais un fallback "tout l'inventaire". Si
+  // aucune curation n'existe encore pour aujourd'hui (typiquement juste apres
+  // l'onboarding), on la genere directement ici sans obliger a passer par Mes Produits.
   const fetchRoutineProducts = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
@@ -127,38 +147,42 @@ const Dashboard = () => {
       .eq("period", isMorning ? "morning" : "evening")
       .maybeSingle();
 
-    if (logData?.product_ids?.length > 0) {
-      const { data: products } = await (supabase as any)
-        .from("user_products")
-        .select("id, product_name, brand, photo_url, product_type")
-        .in("id", logData.product_ids);
-      if (products) {
-        const ordered = logData.product_ids
-          .map((id: string) => products.find((p: any) => p.id === id))
-          .filter(Boolean);
-        setRoutineProducts(ordered);
-        setRoutineTreated(true);
-        return;
-      }
-    }
-
-    setRoutineTreated(!!logData);
-    if (!logData) {
-      setRoutineProducts([]);
+    if (logData) {
+      // Curation deja faite pour ce moment — y compris "0 produit pertinent", un resultat
+      // legitime qu'on ne remplace plus par l'inventaire brut.
+      await hydrateRoutineProducts(logData.product_ids ?? []);
       return;
     }
 
-    // Fallback (routine traitee mais vide) : produits quotidiens actifs
-    const { data: fallback } = await (supabase as any)
+    setRoutineProducts([]);
+
+    if (autoCurationTriggeredRef.current) return;
+
+    // Rien a curer si aucun produit quotidien actif (nouvelle utilisatrice sans produits).
+    const { count } = await (supabase as any)
       .from("user_products")
-      .select("id, product_name, brand, photo_url, product_type")
+      .select("id", { count: "exact", head: true })
       .eq("user_id", session.user.id)
       .eq("is_active", true)
-      .eq(isMorning ? "morning_use" : "evening_use", true)
-      .eq("frequency", "daily")
-      .limit(8);
-    if (fallback) setRoutineProducts(fallback);
-  }, []);
+      .eq("frequency", "daily");
+    if (!count) return;
+
+    autoCurationTriggeredRef.current = true;
+    setRoutineCurating(true);
+    try {
+      const [morningRes, eveningRes] = await Promise.all([
+        supabase.functions.invoke("inci-analysis", { body: { user_id: session.user.id, period: "morning" } }),
+        supabase.functions.invoke("inci-analysis", { body: { user_id: session.user.id, period: "evening" } }),
+      ]);
+      const currentRes = isMorning ? morningRes : eveningRes;
+      const ids = (currentRes.data?.routine ?? []).map((p: any) => p.product_id);
+      await hydrateRoutineProducts(ids);
+    } catch (err) {
+      console.error("[dashboard] curation automatique routine:", err);
+    } finally {
+      setRoutineCurating(false);
+    }
+  }, [hydrateRoutineProducts]);
 
   useEffect(() => { fetchRoutineProducts(); }, [fetchRoutineProducts]);
 
@@ -595,10 +619,9 @@ const Dashboard = () => {
             )}
           </div>
 
-          {!routineTreated && routineProducts.length > 0 ? (
-            <div className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10 text-sm text-muted-foreground flex items-center justify-center gap-2">
-              <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
-              Routine en cours de préparation...
+          {routineCurating ? (
+            <div className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10">
+              <RoutineLoadingMessage />
             </div>
           ) : routineProducts.length > 0 ? (
             <>
