@@ -889,7 +889,7 @@ const Vanity = () => {
             </div>
           </motion.div>
 
-          {/* Import diagnostic professionnel — masqué (désactivé sur demande), code conservé */}
+          {/* Import analyse professionnelle — masqué (désactivé sur demande), code conservé */}
           {false && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -898,10 +898,10 @@ const Vanity = () => {
               className="premium-card p-6 order-4"
             >
               <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
-                Importer mon diagnostic professionnel
+                Importer mon analyse professionnelle
               </h2>
               <p className="text-xs text-muted-foreground mb-4">
-                Importe le rapport PDF de ton dernier diagnostic en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
+                Importe le rapport PDF de ta dernière analyse en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
               </p>
               <button
                 onClick={() => diagnosticFileRef.current?.click()}
@@ -1186,7 +1186,7 @@ const Vanity = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Bottom sheet confirmation diagnostic professionnel */}
+      {/* Bottom sheet confirmation analyse professionnelle */}
       <Drawer
         open={!!diagnosticResult}
         onOpenChange={(open) => { if (!open) setDiagnosticResult(null); }}
@@ -1194,10 +1194,10 @@ const Vanity = () => {
         <DrawerContent className="px-6 pb-10">
           <DrawerHeader className="text-left px-0 pt-2 pb-4">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-              {diagnosticResult?.source ?? "Diagnostic professionnel"}
+              {diagnosticResult?.source ?? "Analyse professionnelle"}
             </p>
             <DrawerTitle className="text-xl font-display text-foreground">
-              Ton diagnostic est prêt
+              Ton analyse est prête
             </DrawerTitle>
           </DrawerHeader>
 
