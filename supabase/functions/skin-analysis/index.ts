@@ -7,6 +7,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Messages figés côté serveur (plutôt que rédigés librement par Claude) pour les deux
+// cas de rejet les plus fréquents, afin d'avoir une formulation soignée et constante.
+// Les autres rejets (éclairage, flou, maquillage, angle) gardent le message généré
+// dynamiquement par le modèle.
+const REJECTION_MESSAGES: Record<string, string> = {
+  sunglasses: "Retire tes lunettes  pour une analyse fiable de ton visage.",
+  no_face: "On ne détecte pas ton visage sur cette photo, recadre-toi bien de face, à bonne distance de la caméra.",
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -76,13 +85,15 @@ CONTEXTE :
 
 INSTRUCTIONS QUALITÉ :
 Avant d'analyser, évalue la qualité de la photo :
-- Éclairage insuffisant → rejette
-- Visage flou ou trop loin → rejette
-- Maquillage épais visible → rejette
-- Angle de profil (pas de face) → rejette
+- Lunettes (de vue ou de soleil) portées, yeux masqués → rejette avec le code "sunglasses"
+- Aucun visage détecté sur la photo → rejette avec le code "no_face"
+- Éclairage insuffisant → rejette avec le code "lighting"
+- Visage flou ou trop loin → rejette avec le code "blur"
+- Maquillage épais visible → rejette avec le code "makeup"
+- Angle de profil (pas de face) → rejette avec le code "angle"
 
 Si rejetée, réponds UNIQUEMENT :
-{"photo_quality":"rejected","rejection_reason":"message court en français avec conseil pratique"}
+{"photo_quality":"rejected","rejection_code":"sunglasses|no_face|lighting|blur|makeup|angle","rejection_reason":"message court en français avec conseil pratique (utilisé seulement si le code n'est pas sunglasses/no_face)"}
 
 Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
 {
@@ -185,8 +196,9 @@ IMPORTANT pour conditions_detectees : sois précis et n'hésite pas à détecter
 
     // ── 5. Photo rejetée ──────────────────────────────────────────────────
     if (parsed.photo_quality === "rejected") {
+      const reason = REJECTION_MESSAGES[parsed.rejection_code] ?? parsed.rejection_reason;
       return new Response(
-        JSON.stringify({ rejected: true, reason: parsed.rejection_reason }),
+        JSON.stringify({ rejected: true, reason }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

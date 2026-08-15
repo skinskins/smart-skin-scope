@@ -330,6 +330,16 @@ const Vanity = () => {
       .single();
     if (dbError) throw dbError;
     if (inserted) setUserProducts(prev => [...prev, inserted]);
+
+    // Marque la routine comme "à régénérer" — traité en debounce 5min par
+    // l'edge function regenerate-routine-batch plutôt qu'immédiatement, pour
+    // éviter un appel Sonnet par produit si l'utilisatrice scanne plusieurs
+    // produits d'affilée.
+    await (supabase as any)
+      .from("profiles")
+      .update({ routine_regen_pending_since: new Date().toISOString() })
+      .eq("id", session.user.id);
+
     setScanMessage(`${product.product_name} ajouté ✓`);
     setTimeout(() => setScanMessage(null), 4000);
   };
@@ -353,7 +363,16 @@ const Vanity = () => {
         const errorText = error.context
           ? await (error.context as Response).text().catch(() => error.message)
           : error.message;
-        throw new Error(errorText);
+        // product-scan renvoie { error: "message propre" } en JSON (ex. crédits épuisés,
+        // soft cap anti-abus) — on l'extrait plutôt que d'afficher le JSON brut.
+        const parsedMessage = (() => {
+          try {
+            return JSON.parse(errorText)?.error;
+          } catch {
+            return null;
+          }
+        })();
+        throw new Error(parsedMessage ?? errorText);
       }
       if (data?.status === "unrecognized" || !data?.product_name) {
         setScanMessage("Produit non reconnu — essaie une photo plus nette du packaging");

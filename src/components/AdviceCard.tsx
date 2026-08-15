@@ -12,6 +12,18 @@ export type Conseil = {
 
 export const GROUP_ORDER: Record<string, number> = { warning: 0, alerte: 1, astuce: 2, observation: 3 };
 
+// weekly_advice_log n'a pas de colonne advice_group (contrairement à daily_advice_log) —
+// on dérive le badge visuel de sa priorité ("1" haute | "2" moyenne | "3" basse), pour que
+// les 3-4 piliers de la semaine restent visuellement distincts plutôt que tous identiques.
+const PILIER_GROUP_BY_PRIORITY: Record<string, string> = {
+  "1": "pilier-haute",
+  "2": "pilier-moyenne",
+  "3": "pilier-basse",
+};
+
+export const pilierGroupFromPriority = (priority: string): string =>
+  PILIER_GROUP_BY_PRIORITY[priority] ?? "pilier-basse";
+
 export const sortConseils = (list: Conseil[]) =>
   [...list].sort((a, b) => {
     const groupDiff = (GROUP_ORDER[a.advice_group] ?? 4) - (GROUP_ORDER[b.advice_group] ?? 4);
@@ -24,6 +36,9 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   astuce:      { label: "Astuce",      color: "text-green-600", bg: "bg-green-50" },
   alerte:      { label: "A surveiller", color: "text-orange-600", bg: "bg-orange-50" },
   warning:     { label: "Attention",   color: "text-red-500",    bg: "bg-red-50" },
+  "pilier-haute":   { label: "Priorité haute",   color: "text-purple-600", bg: "bg-purple-50" },
+  "pilier-moyenne": { label: "Priorité moyenne", color: "text-amber-600", bg: "bg-amber-50" },
+  "pilier-basse":   { label: "Priorité basse",   color: "text-blue-600",  bg: "bg-blue-50" },
 };
 
 export const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
