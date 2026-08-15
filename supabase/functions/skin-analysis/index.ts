@@ -16,13 +16,46 @@ const REJECTION_MESSAGES: Record<string, string> = {
   no_face: "On ne détecte pas ton visage sur cette photo, recadre-toi bien de face, à bonne distance de la caméra.",
 };
 
+// Renvoie le lundi (YYYY-MM-DD) de la semaine d'une date donnee — cohérent avec les autres
+// fonctions puisqu'on tourne en UTC côté serveur (pas de piège de fuseau ici).
+function getMonday(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split("T")[0];
+}
+
+const MAX_SKIN_SCANS_PER_WEEK = 2;
+
+// Le cache/plafond de scans protège un userId : on ne peut donc pas faire confiance au
+// user_id envoyé dans le body (même règle que product-scan / generate-weekly-advice). On
+// dérive l'identité du JWT de session quand il y en a un ; l'appel pendant l'onboarding
+// (avant création de compte) n'a pas de session — dans ce cas on reste en mode anonyme,
+// sans cache ni plafond ni sauvegarde (comportement historique).
+async function resolveAuthenticatedUserId(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return null;
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+  const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!SUPABASE_URL || !ANON_KEY) return null;
+
+  const authClient = createClient(SUPABASE_URL, ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data, error } = await authClient.auth.getUser();
+  if (error || !data?.user) return null;
+  return data.user.id;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { user_id, imageBase64, age: ageParam } = await req.json();
+    const { imageBase64, age: ageParam } = await req.json();
 
     if (!imageBase64) {
       return new Response(JSON.stringify({ error: "imageBase64 requis" }), {
@@ -39,9 +72,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const user_id = await resolveAuthenticatedUserId(req);
     const today = new Date().toISOString().split("T")[0];
 
-    // ── 1. Si user connecté : vérifier cache ──────────────────────────────
+    // ── 1. Si user connecté : vérifier cache + plafond hebdo ──────────────
+    let scansUsedThisWeek = 0;
+    const weekStart = getMonday(today);
     if (user_id) {
       const { data: existing } = await supabase
         .from("skin_photos")
@@ -55,6 +91,22 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ cached: true, analysis: existing.analysis_json }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("skin_scan_count, skin_scan_week")
+        .eq("id", user_id)
+        .single();
+      scansUsedThisWeek = profile?.skin_scan_week === weekStart ? (profile?.skin_scan_count ?? 0) : 0;
+
+      if (scansUsedThisWeek >= MAX_SKIN_SCANS_PER_WEEK) {
+        return new Response(
+          JSON.stringify({
+            error: `Limite de ${MAX_SKIN_SCANS_PER_WEEK} analyses de peau atteinte pour cette semaine — reviens la semaine prochaine.`,
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
@@ -204,6 +256,7 @@ IMPORTANT pour conditions_detectees : sois précis et n'hésite pas à détecter
     }
 
     // ── 6. Sauvegarde (seulement si user connecté) ────────────────────────
+    let skinScansRemaining: number | null = null;
     if (user_id) {
       const photoBytes = Uint8Array.from(atob(imageBase64), c => c.charCodeAt(0));
       const storagePath = `${user_id}/${today}.jpg`;
@@ -232,11 +285,19 @@ IMPORTANT pour conditions_detectees : sois précis et n'hésite pas à détecter
         fonction: "skin-analysis",
       });
 
+      // Décompte du plafond hebdo seulement maintenant que l'analyse est acceptée et
+      // sauvegardée — une photo rejetée (mauvaise qualité) ne consomme pas de scan.
+      skinScansRemaining = Math.max(0, MAX_SKIN_SCANS_PER_WEEK - (scansUsedThisWeek + 1));
+      await supabase
+        .from("profiles")
+        .update({ skin_scan_count: scansUsedThisWeek + 1, skin_scan_week: weekStart })
+        .eq("id", user_id);
+
       console.log("[skin-analysis] Analyse sauvegardée ✅");
     }
 
     return new Response(
-      JSON.stringify({ cached: false, analysis: parsed.analyse }),
+      JSON.stringify({ cached: false, analysis: parsed.analyse, skin_scans_remaining: skinScansRemaining }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

@@ -67,7 +67,20 @@ const SuiviJour = () => {
   const [inciMessageFromLog, setInciMessageFromLog] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [skinScansRemaining, setSkinScansRemaining] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_SKIN_SCANS_PER_WEEK = 2;
+  // Même calcul (UTC) que skin-analysis côté serveur, pour rester cohérent avec la valeur
+  // stockée dans skin_scan_week — ce compteur est juste informatif, pas une vraie limite
+  // recalculée côté client.
+  const getMondayUTC = (dateStr: string): string => {
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().split("T")[0];
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -78,7 +91,7 @@ const SuiviJour = () => {
 
       const [profileRes, photoRes, weatherRes, routineLogRes] = await Promise.all([
         (supabase as any).from("profiles")
-          .select("last_period_date, cycle_duration, period_duration")
+          .select("last_period_date, cycle_duration, period_duration, skin_scan_count, skin_scan_week")
           .eq("id", uid).single(),
         (supabase as any).from("skin_photos")
           .select("storage_path, analysis_json").eq("user_id", uid).eq("date", date).maybeSingle(),
@@ -93,6 +106,9 @@ const SuiviJour = () => {
         if (profileRes.data.last_period_date) setLastPeriodDate(profileRes.data.last_period_date);
         if (profileRes.data.cycle_duration) setCycleDuration(profileRes.data.cycle_duration);
         if (profileRes.data.period_duration) setPeriodDuration(profileRes.data.period_duration);
+        const thisWeek = getMondayUTC(new Date().toISOString().split("T")[0]);
+        const used = profileRes.data.skin_scan_week === thisWeek ? (profileRes.data.skin_scan_count ?? 0) : 0;
+        setSkinScansRemaining(Math.max(0, MAX_SKIN_SCANS_PER_WEEK - used));
       }
 
       if (photoRes.data?.analysis_json) setSkinAnalysis(photoRes.data.analysis_json);
@@ -180,14 +196,36 @@ const SuiviJour = () => {
         img.src = url;
       });
 
-      const { data: analysisData } = await supabase.functions.invoke("skin-analysis", {
+      const { data: analysisData, error: analysisError } = await supabase.functions.invoke("skin-analysis", {
         body: { user_id: userId, imageBase64: base64 },
       });
+
+      if (analysisError) {
+        // skin-analysis renvoie { error: "message propre" } en JSON (ex. limite hebdo de
+        // scans peau atteinte) — on l'extrait plutôt que d'afficher une erreur générique.
+        const errorText = analysisError.context
+          ? await (analysisError.context as Response).text().catch(() => analysisError.message)
+          : analysisError.message;
+        const parsedMessage = (() => {
+          try {
+            return JSON.parse(errorText)?.error;
+          } catch {
+            return null;
+          }
+        })();
+        setUploadError(parsedMessage ?? "Erreur lors de l'analyse — réessaie plus tard.");
+        setUploading(false);
+        return;
+      }
 
       if (analysisData?.rejected) {
         setUploadError(analysisData.reason ?? "Photo non exploitable — reprends une photo bien éclairée, de face.");
         setUploading(false);
         return;
+      }
+
+      if (analysisData?.skin_scans_remaining !== undefined) {
+        setSkinScansRemaining(analysisData.skin_scans_remaining);
       }
 
       // Régénérer les conseils de la semaine à partir de la nouvelle analyse
@@ -419,6 +457,11 @@ const SuiviJour = () => {
                   onChange={(e) => e.target.files?.[0] && handlePhotoUpload(e.target.files[0])}
                 />
               </label>
+            )}
+            {!skinPhotoUrl && skinScansRemaining !== null && (
+              <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+                {skinScansRemaining} scan{skinScansRemaining !== 1 ? "s" : ""} de peau restant{skinScansRemaining !== 1 ? "s" : ""} cette semaine
+              </p>
             )}
             {uploadError && (
               <p className="text-xs text-red-500 text-center mt-2 px-2">{uploadError}</p>

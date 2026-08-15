@@ -21,8 +21,8 @@ type WeekGroup = {
   conseils: Conseil[];
 };
 
-// Doit rester synchro avec MAX_GENERATIONS_PER_WEEK côté generate-weekly-advice.
-const MAX_GENERATIONS_PER_WEEK = 3;
+// Doit rester synchro avec MAX_MANUAL_REGENS_PER_WEEK côté generate-weekly-advice.
+const MAX_MANUAL_REGENS_PER_WEEK = 2;
 
 // Formate en YYYY-MM-DD à partir des composants LOCAUX (jamais toISOString, qui convertit
 // en UTC et décale la date d'un jour pour tout fuseau en avance sur UTC — ex. Europe l'été).
@@ -97,7 +97,6 @@ const WeeklyPlan = () => {
   const [groups, setGroups] = useState<WeekGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
-  const [scanCredits, setScanCredits] = useState<number | null>(null);
   const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -120,21 +119,20 @@ const WeeklyPlan = () => {
     return data ?? [];
   }, []);
 
-  // Lit scan_credits_remaining et le compteur de générations directement en base — utile au
-  // chargement initial, quand generate-weekly-advice n'a pas forcément été rappelée (cas où
-  // les conseils de la semaine existaient déjà).
+  // Lit le compteur de générations directement en base — utile au chargement initial,
+  // quand generate-weekly-advice n'a pas forcément été rappelée (cas où les conseils de
+  // la semaine existaient déjà).
   const fetchProfileLimits = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) return;
     const { data } = await (supabase as any)
       .from("profiles")
-      .select("scan_credits_remaining, weekly_advice_regen_count, weekly_advice_regen_week")
+      .select("weekly_advice_regen_count, weekly_advice_regen_week")
       .eq("id", session.user.id)
       .single();
     if (!data) return;
-    setScanCredits(data.scan_credits_remaining ?? null);
     const used = data.weekly_advice_regen_week === currentWeekKey ? (data.weekly_advice_regen_count ?? 0) : 0;
-    setRegensRemaining(Math.max(0, MAX_GENERATIONS_PER_WEEK - used));
+    setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
   }, []);
 
   useEffect(() => {
@@ -240,11 +238,9 @@ const WeeklyPlan = () => {
                     ? "Limite atteinte pour cette semaine"
                     : "Mettre à jour mes conseils"}
               </button>
-              {(scanCredits !== null || regensRemaining !== null) && (
+              {regensRemaining !== null && (
                 <p className="text-[10px] text-muted-foreground text-center mt-1.5">
-                  {scanCredits !== null && `${scanCredits} scan${scanCredits !== 1 ? "s" : ""} restant${scanCredits !== 1 ? "s" : ""}`}
-                  {scanCredits !== null && regensRemaining !== null && " · "}
-                  {regensRemaining !== null && `${regensRemaining} mise${regensRemaining !== 1 ? "s" : ""} à jour restante${regensRemaining !== 1 ? "s" : ""} cette semaine`}
+                  {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
                 </p>
               )}
               {updateError && (

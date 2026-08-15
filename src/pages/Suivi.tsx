@@ -115,8 +115,8 @@ const Suivi = () => {
                   className={`flex flex-col items-center gap-0.5 py-1.5 ${!isFuture ? "cursor-pointer active:opacity-70" : ""}`}
                 >
                   {/* Day number */}
-                  <div className={`w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-foreground" : ""}`}>
-                    <span className={`text-[11px] font-medium leading-none ${isToday ? "text-background font-bold" : "text-muted-foreground/60"}`}>
+                  <div className={`w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary" : ""}`}>
+                    <span className={`text-[11px] font-medium leading-none ${isToday ? "text-primary-foreground font-bold" : "text-muted-foreground/60"}`}>
                       {dayNum}
                     </span>
                   </div>

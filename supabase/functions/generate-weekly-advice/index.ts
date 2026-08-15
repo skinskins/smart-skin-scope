@@ -16,10 +16,11 @@ function getMonday(dateStr: string): string {
   return d.toISOString().split("T")[0];
 }
 
-// Plafond de générations par semaine (1 génération initiale — auto ou manuelle — + jusqu'à
-// 2 régénérations forcées supplémentaires), pour éviter qu'un clic répété sur "Mettre à jour
-// mes conseils" ne fasse exploser les coûts Claude et ne recrédite les scans à l'infini.
-const MAX_GENERATIONS_PER_WEEK = 3;
+// Plafond de régénérations MANUELLES (force:true) par semaine — la génération automatique
+// de début de semaine (force:false, aucun conseil encore présent) ne compte pas dedans,
+// elle est toujours autorisée une fois. Ça évite qu'un clic répété sur "Mettre à jour mes
+// conseils" ne fasse exploser les coûts Claude et ne recrédite les scans à l'infini.
+const MAX_MANUAL_REGENS_PER_WEEK = 2;
 
 // Cette fonction reset scan_credits_remaining (ressource limitée) en étape 10 — on ne peut
 // donc pas faire confiance à un user_id envoyé dans le body (même règle que product-scan) :
@@ -88,26 +89,26 @@ serve(async (req) => {
       });
     }
 
-    // ── 1bis. Plafond de générations pour la semaine ────────────────────────
+    // ── 1bis. Plafond de régénérations MANUELLES pour la semaine ────────────
     const { data: regenProfile } = await supabase
       .from("profiles")
       .select("weekly_advice_regen_count, weekly_advice_regen_week")
       .eq("id", user_id)
       .single();
 
-    const generationsUsedThisWeek =
+    const manualRegensUsedThisWeek =
       regenProfile?.weekly_advice_regen_week === weekStart
         ? (regenProfile?.weekly_advice_regen_count ?? 0)
         : 0;
 
     if (
       existingWeek && existingWeek.length > 0 && force &&
-      generationsUsedThisWeek >= MAX_GENERATIONS_PER_WEEK
+      manualRegensUsedThisWeek >= MAX_MANUAL_REGENS_PER_WEEK
     ) {
-      console.log(`[generate-weekly-advice] user=${user_id} → rate-limited (${generationsUsedThisWeek}/${MAX_GENERATIONS_PER_WEEK})`);
+      console.log(`[generate-weekly-advice] user=${user_id} → rate-limited (${manualRegensUsedThisWeek}/${MAX_MANUAL_REGENS_PER_WEEK})`);
       return new Response(
         JSON.stringify({
-          error: `Limite de ${MAX_GENERATIONS_PER_WEEK} mises à jour atteinte pour cette semaine — reviens la semaine prochaine.`,
+          error: `Limite de ${MAX_MANUAL_REGENS_PER_WEEK} mises à jour atteinte pour cette semaine — reviens la semaine prochaine.`,
           regens_remaining: 0,
         }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -294,19 +295,22 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
     if (insertError) throw new Error(`Insert weekly_advice_log: ${insertError.message}`);
     console.log(`[generate-weekly-advice] user=${user_id} → ${rows.length} conseils insérés`);
 
-    // ── 10. Reset des crédits de scan hebdo ─────────────────────────────────
+    // ── 10. Reset des crédits de scan hebdo + compteur de régénérations MANUELLES ──
     // Indexé sur CETTE génération individuelle (pas un cron calendaire global) :
     // chaque exécution réussie de generate-weekly-advice repart à 5 crédits pour
     // l'utilisatrice concernée, quelle que soit la date. Les crédits non utilisés
     // sont perdus (use-it-or-lose-it), pas de rollover. On ne reset pas sur le
     // chemin "cached" plus haut, puisqu'aucune génération n'a alors eu lieu.
-    const generationsUsedNow = generationsUsedThisWeek + 1;
+    // Le compteur de régénérations, lui, n'avance QUE sur un force:true — la génération
+    // automatique de début de semaine reste gratuite et illimitée (une seule par semaine
+    // de toute façon, grâce au cache existingWeek).
+    const manualRegensUsedNow = force ? manualRegensUsedThisWeek + 1 : manualRegensUsedThisWeek;
     const { error: creditResetError } = await supabase
       .from("profiles")
       .update({
         scan_credits_remaining: 5,
         last_weekly_advice_at: new Date().toISOString(),
-        weekly_advice_regen_count: generationsUsedNow,
+        weekly_advice_regen_count: manualRegensUsedNow,
         weekly_advice_regen_week: weekStart,
       })
       .eq("id", user_id);
@@ -326,7 +330,7 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
         cached: false,
         conseils: inserted ?? [],
         based_on_photo: basedOnPhoto,
-        regens_remaining: Math.max(0, MAX_GENERATIONS_PER_WEEK - generationsUsedNow),
+        regens_remaining: Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - manualRegensUsedNow),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

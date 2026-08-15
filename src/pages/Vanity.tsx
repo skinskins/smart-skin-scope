@@ -50,10 +50,46 @@ const FREQ_OPTIONS = [
   { value: "monthly", label: "Mensuelle", sub: "Traitement ponctuel" },
 ] as const;
 
+// Doit rester synchro avec MAX_MANUAL_REGENS_PER_WEEK côté generate-weekly-advice — recharger
+// la routine consomme le même plafond hebdo que "Mettre à jour mes conseils" (pas de cooldown
+// temporel séparé, juste ce budget partagé de 2 mises à jour manuelles par semaine).
+const MAX_MANUAL_REGENS_PER_WEEK = 2;
+
+const toLocalISODate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const getMonday = (dateStr: string): string => {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return toLocalISODate(d);
+};
+
+const currentWeekKey = getMonday(toLocalISODate(new Date()));
+
+// generate-weekly-advice renvoie { error: "message propre" } en JSON (ex. limite hebdo
+// atteinte) — on l'extrait plutôt que d'afficher le JSON brut.
+const extractInvokeErrorMessage = async (error: any): Promise<string> => {
+  const raw = error?.context
+    ? await (error.context as Response).text().catch(() => error.message)
+    : error?.message ?? "Erreur inconnue";
+  try {
+    return JSON.parse(raw)?.error ?? raw;
+  } catch {
+    return raw;
+  }
+};
+
 const Vanity = () => {
   const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [productScanCredits, setProductScanCredits] = useState<number | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
   const diagnosticFileRef = useRef<HTMLInputElement>(null);
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
@@ -69,8 +105,9 @@ const Vanity = () => {
   const [eveningDone, setEveningDone] = useState(false);
   const [optimizedMorning, setOptimizedMorning] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [optimizedEvening, setOptimizedEvening] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
-  const [lastRoutineRefresh, setLastRoutineRefresh] = useState<string | null>(null);
+  const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
   const [refreshingRoutine, setRefreshingRoutine] = useState(false);
+  const [routineRefreshError, setRoutineRefreshError] = useState<string | null>(null);
   const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
@@ -91,6 +128,17 @@ const Vanity = () => {
           .eq("user_id", uid)
           .then(({ data }: any) => {
             if (data) setUserProducts(data);
+          });
+        (supabase as any)
+          .from("profiles")
+          .select("scan_credits_remaining, weekly_advice_regen_count, weekly_advice_regen_week")
+          .eq("id", uid)
+          .single()
+          .then(({ data }: any) => {
+            if (!data) return;
+            setProductScanCredits(data.scan_credits_remaining ?? null);
+            const used = data.weekly_advice_regen_week === currentWeekKey ? (data.weekly_advice_regen_count ?? 0) : 0;
+            setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
           });
         // Lire l'etat de la routine du jour
         const todayStr = new Date().toISOString().split("T")[0];
@@ -118,9 +166,6 @@ const Vanity = () => {
               const evening = data.find((r: any) => r.period === "evening");
               if (morning) setOptimizedMorning({ product_ids: morning.product_ids ?? [], inci_message: morning.inci_message });
               if (evening) setOptimizedEvening({ product_ids: evening.product_ids ?? [], inci_message: evening.inci_message });
-              const mostRecent = data.reduce((latest: string | null, r: any) =>
-                !latest || r.created_at > latest ? r.created_at : latest, null);
-              setLastRoutineRefresh(mostRecent);
             }
           });
       }
@@ -182,25 +227,20 @@ const Vanity = () => {
     }
   };
 
-  const routineRefreshAvailable = (() => {
-    if (!lastRoutineRefresh) return true;
-    const last = new Date(lastRoutineRefresh).getTime();
-    const now = Date.now();
-    return now - last >= 24 * 60 * 60 * 1000;
-  })();
-
-  const routineRefreshHoursLeft = (() => {
-    if (!lastRoutineRefresh) return 0;
-    const last = new Date(lastRoutineRefresh).getTime();
-    const now = Date.now();
-    const remaining = 24 * 60 * 60 * 1000 - (now - last);
-    return Math.max(0, Math.ceil(remaining / (60 * 60 * 1000)));
-  })();
-
+  // Pas de cooldown temporel : rechargeable n'importe quand tant qu'il reste du budget
+  // hebdo — le même que "Mettre à jour mes conseils" (2 mises à jour manuelles/semaine,
+  // plafond appliqué et décompté côté serveur par generate-weekly-advice).
   const refreshRoutine = async () => {
-    if (!userId || !routineRefreshAvailable || refreshingRoutine) return;
+    if (!userId || regensRemaining === 0 || refreshingRoutine) return;
     setRefreshingRoutine(true);
+    setRoutineRefreshError(null);
     try {
+      const { error: adviceError } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true } });
+      if (adviceError) {
+        setRoutineRefreshError(await extractInvokeErrorMessage(adviceError));
+        return;
+      }
+
       const [morningRes, eveningRes] = await Promise.all([
         supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
         supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
@@ -217,9 +257,19 @@ const Vanity = () => {
           inci_message: eveningRes.data.explanation ?? null,
         });
       }
-      setLastRoutineRefresh(new Date().toISOString());
+
+      const { data: profile } = await (supabase as any)
+        .from("profiles")
+        .select("weekly_advice_regen_count, weekly_advice_regen_week")
+        .eq("id", userId)
+        .single();
+      if (profile) {
+        const used = profile.weekly_advice_regen_week === currentWeekKey ? (profile.weekly_advice_regen_count ?? 0) : 0;
+        setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
+      }
     } catch (e) {
       console.warn("refreshRoutine:", e);
+      setRoutineRefreshError("Erreur lors de la mise à jour — réessaie plus tard.");
     } finally {
       setRefreshingRoutine(false);
     }
@@ -365,14 +415,20 @@ const Vanity = () => {
           : error.message;
         // product-scan renvoie { error: "message propre" } en JSON (ex. crédits épuisés,
         // soft cap anti-abus) — on l'extrait plutôt que d'afficher le JSON brut.
-        const parsedMessage = (() => {
+        const parsedBody = (() => {
           try {
-            return JSON.parse(errorText)?.error;
+            return JSON.parse(errorText);
           } catch {
             return null;
           }
         })();
-        throw new Error(parsedMessage ?? errorText);
+        if (parsedBody?.scan_credits_remaining !== undefined) {
+          setProductScanCredits(parsedBody.scan_credits_remaining);
+        }
+        throw new Error(parsedBody?.error ?? errorText);
+      }
+      if (data?.scan_credits_remaining !== undefined) {
+        setProductScanCredits(data.scan_credits_remaining);
       }
       if (data?.status === "unrecognized" || !data?.product_name) {
         setScanMessage("Produit non reconnu — essaie une photo plus nette du packaging");
@@ -552,6 +608,11 @@ const Vanity = () => {
                   onChange={handleScanFile}
                 />
               </div>
+              {productScanCredits !== null && (
+                <p className="text-[10px] text-muted-foreground text-right mt-1.5">
+                  {productScanCredits} scan{productScanCredits !== 1 ? "s" : ""} de produits restant{productScanCredits !== 1 ? "s" : ""} cette semaine
+                </p>
+              )}
             </div>
 
             <div className="p-6 space-y-6">
@@ -779,44 +840,46 @@ const Vanity = () => {
             </div>
           </motion.div>
 
-          {/* Import diagnostic professionnel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="premium-card p-6 order-4"
-          >
-            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
-              Importer mon diagnostic professionnel
-            </h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Importe le rapport PDF de ton dernier diagnostic en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
-            </p>
-            <button
-              onClick={() => diagnosticFileRef.current?.click()}
-              disabled={diagnosticLoading}
-              className="w-full h-12 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center gap-2 text-sm font-semibold text-foreground/80 hover:bg-muted/40 transition-colors disabled:opacity-60"
+          {/* Import diagnostic professionnel — masqué (désactivé sur demande), code conservé */}
+          {false && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="premium-card p-6 order-4"
             >
-              {diagnosticLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                  Analyse en cours…
-                </>
-              ) : (
-                <>
-                  <FileUp size={16} strokeWidth={1.5} />
-                  Importer un PDF
-                </>
-              )}
-            </button>
-            <input
-              ref={diagnosticFileRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={handleDiagnosticFile}
-            />
-          </motion.div>
+              <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
+                Importer mon diagnostic professionnel
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Importe le rapport PDF de ton dernier diagnostic en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
+              </p>
+              <button
+                onClick={() => diagnosticFileRef.current?.click()}
+                disabled={diagnosticLoading}
+                className="w-full h-12 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center gap-2 text-sm font-semibold text-foreground/80 hover:bg-muted/40 transition-colors disabled:opacity-60"
+              >
+                {diagnosticLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    Analyse en cours…
+                  </>
+                ) : (
+                  <>
+                    <FileUp size={16} strokeWidth={1.5} />
+                    Importer un PDF
+                  </>
+                )}
+              </button>
+              <input
+                ref={diagnosticFileRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleDiagnosticFile}
+              />
+            </motion.div>
+          )}
         </div>
       ) : (
         <div>
@@ -831,7 +894,7 @@ const Vanity = () => {
                 key={key}
                 onClick={() => setActiveRoutineTab(key)}
                 className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeRoutineTab === key
-                  ? "bg-foreground text-background"
+                  ? "bg-primary text-primary-foreground"
                   : "border border-border/40 text-muted-foreground"
                   }`}
               >
@@ -846,18 +909,25 @@ const Vanity = () => {
               <div>
                 <button
                   onClick={refreshRoutine}
-                  disabled={!routineRefreshAvailable || refreshingRoutine}
-                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${routineRefreshAvailable
-                    ? "bg-foreground text-background"
+                  disabled={regensRemaining === 0 || refreshingRoutine}
+                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${regensRemaining !== 0
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted/30 text-muted-foreground cursor-not-allowed"
                     }`}
                 >
-                  {refreshingRoutine ? "Optimisation en cours..." : "Recharger ma routine avec mes nouveaux produits"}
+                  {refreshingRoutine
+                    ? "Optimisation en cours..."
+                    : regensRemaining === 0
+                      ? "Limite atteinte pour cette semaine"
+                      : "Recharger ma routine avec mes nouveaux produits"}
                 </button>
-                {!routineRefreshAvailable && (
+                {regensRemaining !== null && (
                   <p className="text-[11px] text-muted-foreground text-center mt-2">
-                    De nouveau disponible dans {routineRefreshHoursLeft}h
+                    {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
                   </p>
+                )}
+                {routineRefreshError && (
+                  <p className="text-[11px] text-destructive text-center mt-1.5">{routineRefreshError}</p>
                 )}
               </div>
               {morningProducts.length > 0 && (
