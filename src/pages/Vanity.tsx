@@ -105,10 +105,13 @@ const Vanity = () => {
   const [eveningDone, setEveningDone] = useState(false);
   const [optimizedMorning, setOptimizedMorning] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [optimizedEvening, setOptimizedEvening] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
+  const [routineCurationChecked, setRoutineCurationChecked] = useState(false);
+  const [autoCurating, setAutoCurating] = useState(false);
+  const autoCurationTriggeredRef = useRef(false);
   const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
   const [refreshingRoutine, setRefreshingRoutine] = useState(false);
   const [routineRefreshError, setRoutineRefreshError] = useState<string | null>(null);
-  const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
+  const { products: routineProducts, loading: routineProductsLoading, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
   const [catalogResults, setCatalogResults] = useState<CatalogProduct[]>([]);
@@ -167,6 +170,7 @@ const Vanity = () => {
               if (morning) setOptimizedMorning({ product_ids: morning.product_ids ?? [], inci_message: morning.inci_message });
               if (evening) setOptimizedEvening({ product_ids: evening.product_ids ?? [], inci_message: evening.inci_message });
             }
+            setRoutineCurationChecked(true);
           });
       }
     });
@@ -194,8 +198,53 @@ const Vanity = () => {
   const dailyProducts = routineProducts.filter(p => p.frequency === "daily");
   const weeklyProducts = routineProducts.filter(p => p.frequency === "weekly");
   const monthlyProducts = routineProducts.filter(p => p.frequency === "monthly");
-  const morningProducts = dailyProducts.filter(p => p.morning_use);
-  const eveningProducts = dailyProducts.filter(p => p.evening_use);
+
+  // La routine affichee est celle decidee par inci-analysis (pertinence au profil), pas
+  // l'inventaire brut : posseder un produit (scan, onboarding...) ne veut pas dire qu'il
+  // doit apparaitre ici tant que la curation ne l'a pas retenu.
+  const morningProducts = optimizedMorning
+    ? dailyProducts.filter(p => optimizedMorning.product_ids.includes(p.id))
+    : [];
+  const eveningProducts = optimizedEvening
+    ? dailyProducts.filter(p => optimizedEvening.product_ids.includes(p.id))
+    : [];
+
+  // Premiere curation automatique : si aucune routine optimisee n'existe encore pour
+  // aujourd'hui (nouvelle utilisatrice, produits fraichement scannes...) on la genere tout
+  // de suite plutot que de laisser l'onglet Routine vide en attendant un clic manuel.
+  useEffect(() => {
+    if (!userId || !routineCurationChecked || autoCurationTriggeredRef.current) return;
+    if (optimizedMorning || optimizedEvening) return;
+    if (routineProductsLoading) return;
+    if (dailyProducts.length === 0) return;
+
+    autoCurationTriggeredRef.current = true;
+    setAutoCurating(true);
+    (async () => {
+      try {
+        const [morningRes, eveningRes] = await Promise.all([
+          supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
+          supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
+        ]);
+        if (morningRes.data?.routine) {
+          setOptimizedMorning({
+            product_ids: morningRes.data.routine.map((p: any) => p.product_id),
+            inci_message: morningRes.data.explanation ?? null,
+          });
+        }
+        if (eveningRes.data?.routine) {
+          setOptimizedEvening({
+            product_ids: eveningRes.data.routine.map((p: any) => p.product_id),
+            inci_message: eveningRes.data.explanation ?? null,
+          });
+        }
+      } catch (e) {
+        console.warn("[vanity] curation automatique:", e);
+      } finally {
+        setAutoCurating(false);
+      }
+    })();
+  }, [userId, routineCurationChecked, optimizedMorning, optimizedEvening, routineProductsLoading, dailyProducts.length]);
 
   const toggleRoutineProduct = (id: string) => {
     setCheckedRoutineProducts(prev => {
@@ -986,13 +1035,26 @@ const Vanity = () => {
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
                 <div className="text-center py-12 space-y-3">
-                  <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
-                  <button
-                    onClick={() => setActiveMainTab("produits")}
-                    className="text-sm font-semibold text-primary"
-                  >
-                    Ajouter des produits →
-                  </button>
+                  {autoCurating ? (
+                    <div className="flex items-center justify-center gap-2.5">
+                      <span className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
+                      <p className="text-sm text-muted-foreground">Sélection de votre routine idéale…</p>
+                    </div>
+                  ) : dailyProducts.length === 0 ? (
+                    <>
+                      <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
+                      <button
+                        onClick={() => setActiveMainTab("produits")}
+                        className="text-sm font-semibold text-primary"
+                      >
+                        Ajouter des produits →
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic px-6">
+                      Aucun de vos produits ne correspond à votre profil pour le moment — recharge ta routine ci-dessus si tu en as ajouté de nouveaux.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

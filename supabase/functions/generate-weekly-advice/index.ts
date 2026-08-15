@@ -176,7 +176,7 @@ serve(async (req) => {
       : "- Aucun produit enregistre";
 
     const prompt = `Tu es l'assistant skincare expert d'une application premium francaise.
-Nous sommes en debut de semaine. Genere le PLAN DE LA SEMAINE : 3 a 4 conseils PILIERS structurants qui vont guider l'utilisatrice pendant les 7 prochains jours.
+Nous sommes en debut de semaine. Genere le PLAN DE LA SEMAINE : 2 a 3 conseils PILIERS structurants qui vont guider l'utilisatrice pendant les 7 prochains jours.
 
 ## PROFIL
 - Age : ${profile.age ?? "non renseigne"}
@@ -193,17 +193,19 @@ ${skinStateBlock}
 ${productsBlock}
 
 ## TON OBJECTIF
-Genere 3 a 4 conseils PILIERS pour la semaine qui :
+Genere 2 a 3 conseils PILIERS pour la semaine qui :
 1. Definissent les PRIORITES de la semaine selon l'etat de peau observe
-2. S'appuient sur les ingredients actifs des produits deja possedes (cite les actifs precis : niacinamide, retinol, acide hyaluronique, etc.)
-3. Tiennent compte de la phase du cycle
-4. Sont structurants (une direction pour la semaine, pas un geste ponctuel)
-5. Restent actionnables et experts
+2. Evaluent, parmi les produits possedes listes ci-dessus, lesquels sont reellement adaptes a son type de peau, ses problemes et ses objectifs — possede un produit ne veut pas dire qu'il lui convient
+3. S'appuient sur les ingredients actifs des produits pertinents (cite les actifs precis : niacinamide, retinol, acide hyaluronique, etc.) et signalent clairement si un produit possede ne convient pas ou est a utiliser avec prudence, plutot que de l'ignorer silencieusement
+4. Tiennent compte de la phase du cycle
+5. Sont structurants (une direction pour la semaine, pas un geste ponctuel)
+6. Restent actionnables et experts
 
 ## REGLES
+- STRICTEMENT 2 ou 3 conseils, jamais plus, jamais moins — priorise et regroupe plutot que d'en ajouter un quatrieme
 - JAMAIS de conseils de base (pas "buvez de l'eau", pas "demaquillez-vous")
 - Ces femmes sont expertes — va au-dela des fondamentaux
-- Cite les ACTIFS des produits possedes quand c'est pertinent
+- Cite les ACTIFS des produits possedes quand c'est pertinent pour son profil — ne cite pas un produit juste parce qu'elle le possede s'il n'apporte rien a ses priorites de la semaine
 - Bienveillant, jamais condescendant ni alarmiste
 - Ne recommande jamais de marques a acheter
 
@@ -275,18 +277,24 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
 
     // ── 9. Sauvegarder dans weekly_advice_log ───────────────────────────────
     const VALID_GROUPS = ["observation", "astuce", "alerte", "warning"];
-    const rows = parsed.conseils.map((c: {
-      priorite: string; type?: string; titre: string; corps: string; action: string;
-    }) => ({
-      user_id,
-      week_start: weekStart,
-      advice_title: c.titre,
-      advice_text: c.corps,
-      advice_tip: c.action,
-      priority: c.priorite === "haute" ? "1" : c.priorite === "moyenne" ? "2" : "3",
-      advice_group: VALID_GROUPS.includes(c.type ?? "") ? c.type : "astuce",
-      based_on_photo: basedOnPhoto,
-    }));
+    const MAX_ADVICE_COUNT = 3;
+    const rows = parsed.conseils
+      .map((c: {
+        priorite: string; type?: string; titre: string; corps: string; action: string;
+      }) => ({
+        user_id,
+        week_start: weekStart,
+        advice_title: c.titre,
+        advice_text: c.corps,
+        advice_tip: c.action,
+        priority: c.priorite === "haute" ? "1" : c.priorite === "moyenne" ? "2" : "3",
+        advice_group: VALID_GROUPS.includes(c.type ?? "") ? c.type : "astuce",
+        based_on_photo: basedOnPhoto,
+      }))
+      // Filet de sécurité : le prompt demande 2-3 conseils max, mais rien ne garantit que
+      // Claude respecte la consigne — on garde les plus prioritaires si jamais il en renvoie plus.
+      .sort((a: { priority: string }, b: { priority: string }) => Number(a.priority) - Number(b.priority))
+      .slice(0, MAX_ADVICE_COUNT);
 
     const { error: insertError } = await supabase
       .from("weekly_advice_log")
