@@ -285,12 +285,18 @@ const Signup = () => {
                     if (onboardingPhotoBase64) setShowDiagnostic(true);
                     else setStep(6);
                 }
-                else if (step === 10) {
-                    if (pricingMode === "free") setStep(8);
-                    else setStep(9);
+                else if (showDiagnostic) {
+                    setShowDiagnostic(false);
+                    setStep(6);
                 }
-                else if (step === 9) setStep(8);
-                else if (step === 8) setShowPreview(true);
+                // Partie paiement désactivée temporairement (steps 8/9) : on revient directement à la preview.
+                // else if (step === 10) {
+                //     if (pricingMode === "free") setStep(8);
+                //     else setStep(9);
+                // }
+                // else if (step === 9) setStep(8);
+                // else if (step === 8) setShowPreview(true);
+                else if (step === 10) setShowPreview(true);
                 else if (step === 4) setStep(3.5);
                 // Étape "Cycle menstruel" (step 4) non proposée aux utilisateurs Homme — on revient à l'étape Objectifs.
                 else if (step === 5 && gender === "Homme") setStep(3.5);
@@ -360,20 +366,23 @@ const Signup = () => {
         }
         if (showPreview) {
             setShowPreview(false);
-            setStep(8);
+            // Partie paiement désactivée temporairement : on saute directement les steps 8/9 (pricing).
+            // setStep(8);
+            setStep(10);
             window.scrollTo(0, 0);
             return;
         }
 
-        if (step === 8) {
-            if (pricingMode === "free") {
-                setStep(10);
-            } else {
-                setStep(9);
-            }
-            window.scrollTo(0, 0);
-            return;
-        }
+        // Partie paiement désactivée temporairement (step 8 = choix pricing free/premium).
+        // if (step === 8) {
+        //     if (pricingMode === "free") {
+        //         setStep(10);
+        //     } else {
+        //         setStep(9);
+        //     }
+        //     window.scrollTo(0, 0);
+        //     return;
+        // }
 
         if (step === 1) {
             setStep(1.5);
@@ -507,10 +516,11 @@ const Signup = () => {
                     console.error("[DEBUG] skin_photos upsert error:", skinPhotoError);
                 }
             }
-            // Générer les conseils de la semaine (piliers) à partir de l'analyse
-            supabase.functions.invoke("generate-weekly-advice", {
-                body: { user_id: userId },
-            }).catch((e) => console.warn("generate-weekly-advice:", e));
+            // La génération des conseils de la semaine est laissée au premier chargement du
+            // Dashboard (fetchAdvice) plutôt que déclenchée ici en fire-and-forget : les deux
+            // appels en parallèle (celui-ci + celui du Dashboard juste après la redirection)
+            // passaient chacun le check "déjà généré ?" avant que l'autre ait inséré ses lignes,
+            // doublant le nombre de conseils insérés pour la même semaine.
             localStorage.setItem("nacre_show_beta_welcome", "1");
             setLoading(false);
             navigate("/dashboard");
@@ -674,18 +684,6 @@ const Signup = () => {
                         )}
 
                         {step === 5 && (
-                            <StepLocation
-                                BackButton={BackButton}
-                                setLocationMode={setLocationMode}
-                                locationMode={locationMode}
-                                manualCity={manualCity}
-                                setManualCity={setManualCity}
-                                geoLoading={geoLoading}
-                                setGeoLoading={setGeoLoading}
-                            />
-                        )}
-
-                        {step === 6 && !showDiagnostic && (
                             <StepProducts
                                 BackButton={BackButton}
                                 productSearchQuery={productSearchQuery}
@@ -696,6 +694,18 @@ const Signup = () => {
                                 onboardingScanMessage={onboardingScanMessage}
                                 handleOnboardingProductScan={handleOnboardingProductScan}
                                 toggleOnboardingProduct={toggleOnboardingProduct}
+                            />
+                        )}
+
+                        {step === 6 && !showDiagnostic && (
+                            <StepLocation
+                                BackButton={BackButton}
+                                setLocationMode={setLocationMode}
+                                locationMode={locationMode}
+                                manualCity={manualCity}
+                                setManualCity={setManualCity}
+                                geoLoading={geoLoading}
+                                setGeoLoading={setGeoLoading}
                             />
                         )}
 
@@ -715,6 +725,7 @@ const Signup = () => {
                                 setCarnation={setCarnation}
                             />
                         )}
+                        {/* Partie paiement désactivée temporairement (steps 8/9) — conservée pour réactivation future.
                         {step === 8 && (
                             <StepPricing
                                 BackButton={BackButton}
@@ -733,6 +744,7 @@ const Signup = () => {
                                 PLANS={PLANS}
                             />
                         )}
+                        */}
 
                         {step === 10 && (
                             <StepAccount

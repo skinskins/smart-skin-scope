@@ -64,7 +64,7 @@ const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboar
             <div className="mb-6 flex items-start gap-4">
                 <BackButton />
                 <div>
-                    <h1 className="text-2xl font-display text-foreground leading-tight mb-2">Obtenez votre diagnostic de peau</h1>
+                    <h1 className="text-2xl font-display text-foreground leading-tight mb-2">Obtenez votre analyse de peau</h1>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Une simple photo suffit</p>
                 </div>
             </div>

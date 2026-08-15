@@ -1,67 +1,95 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
-import { AdviceCard, Conseil, sortConseils } from "@/components/AdviceCard";
+import { AdviceCard, Conseil, pilierGroupFromPriority } from "@/components/AdviceCard";
+
+type WeeklyRow = {
+  id: string;
+  advice_title: string;
+  advice_text: string;
+  advice_tip: string;
+  priority: string;
+  advice_group: string | null;
+  week_start: string;
+};
 
 type WeekGroup = {
-  key: string;       // "2026-W24"
-  label: string;     // "Semaine du 9 au 15 juin"
+  key: string;    // week_start, "2026-06-09"
+  label: string;  // "Semaine du 9 au 15 juin"
   conseils: Conseil[];
 };
 
-const getMonday = (dateStr: string): Date => {
+// Doit rester synchro avec MAX_MANUAL_REGENS_PER_WEEK côté generate-weekly-advice.
+const MAX_MANUAL_REGENS_PER_WEEK = 2;
+
+// Formate en YYYY-MM-DD à partir des composants LOCAUX (jamais toISOString, qui convertit
+// en UTC et décale la date d'un jour pour tout fuseau en avance sur UTC — ex. Europe l'été).
+const toLocalISODate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const getMonday = (dateStr: string): string => {
   const d = new Date(dateStr + "T00:00:00");
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  return d;
+  return toLocalISODate(d);
 };
 
-const isoWeekKey = (monday: Date): string => {
-  const year = monday.getFullYear();
-  const jan4 = new Date(year, 0, 4);
-  const weekNum = Math.ceil(
-    ((monday.getTime() - jan4.getTime()) / 86400000 + jan4.getDay() + 1) / 7
-  );
-  return `${year}-W${String(weekNum).padStart(2, "0")}`;
-};
-
-const formatWeekLabel = (monday: Date): string => {
+const formatWeekLabel = (weekStart: string): string => {
+  const monday = new Date(weekStart + "T00:00:00");
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  const fmt = (d: Date) => d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
   return `Semaine du ${fmt(monday)} au ${fmt(sunday)}`;
 };
 
-const groupByWeek = (conseils: Conseil[], dates: Map<string, string>): WeekGroup[] => {
-  const map = new Map<string, { monday: Date; conseils: Conseil[] }>();
+// advice_group vient de l'IA depuis cette migration — les lignes générées avant n'en ont
+// pas (null), d'où le repli sur la priorité pour rester distinct visuellement.
+const toConseil = (row: WeeklyRow): Conseil => ({
+  id: row.id,
+  advice_title: row.advice_title,
+  advice_text: row.advice_text,
+  advice_tip: row.advice_tip,
+  advice_group: row.advice_group ?? pilierGroupFromPriority(row.priority),
+  priority: row.priority,
+});
 
-  for (const c of conseils) {
-    const dateStr = dates.get(c.id);
-    if (!dateStr) continue;
-    const monday = getMonday(dateStr);
-    const key = isoWeekKey(monday);
-    if (!map.has(key)) {
-      map.set(key, { monday, conseils: [] });
-    }
-    map.get(key)!.conseils.push(c);
+const groupByWeek = (rows: WeeklyRow[]): WeekGroup[] => {
+  const map = new Map<string, WeeklyRow[]>();
+  for (const row of rows) {
+    if (!map.has(row.week_start)) map.set(row.week_start, []);
+    map.get(row.week_start)!.push(row);
   }
-
   return Array.from(map.entries())
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([key, { monday, conseils: list }]) => ({
-      key,
-      label: formatWeekLabel(monday),
-      conseils: sortConseils(list),
+    .map(([weekStart, list]) => ({
+      key: weekStart,
+      label: formatWeekLabel(weekStart),
+      conseils: [...list]
+        .sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0))
+        .map(toConseil),
     }));
 };
 
-const getCurrentWeekKey = (): string => {
-  const today = new Date().toISOString().split("T")[0];
-  return isoWeekKey(getMonday(today));
+const currentWeekKey = getMonday(toLocalISODate(new Date()));
+
+// generate-weekly-advice renvoie { error: "message propre" } en JSON — on l'extrait plutôt
+// que d'afficher le JSON brut ou une exception générique.
+const extractInvokeErrorMessage = async (error: any): Promise<string> => {
+  const raw = error?.context
+    ? await (error.context as Response).text().catch(() => error.message)
+    : error?.message ?? "Erreur inconnue";
+  try {
+    return JSON.parse(raw)?.error ?? raw;
+  } catch {
+    return raw;
+  }
 };
 
 const WeeklyPlan = () => {
@@ -69,35 +97,70 @@ const WeeklyPlan = () => {
   const [groups, setGroups] = useState<WeekGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const autoGeneratedRef = useRef(false);
 
-  const currentWeekKey = getCurrentWeekKey();
+  const fetchWeeklyAdvice = useCallback(async (): Promise<WeeklyRow[]> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+
+    const since = new Date();
+    since.setDate(since.getDate() - 56); // ~8 semaines d'historique
+
+    const { data } = await (supabase as any)
+      .from("weekly_advice_log")
+      .select("id, advice_title, advice_text, advice_tip, priority, advice_group, week_start")
+      .eq("user_id", session.user.id)
+      .gte("week_start", since.toISOString().split("T")[0])
+      .order("week_start", { ascending: false });
+
+    return data ?? [];
+  }, []);
+
+  // Lit le compteur de générations directement en base — utile au chargement initial,
+  // quand generate-weekly-advice n'a pas forcément été rappelée (cas où les conseils de
+  // la semaine existaient déjà).
+  const fetchProfileLimits = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+    const { data } = await (supabase as any)
+      .from("profiles")
+      .select("weekly_advice_regen_count, weekly_advice_regen_week")
+      .eq("id", session.user.id)
+      .single();
+    if (!data) return;
+    const used = data.weekly_advice_regen_week === currentWeekKey ? (data.weekly_advice_regen_count ?? 0) : 0;
+    setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
+  }, []);
 
   useEffect(() => {
-    const fetchAdvices = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { setLoading(false); return; }
+    const load = async () => {
+      let rows = await fetchWeeklyAdvice();
 
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-
-      const { data } = await (supabase as any)
-        .from("daily_advice_log")
-        .select("id, advice_title, advice_text, advice_tip, advice_group, priority, date")
-        .eq("user_id", session.user.id)
-        .gte("date", since.toISOString().split("T")[0])
-        .order("date", { ascending: false });
-
-      if (data && data.length > 0) {
-        const dateMap = new Map<string, string>(
-          data.map((row: Conseil & { date: string }) => [row.id, row.date])
-        );
-        const conseils: Conseil[] = data.map(({ date: _d, ...rest }: Conseil & { date: string }) => rest);
-        setGroups(groupByWeek(conseils, dateMap));
+      // Aucun conseil pour cette semaine → génère automatiquement (une seule fois, sans
+      // force : generate-weekly-advice gère elle-même le cache hebdomadaire et le mode
+      // dégradé si aucune photo n'a encore été prise). Contrairement à une régénération
+      // manuelle, cette première génération de la semaine n'est jamais bloquée par le cap.
+      const hasCurrentWeek = rows.some(r => r.week_start === currentWeekKey);
+      if (!hasCurrentWeek && !autoGeneratedRef.current) {
+        autoGeneratedRef.current = true;
+        const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: {} });
+        if (error) {
+          console.error("[weekly-plan] auto-generation failed:", await extractInvokeErrorMessage(error));
+        } else {
+          rows = await fetchWeeklyAdvice();
+        }
       }
+
+      setGroups(groupByWeek(rows));
       setLoading(false);
+      // Après coup, pour refléter l'éventuel décompte fait par la génération auto ci-dessus.
+      await fetchProfileLimits();
     };
-    fetchAdvices();
-  }, []);
+    load();
+  }, [fetchWeeklyAdvice, fetchProfileLimits]);
 
   const toggleKey = (key: string) => {
     setOpenKeys(prev => {
@@ -107,12 +170,29 @@ const WeeklyPlan = () => {
     });
   };
 
+  const handleUpdateAdvice = async () => {
+    if (regenerating || regensRemaining === 0) return;
+    setRegenerating(true);
+    setUpdateError(null);
+    try {
+      const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true } });
+      if (error) throw new Error(await extractInvokeErrorMessage(error));
+      const [rows] = await Promise.all([fetchWeeklyAdvice(), fetchProfileLimits()]);
+      setGroups(groupByWeek(rows));
+    } catch (err) {
+      console.error("[weekly-plan] update error:", err);
+      setUpdateError(err instanceof Error ? err.message : "Erreur lors de la mise à jour");
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const currentGroup = groups.find(g => g.key === currentWeekKey);
+  const pastGroups = groups.filter(g => g.key !== currentWeekKey);
+
   return (
     <div className="min-h-screen pb-24 max-w-lg mx-auto bg-white">
-      <PageHeader
-        title="Mon plan de la semaine"
-        onBack={() => navigate("/dashboard")}
-      />
+      <PageHeader title="Mon plan de la semaine" onBack={() => navigate("/dashboard")} />
 
       <div className="px-5 pt-4">
         {loading ? (
@@ -121,54 +201,89 @@ const WeeklyPlan = () => {
               <div key={i} className="rounded-2xl bg-[#F8F6F2] h-20 animate-pulse" />
             ))}
           </div>
-        ) : groups.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-sm text-muted-foreground">
-              Vos conseils apparaîtront ici après votre première routine.
-            </p>
-          </div>
         ) : (
-          <div className="flex flex-col gap-6">
-            {groups.map((group, idx) => {
-              const isCurrent = group.key === currentWeekKey;
-              const isOpen = isCurrent || openKeys.has(group.key);
+          <>
+            {/* Cette semaine */}
+            <div className="mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                Cette semaine
+              </span>
+              <p className="text-[10px] text-muted-foreground mt-0.5 mb-3">
+                {formatWeekLabel(currentWeekKey)}
+              </p>
 
-              return (
-                <div key={group.key}>
-                  <button
-                    onClick={() => !isCurrent && toggleKey(group.key)}
-                    className={`w-full flex items-center justify-between mb-2 ${isCurrent ? "cursor-default" : "cursor-pointer"}`}
-                  >
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                        {isCurrent ? "Cette semaine" : group.label}
-                      </span>
-                      {isCurrent && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{group.label}</p>
+              <div className="flex flex-col gap-2 mb-3">
+                {currentGroup && currentGroup.conseils.length > 0 ? (
+                  currentGroup.conseils.map(conseil => (
+                    <AdviceCard key={conseil.id} conseil={conseil} />
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    {updateError
+                      ? "Impossible de générer vos conseils pour l'instant — réessaie avec le bouton ci-dessous."
+                      : "Vos conseils de la semaine arrivent après votre prochaine photo."}
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={handleUpdateAdvice}
+                disabled={regenerating || regensRemaining === 0}
+                className="w-full py-2.5 rounded-xl border border-border/30 bg-transparent text-[11px] text-muted-foreground flex items-center justify-center gap-1.5 transition hover:bg-muted/10 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw size={11} className={regenerating ? "animate-spin" : ""} />
+                {regenerating
+                  ? "Mise à jour..."
+                  : regensRemaining === 0
+                    ? "Limite atteinte pour cette semaine"
+                    : "Mettre à jour mes conseils"}
+              </button>
+              {regensRemaining !== null && (
+                <p className="text-[10px] text-muted-foreground text-center mt-1.5">
+                  {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
+                </p>
+              )}
+              {updateError && (
+                <p className="text-[10px] text-destructive text-center mt-1.5">{updateError}</p>
+              )}
+            </div>
+
+            {/* Semaines précédentes */}
+            {pastGroups.length > 0 && (
+              <div className="flex flex-col gap-6 mt-6 pt-4 border-t border-border/10">
+                {pastGroups.map((group, idx) => {
+                  const isOpen = openKeys.has(group.key);
+                  return (
+                    <div key={group.key}>
+                      <button
+                        onClick={() => toggleKey(group.key)}
+                        className="w-full flex items-center justify-between mb-2 cursor-pointer"
+                      >
+                        <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                          {group.label}
+                        </span>
+                        {isOpen
+                          ? <ChevronUp size={14} className="text-muted-foreground" />
+                          : <ChevronDown size={14} className="text-muted-foreground" />}
+                      </button>
+
+                      {isOpen && (
+                        <div className="flex flex-col gap-2">
+                          {group.conseils.map(conseil => (
+                            <AdviceCard key={conseil.id} conseil={conseil} />
+                          ))}
+                        </div>
+                      )}
+
+                      {idx < pastGroups.length - 1 && (
+                        <div className="mt-4 border-t border-border/10" />
                       )}
                     </div>
-                    {!isCurrent && (
-                      isOpen
-                        ? <ChevronUp size={14} className="text-muted-foreground" />
-                        : <ChevronDown size={14} className="text-muted-foreground" />
-                    )}
-                  </button>
-
-                  {isOpen && (
-                    <div className="flex flex-col gap-2">
-                      {group.conseils.map(conseil => (
-                        <AdviceCard key={conseil.id} conseil={conseil} />
-                      ))}
-                    </div>
-                  )}
-
-                  {idx < groups.length - 1 && (
-                    <div className="mt-4 border-t border-border/10" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { cn } from "@/lib/utils";
+import SelectableOption from "@/pages/signup/components/SelectableOption";
 import type { SignupStepProps } from "@/pages/signup/types";
 
 const CYCLE_OPTIONS: { label: string; value: "unknown" | "none" }[] = [
@@ -42,20 +42,17 @@ const StepCycle = ({ BackButton, lastPeriodDate, setLastPeriodDate, cycleDuratio
                 </div>
                 <div className="flex gap-3">
                     {CYCLE_OPTIONS.map(({ label, value }) => (
-                        <button
+                        <SelectableOption
                             key={value}
-                            type="button"
+                            selected={cycleStatus === value}
                             onClick={() => {
                                 setLastPeriodDate("");
                                 setCycleStatus(value);
                             }}
-                            className={cn(
-                                "flex-1 py-3 rounded-2xl border text-[10px] font-bold uppercase tracking-widest transition-all",
-                                cycleStatus === value ? "border-primary text-primary bg-primary/5" : "border-border/40 text-muted-foreground hover:border-primary"
-                            )}
+                            className="flex-1 py-3"
                         >
                             {label}
-                        </button>
+                        </SelectableOption>
                     ))}
                 </div>
             </div>

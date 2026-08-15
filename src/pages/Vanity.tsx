@@ -10,6 +10,7 @@ import { RoutineCard } from "@/components/RoutineCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PRESET_DEVICES } from "@/data/presetDevices";
+import RoutineLoadingMessage from "@/components/RoutineLoadingMessage";
 
 type CatalogProduct = {
   id: string;
@@ -50,10 +51,46 @@ const FREQ_OPTIONS = [
   { value: "monthly", label: "Mensuelle", sub: "Traitement ponctuel" },
 ] as const;
 
+// Doit rester synchro avec MAX_MANUAL_REGENS_PER_WEEK côté generate-weekly-advice — recharger
+// la routine consomme le même plafond hebdo que "Mettre à jour mes conseils" (pas de cooldown
+// temporel séparé, juste ce budget partagé de 2 mises à jour manuelles par semaine).
+const MAX_MANUAL_REGENS_PER_WEEK = 2;
+
+const toLocalISODate = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const getMonday = (dateStr: string): string => {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return toLocalISODate(d);
+};
+
+const currentWeekKey = getMonday(toLocalISODate(new Date()));
+
+// generate-weekly-advice renvoie { error: "message propre" } en JSON (ex. limite hebdo
+// atteinte) — on l'extrait plutôt que d'afficher le JSON brut.
+const extractInvokeErrorMessage = async (error: any): Promise<string> => {
+  const raw = error?.context
+    ? await (error.context as Response).text().catch(() => error.message)
+    : error?.message ?? "Erreur inconnue";
+  try {
+    return JSON.parse(raw)?.error ?? raw;
+  } catch {
+    return raw;
+  }
+};
+
 const Vanity = () => {
   const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<"routines" | "produits">("routines");
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [productScanCredits, setProductScanCredits] = useState<number | null>(null);
   const scanFileRef = useRef<HTMLInputElement>(null);
   const diagnosticFileRef = useRef<HTMLInputElement>(null);
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
@@ -69,9 +106,13 @@ const Vanity = () => {
   const [eveningDone, setEveningDone] = useState(false);
   const [optimizedMorning, setOptimizedMorning] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [optimizedEvening, setOptimizedEvening] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
-  const [lastRoutineRefresh, setLastRoutineRefresh] = useState<string | null>(null);
+  const [routineCurationChecked, setRoutineCurationChecked] = useState(false);
+  const [autoCurating, setAutoCurating] = useState(false);
+  const autoCurationTriggeredRef = useRef(false);
+  const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
   const [refreshingRoutine, setRefreshingRoutine] = useState(false);
-  const { products: routineProducts, refetch: refetchRoutine } = useRoutineProducts();
+  const [routineRefreshError, setRoutineRefreshError] = useState<string | null>(null);
+  const { products: routineProducts, loading: routineProductsLoading, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
   const [catalogResults, setCatalogResults] = useState<CatalogProduct[]>([]);
@@ -91,6 +132,17 @@ const Vanity = () => {
           .eq("user_id", uid)
           .then(({ data }: any) => {
             if (data) setUserProducts(data);
+          });
+        (supabase as any)
+          .from("profiles")
+          .select("scan_credits_remaining, weekly_advice_regen_count, weekly_advice_regen_week")
+          .eq("id", uid)
+          .single()
+          .then(({ data }: any) => {
+            if (!data) return;
+            setProductScanCredits(data.scan_credits_remaining ?? null);
+            const used = data.weekly_advice_regen_week === currentWeekKey ? (data.weekly_advice_regen_count ?? 0) : 0;
+            setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
           });
         // Lire l'etat de la routine du jour
         const todayStr = new Date().toISOString().split("T")[0];
@@ -118,10 +170,8 @@ const Vanity = () => {
               const evening = data.find((r: any) => r.period === "evening");
               if (morning) setOptimizedMorning({ product_ids: morning.product_ids ?? [], inci_message: morning.inci_message });
               if (evening) setOptimizedEvening({ product_ids: evening.product_ids ?? [], inci_message: evening.inci_message });
-              const mostRecent = data.reduce((latest: string | null, r: any) =>
-                !latest || r.created_at > latest ? r.created_at : latest, null);
-              setLastRoutineRefresh(mostRecent);
             }
+            setRoutineCurationChecked(true);
           });
       }
     });
@@ -149,8 +199,53 @@ const Vanity = () => {
   const dailyProducts = routineProducts.filter(p => p.frequency === "daily");
   const weeklyProducts = routineProducts.filter(p => p.frequency === "weekly");
   const monthlyProducts = routineProducts.filter(p => p.frequency === "monthly");
-  const morningProducts = dailyProducts.filter(p => p.morning_use);
-  const eveningProducts = dailyProducts.filter(p => p.evening_use);
+
+  // La routine affichee est celle decidee par inci-analysis (pertinence au profil), pas
+  // l'inventaire brut : posseder un produit (scan, onboarding...) ne veut pas dire qu'il
+  // doit apparaitre ici tant que la curation ne l'a pas retenu.
+  const morningProducts = optimizedMorning
+    ? dailyProducts.filter(p => optimizedMorning.product_ids.includes(p.id))
+    : [];
+  const eveningProducts = optimizedEvening
+    ? dailyProducts.filter(p => optimizedEvening.product_ids.includes(p.id))
+    : [];
+
+  // Premiere curation automatique : si aucune routine optimisee n'existe encore pour
+  // aujourd'hui (nouvelle utilisatrice, produits fraichement scannes...) on la genere tout
+  // de suite plutot que de laisser l'onglet Routine vide en attendant un clic manuel.
+  useEffect(() => {
+    if (!userId || !routineCurationChecked || autoCurationTriggeredRef.current) return;
+    if (optimizedMorning || optimizedEvening) return;
+    if (routineProductsLoading) return;
+    if (dailyProducts.length === 0) return;
+
+    autoCurationTriggeredRef.current = true;
+    setAutoCurating(true);
+    (async () => {
+      try {
+        const [morningRes, eveningRes] = await Promise.all([
+          supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
+          supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
+        ]);
+        if (morningRes.data?.routine) {
+          setOptimizedMorning({
+            product_ids: morningRes.data.routine.map((p: any) => p.product_id),
+            inci_message: morningRes.data.explanation ?? null,
+          });
+        }
+        if (eveningRes.data?.routine) {
+          setOptimizedEvening({
+            product_ids: eveningRes.data.routine.map((p: any) => p.product_id),
+            inci_message: eveningRes.data.explanation ?? null,
+          });
+        }
+      } catch (e) {
+        console.warn("[vanity] curation automatique:", e);
+      } finally {
+        setAutoCurating(false);
+      }
+    })();
+  }, [userId, routineCurationChecked, optimizedMorning, optimizedEvening, routineProductsLoading, dailyProducts.length]);
 
   const toggleRoutineProduct = (id: string) => {
     setCheckedRoutineProducts(prev => {
@@ -182,25 +277,20 @@ const Vanity = () => {
     }
   };
 
-  const routineRefreshAvailable = (() => {
-    if (!lastRoutineRefresh) return true;
-    const last = new Date(lastRoutineRefresh).getTime();
-    const now = Date.now();
-    return now - last >= 24 * 60 * 60 * 1000;
-  })();
-
-  const routineRefreshHoursLeft = (() => {
-    if (!lastRoutineRefresh) return 0;
-    const last = new Date(lastRoutineRefresh).getTime();
-    const now = Date.now();
-    const remaining = 24 * 60 * 60 * 1000 - (now - last);
-    return Math.max(0, Math.ceil(remaining / (60 * 60 * 1000)));
-  })();
-
+  // Pas de cooldown temporel : rechargeable n'importe quand tant qu'il reste du budget
+  // hebdo — le même que "Mettre à jour mes conseils" (2 mises à jour manuelles/semaine,
+  // plafond appliqué et décompté côté serveur par generate-weekly-advice).
   const refreshRoutine = async () => {
-    if (!userId || !routineRefreshAvailable || refreshingRoutine) return;
+    if (!userId || regensRemaining === 0 || refreshingRoutine) return;
     setRefreshingRoutine(true);
+    setRoutineRefreshError(null);
     try {
+      const { error: adviceError } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true } });
+      if (adviceError) {
+        setRoutineRefreshError(await extractInvokeErrorMessage(adviceError));
+        return;
+      }
+
       const [morningRes, eveningRes] = await Promise.all([
         supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
         supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
@@ -217,9 +307,19 @@ const Vanity = () => {
           inci_message: eveningRes.data.explanation ?? null,
         });
       }
-      setLastRoutineRefresh(new Date().toISOString());
+
+      const { data: profile } = await (supabase as any)
+        .from("profiles")
+        .select("weekly_advice_regen_count, weekly_advice_regen_week")
+        .eq("id", userId)
+        .single();
+      if (profile) {
+        const used = profile.weekly_advice_regen_week === currentWeekKey ? (profile.weekly_advice_regen_count ?? 0) : 0;
+        setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
+      }
     } catch (e) {
       console.warn("refreshRoutine:", e);
+      setRoutineRefreshError("Erreur lors de la mise à jour — réessaie plus tard.");
     } finally {
       setRefreshingRoutine(false);
     }
@@ -330,6 +430,16 @@ const Vanity = () => {
       .single();
     if (dbError) throw dbError;
     if (inserted) setUserProducts(prev => [...prev, inserted]);
+
+    // Marque la routine comme "à régénérer" — traité en debounce 5min par
+    // l'edge function regenerate-routine-batch plutôt qu'immédiatement, pour
+    // éviter un appel Sonnet par produit si l'utilisatrice scanne plusieurs
+    // produits d'affilée.
+    await (supabase as any)
+      .from("profiles")
+      .update({ routine_regen_pending_since: new Date().toISOString() })
+      .eq("id", session.user.id);
+
     setScanMessage(`${product.product_name} ajouté ✓`);
     setTimeout(() => setScanMessage(null), 4000);
   };
@@ -353,7 +463,22 @@ const Vanity = () => {
         const errorText = error.context
           ? await (error.context as Response).text().catch(() => error.message)
           : error.message;
-        throw new Error(errorText);
+        // product-scan renvoie { error: "message propre" } en JSON (ex. crédits épuisés,
+        // soft cap anti-abus) — on l'extrait plutôt que d'afficher le JSON brut.
+        const parsedBody = (() => {
+          try {
+            return JSON.parse(errorText);
+          } catch {
+            return null;
+          }
+        })();
+        if (parsedBody?.scan_credits_remaining !== undefined) {
+          setProductScanCredits(parsedBody.scan_credits_remaining);
+        }
+        throw new Error(parsedBody?.error ?? errorText);
+      }
+      if (data?.scan_credits_remaining !== undefined) {
+        setProductScanCredits(data.scan_credits_remaining);
       }
       if (data?.status === "unrecognized" || !data?.product_name) {
         setScanMessage("Produit non reconnu — essaie une photo plus nette du packaging");
@@ -533,6 +658,11 @@ const Vanity = () => {
                   onChange={handleScanFile}
                 />
               </div>
+              {productScanCredits !== null && (
+                <p className="text-[10px] text-muted-foreground text-right mt-1.5">
+                  {productScanCredits} scan{productScanCredits !== 1 ? "s" : ""} de produits restant{productScanCredits !== 1 ? "s" : ""} cette semaine
+                </p>
+              )}
             </div>
 
             <div className="p-6 space-y-6">
@@ -587,8 +717,8 @@ const Vanity = () => {
                           className="flex gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm sm:flex-row sm:items-center sm:gap-3"
                         >
                           <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <div className="w-14 max-h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                              <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={18} />
+                            <div className="w-14 h-14 bg-muted/50 rounded-xl overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
+                              <ProductPhoto url={p.photo_url} name={p.product_name} type={p.product_type} iconSize={18} />
                             </div>
                             <div className="min-w-0 flex-1 overflow-hidden">
                               <p className="text-xs font-bold text-foreground break-words">{p.product_name}</p>
@@ -684,7 +814,7 @@ const Vanity = () => {
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                                  <ProductPhoto url={p.photo_url} name={p.product_name} iconSize={14} />
+                                  <ProductPhoto url={p.photo_url} name={p.product_name} type={p.product_type} iconSize={14} />
                                 </div>
                                 <div className="min-w-0">
                                   <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
@@ -726,78 +856,83 @@ const Vanity = () => {
             )}
           </motion.div>
 
-          {/* Mes accessoires beauté */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="premium-card p-6 order-3"
-          >
-            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
-              Mes accessoires beauté
-            </h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Sélectionne les appareils que tu utilises pour que ton assistant en tienne compte dans tes conseils.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {PRESET_DEVICES.map(({ emoji, label }) => {
-                const active = userDeviceLabels.has(label);
-                return (
-                  <button
-                    key={label}
-                    onClick={() => toggleDevice(label)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${active
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-card border-border text-foreground/70 hover:border-primary/50 hover:bg-muted/20"
-                      }`}
-                  >
-                    <span>{emoji}</span>
-                    <span>{label}</span>
-                    {active && <Check size={11} />}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-
-          {/* Import diagnostic professionnel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="premium-card p-6 order-4"
-          >
-            <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
-              Importer mon diagnostic professionnel
-            </h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Importe le rapport PDF de ton dernier diagnostic en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
-            </p>
-            <button
-              onClick={() => diagnosticFileRef.current?.click()}
-              disabled={diagnosticLoading}
-              className="w-full h-12 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center gap-2 text-sm font-semibold text-foreground/80 hover:bg-muted/40 transition-colors disabled:opacity-60"
+          {/* Mes accessoires beauté — masqué (désactivé sur demande car pas réellement pris en
+              compte dans la génération des conseils/routine), code conservé */}
+          {false && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="premium-card p-6 order-3"
             >
-              {diagnosticLoading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                  Analyse en cours…
-                </>
-              ) : (
-                <>
-                  <FileUp size={16} strokeWidth={1.5} />
-                  Importer un PDF
-                </>
-              )}
-            </button>
-            <input
-              ref={diagnosticFileRef}
-              type="file"
-              accept="application/pdf"
-              className="hidden"
-              onChange={handleDiagnosticFile}
-            />
-          </motion.div>
+              <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-4">
+                Mes accessoires beauté
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Sélectionne les appareils que tu utilises pour que ton assistant en tienne compte dans tes conseils.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_DEVICES.map(({ emoji, label }) => {
+                  const active = userDeviceLabels.has(label);
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => toggleDevice(label)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border transition-all ${active
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-card border-border text-foreground/70 hover:border-primary/50 hover:bg-muted/20"
+                        }`}
+                    >
+                      <span>{emoji}</span>
+                      <span>{label}</span>
+                      {active && <Check size={11} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Import analyse professionnelle — masqué (désactivé sur demande), code conservé */}
+          {false && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="premium-card p-6 order-4"
+            >
+              <h2 className="text-[10px] font-bold text-foreground/80 tracking-widest uppercase mb-2">
+                Importer mon analyse professionnelle
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Importe le rapport PDF de ta dernière analyse en institut ou cabinet (Observ, Visia...) pour l'ajouter à ton suivi.
+              </p>
+              <button
+                onClick={() => diagnosticFileRef.current?.click()}
+                disabled={diagnosticLoading}
+                className="w-full h-12 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-center gap-2 text-sm font-semibold text-foreground/80 hover:bg-muted/40 transition-colors disabled:opacity-60"
+              >
+                {diagnosticLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    Analyse en cours…
+                  </>
+                ) : (
+                  <>
+                    <FileUp size={16} strokeWidth={1.5} />
+                    Importer un PDF
+                  </>
+                )}
+              </button>
+              <input
+                ref={diagnosticFileRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleDiagnosticFile}
+              />
+            </motion.div>
+          )}
         </div>
       ) : (
         <div>
@@ -812,7 +947,7 @@ const Vanity = () => {
                 key={key}
                 onClick={() => setActiveRoutineTab(key)}
                 className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeRoutineTab === key
-                  ? "bg-foreground text-background"
+                  ? "bg-primary text-primary-foreground"
                   : "border border-border/40 text-muted-foreground"
                   }`}
               >
@@ -827,18 +962,25 @@ const Vanity = () => {
               <div>
                 <button
                   onClick={refreshRoutine}
-                  disabled={!routineRefreshAvailable || refreshingRoutine}
-                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${routineRefreshAvailable
-                    ? "bg-foreground text-background"
+                  disabled={regensRemaining === 0 || refreshingRoutine}
+                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${regensRemaining !== 0
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted/30 text-muted-foreground cursor-not-allowed"
                     }`}
                 >
-                  {refreshingRoutine ? "Optimisation en cours..." : "Recharger ma routine avec mes nouveaux produits"}
+                  {refreshingRoutine
+                    ? "Optimisation en cours..."
+                    : regensRemaining === 0
+                      ? "Limite atteinte pour cette semaine"
+                      : "Recharger ma routine avec mes nouveaux produits"}
                 </button>
-                {!routineRefreshAvailable && (
+                {regensRemaining !== null && (
                   <p className="text-[11px] text-muted-foreground text-center mt-2">
-                    De nouveau disponible dans {routineRefreshHoursLeft}h
+                    {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
                   </p>
+                )}
+                {routineRefreshError && (
+                  <p className="text-[11px] text-destructive text-center mt-1.5">{routineRefreshError}</p>
                 )}
               </div>
               {morningProducts.length > 0 && (
@@ -897,13 +1039,23 @@ const Vanity = () => {
               )}
               {morningProducts.length === 0 && eveningProducts.length === 0 && (
                 <div className="text-center py-12 space-y-3">
-                  <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
-                  <button
-                    onClick={() => setActiveMainTab("produits")}
-                    className="text-sm font-semibold text-primary"
-                  >
-                    Ajouter des produits →
-                  </button>
+                  {autoCurating ? (
+                    <RoutineLoadingMessage />
+                  ) : dailyProducts.length === 0 ? (
+                    <>
+                      <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
+                      <button
+                        onClick={() => setActiveMainTab("produits")}
+                        className="text-sm font-semibold text-primary"
+                      >
+                        Ajouter des produits →
+                      </button>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic px-6">
+                      Aucun de vos produits ne correspond à votre profil pour le moment — recharge ta routine ci-dessus si tu en as ajouté de nouveaux.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -1035,7 +1187,7 @@ const Vanity = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Bottom sheet confirmation diagnostic professionnel */}
+      {/* Bottom sheet confirmation analyse professionnelle */}
       <Drawer
         open={!!diagnosticResult}
         onOpenChange={(open) => { if (!open) setDiagnosticResult(null); }}
@@ -1043,10 +1195,10 @@ const Vanity = () => {
         <DrawerContent className="px-6 pb-10">
           <DrawerHeader className="text-left px-0 pt-2 pb-4">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-              {diagnosticResult?.source ?? "Diagnostic professionnel"}
+              {diagnosticResult?.source ?? "Analyse professionnelle"}
             </p>
             <DrawerTitle className="text-xl font-display text-foreground">
-              Ton diagnostic est prêt
+              Ton analyse est prête
             </DrawerTitle>
           </DrawerHeader>
 

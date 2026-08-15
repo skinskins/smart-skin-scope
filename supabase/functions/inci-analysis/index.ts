@@ -171,6 +171,7 @@ serve(async (req) => {
 - Carnation : ${profile.carnation ?? "non renseignée"}
 - Type de peau : ${profile.skin_type ?? "non renseigné"}
 - Problèmes : ${Array.isArray(profile.skin_problems) ? profile.skin_problems.join(", ") : profile.skin_problems ?? "non renseignés"}
+- Objectifs : ${Array.isArray(profile.skin_goals) ? profile.skin_goals.join(", ") : profile.skin_goals ?? "non renseignés"}
 - Phase cycle : ${profile.cycle_phase ?? "non renseignée"}
 
 ## ÉTAT DE PEAU OBSERVÉ${skinPhotoRes.data?.date ? ` (analyse du ${skinPhotoRes.data.date})` : ""}
@@ -199,49 +200,46 @@ ${productList}
 
 ## MISSION 1 — ROUTINE OPTIMALE
 
-Sélectionne les produits les plus adaptés pour ce ${periodLabel}.
+Elle possède les produits listés ci-dessus, mais posséder un produit ne veut pas dire qu'il doit finir dans sa routine : ce sont les produits qu'elle a chez elle, pas une présélection déjà validée. Sélectionne UNIQUEMENT ceux qui sont réellement pertinents pour SON profil (type de peau, problèmes, objectifs) et pour le contexte du jour — pas "un peu de chaque catégorie qu'elle possède".
 
-RÈGLES DE SÉLECTION PAR CATÉGORIE FONCTIONNELLE — obligation de sélection :
+CRITÈRES D'INCLUSION, dans cet ordre :
+1. Le produit convient-il à son type de peau et à ses problèmes déclarés ?
+2. Sert-il un de ses objectifs peau ?
+3. Est-il adapté à CE moment précis de la journée (${periodLabel}) — pas seulement "pas contre-indiqué", mais réellement pertinent pour le matin ou pour le soir ?
+4. Est-il cohérent avec l'état de peau observé, la phase de cycle et la météo ?
+5. N'est-il pas redondant avec un autre produit déjà retenu dans la même catégorie fonctionnelle ?
 
-- Pads / cotons exfoliants / toners actifs :
-  SI l'utilisatrice possède 1 ou plusieurs pads → tu DOIS en inclure exactement 1 dans la routine.
-  Choisir le plus adapté au contexte du jour. Mettre les autres dans excluded[] avec raison.
-  INTERDIT de mettre 0 pad si l'utilisatrice en possède au moins 1 (sauf contre-indication médicale précise).
+DIFFÉRENCIATION MATIN / SOIR — cette fonction est appelée séparément pour le matin et pour le soir : les deux routines ne doivent PAS être une simple copie l'une de l'autre par défaut. Une routine matin identique à la routine soir n'est légitime que si le(s) produit(s) retenu(s) sont explicitement adaptés aux deux moments (ex. nettoyant doux neutre, crème hydratante sans actif sensible) — ce n'est jamais le choix par défaut, c'est un résultat qui doit être justifiable produit par produit.
+- Matin : privilégier protection et légèreté — vitamine C, niacinamide, acide hyaluronique, antioxydants, SPF.
+- Soir : privilégier réparation et actifs exigeants — rétinol/rétinoïdes, AHA/BHA/acides exfoliants, peptides, huiles nourrissantes. Ne jamais retenir de rétinoïdes ou d'exfoliants forts le matin.
+- SI l'utilisatrice possède plusieurs produits dans une même catégorie fonctionnelle avec des profils d'actifs différents (ex. un sérum vitamine C et un sérum rétinol) → répartis-les entre matin et soir selon leur profil plutôt que de n'en retenir qu'un seul pour les deux moments.
 
-- Crèmes hydratantes / émollientes :
-  SI l'utilisatrice possède 1 ou plusieurs crèmes → inclure exactement 1, exclure les autres avec raison.
-  INTERDIT de mettre 0 crème si l'utilisatrice en possède au moins 1.
-
-- Sérums :
-  SI l'utilisatrice possède 1 ou plusieurs sérums → inclure exactement 1 (ou 2 si familles d'actifs complémentaires), exclure les autres avec raison.
-  INTERDIT de mettre 0 sérum si l'utilisatrice en possède au moins 1.
-
-- Nettoyants / huiles démaquillantes :
-  SI l'utilisatrice possède 1 ou plusieurs nettoyants → inclure exactement 1, exclure les autres avec raison.
-  INTERDIT de mettre 0 nettoyant si l'utilisatrice en possède au moins 1.
-
+RÈGLES PAR CATÉGORIE FONCTIONNELLE (pads/toners actifs, crèmes/émollients, sérums, nettoyants) :
+- Maximum 1 produit par catégorie, sauf sérums avec familles d'actifs clairement complémentaires (max 2).
+- N'inclus un produit d'une catégorie QUE s'il remplit les critères d'inclusion ci-dessus pour cette utilisatrice précisément, CE moment de la journée inclus.
+- SI aucun produit d'une catégorie ne convient à son profil, au contexte du jour ou à ce moment précis → exclus TOUTE la catégorie (0 produit), avec la raison dans excluded[]. Ce n'est pas une exception rare, c'est un résultat normal et attendu quand c'est justifié.
 - SPF : 1 maximum (matin uniquement). Le soir : exclure avec raison "non adapté au soir".
 - Accessoires (gua sha, etc.) : inclure si contexte favorable.
 
-RÈGLE GÉNÉRALE : SI l'utilisatrice possède N produits d'une catégorie → inclure exactement 1, exclure N-1 dans excluded[].
-NE JAMAIS retirer toute une catégorie sauf si TOUS les produits sont contre-indiqués pour une raison médicale ou chimique précise (ex. rétinoïdes + AHA le matin). Dans ce cas, expliquer dans excluded[].
-
-CRITÈRE DE SÉLECTION entre produits de même catégorie :
+CRITÈRE DE SÉLECTION entre produits candidats d'une même catégorie :
 Choisir celui dont les INCI sont les plus adaptés à :
-1. La phase de cycle et l'état de peau observé
-2. La météo du jour (UV, humidité, pollution)
-3. Les conditions de vie du jour
-4. La période (${periodLabel} : ${period === "morning" ? "légèreté, protection" : "nutrition, récupération, réparation"})
+1. La période (${periodLabel} : ${period === "morning" ? "légèreté, protection" : "nutrition, récupération, réparation"})
+2. Son type de peau, ses problèmes et ses objectifs déclarés
+3. La phase de cycle et l'état de peau observé
+4. La météo du jour (UV, humidité, pollution)
+5. Les conditions de vie du jour
 
-INCOMPATIBILITÉS CHIMIQUES UNIQUEMENT : Exclure un produit seulement si danger avéré (pH antagonistes, photosensibilisant le matin, irritant actif si peau fragilisée). Pas d'exclusion par défaut.
+Exclure aussi tout produit en incompatibilité chimique avérée avec un autre produit retenu (pH antagonistes, photosensibilisant le matin, irritant actif si peau fragilisée) — mais l'incompatibilité chimique est un motif d'exclusion supplémentaire, pas le seul : un produit inadapté au profil ou au moment de la journée s'exclut même sans danger chimique.
 
 ORDRE D'APPLICATION : Texture eau → tonique → essence/pad → sérum → contour yeux → soin/crème → huile → SPF.
+
+TON DES TEXTES DESTINÉS À L'UTILISATRICE (explanation, excluded[].reason, conseils) : ces textes sont lus tels quels dans l'app, jamais retravaillés. Parle uniquement le langage skincare — ingrédients, type de peau, état de peau, contexte du jour. N'expose JAMAIS le fonctionnement interne : pas de mention de "règle", "critère d'inclusion", "catégorie fonctionnelle", "1 produit par catégorie", "candidat", "algorithme" ou toute autre formulation qui révèle qu'une logique de sélection automatisée est derrière la routine. Explique un choix par ce qu'il apporte à SA peau ce jour-là, jamais par la règle qui l'a produit.
 
 ## MISSION 2 — CONSEILS LIÉS À LA ROUTINE
 
 Génère 2 à 3 conseils qui expliquent les choix de la Mission 1.
 - Toujours lier au contexte précis du jour (phase cycle, météo, état peau)
-- Expliquer POURQUOI un produit a été choisi ou exclu
+- Expliquer POURQUOI un produit a été choisi ou exclu, en termes skincare (jamais en citant une règle de sélection)
 - Jamais de conseils génériques ("buvez de l'eau", "protégez-vous du soleil")
 - Types : "warning" (danger actif) | "alerte" (prudence) | "astuce" (optimisation) | "observation" (info)
 - Priorités : "1" haute | "2" moyenne | "3" basse
@@ -260,10 +258,10 @@ Génère 2 à 3 conseils qui expliquent les choix de la Mission 1.
     {
       "product_id": "<ID EXACT>",
       "product_name": "<nom>",
-      "reason": "<raison courte>"
+      "reason": "<raison courte, en langage skincare — jamais de mention de règle/critère interne>"
     }
   ],
-  "explanation": "<phrase expliquant les ajustements principaux — null si aucun produit exclu>",
+  "explanation": "<phrase expliquant les ajustements principaux en langage skincare, jamais de mention de règle/critère interne — null si aucun produit exclu>",
   "conseils": [
     {
       "advice_title": "<titre court percutant>",
@@ -337,8 +335,12 @@ Génère 2 à 3 conseils qui expliquent les choix de la Mission 1.
       .filter(Boolean)
       .sort((a: any, b: any) => a.order - b.order);
 
-    // Fallback : si Claude a tout exclu ou retourné des IDs invalides, on prend tous les produits
-    const finalRoutine = routineItems.length > 0
+    // Fallback : uniquement si Claude a produit une réponse invalide (routine non-vide dans
+    // le JSON mais aucun ID ne correspond à un produit connu → parsing/hallucination, pas un
+    // choix légitime). Un routine[] réellement vide (aucun produit jugé pertinent) est un
+    // résultat valide qu'on ne doit pas écraser en réintroduisant tous les produits.
+    const claudeRoutineWasEmpty = Array.isArray(result.routine) && result.routine.length === 0;
+    const finalRoutine = routineItems.length > 0 || claudeRoutineWasEmpty
       ? routineItems
       : allProducts.map((p: any, i: number) => ({
           product_id: p.id, product_name: p.product_name, brand: p.brand,

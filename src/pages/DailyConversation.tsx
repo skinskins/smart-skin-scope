@@ -6,8 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 
-const MORNING_FACTOR_PILLS = ["Sucré/Gras", "Stress élevé", "Médicament", "Autre"];
-const EVENING_FACTOR_PILLS = ["Alcool", "Médicament", "Voyage", "Autre"];
+// Le soir n'a plus d'etape "facteurs" (retiree) — cette liste ne sert plus qu'au matin.
+const MORNING_FACTOR_PILLS = ["Sucré/Gras", "Stress élevé", "Médicament"];
 
 const TYPE_DURATION: Record<string, number> = {
   "démaquillant": 2, "makeup remover": 2, "makeup_remover": 2, "démaquillage": 2,
@@ -126,7 +126,6 @@ export default function DailyConversation() {
   const [selectedFactors, setSelectedFactors] = useState<Set<string>>(new Set());
   const [factorsDone,       setFactorsDone]       = useState(false);
   const [analysisStep,      setAnalysisStep]      = useState<0 | 1 | 2 | 3>(0);
-  const [saving,            setSaving]            = useState(false);
   const [cyclePhase,        setCyclePhase]        = useState<string | null>(null);
   const [cycleDay,          setCycleDay]          = useState<number | null>(null);
   const [cycleDuration,     setCycleDuration]     = useState<number>(28);
@@ -205,9 +204,7 @@ export default function DailyConversation() {
           else                                        setAnswerQ2("Oui");
           if (c.extra_factors?.sun_exposure)          setAnswerQ3("Oui");
           const factors = new Set<string>();
-          if (c.alcohol_drinks >= 1)          factors.add("Alcool");
           if (c.extra_factors?.medication)    factors.add("Médicament");
-          if (c.extra_factors?.travel)        factors.add("Voyage");
           setSelectedFactors(factors);
           setStep(3);
         }
@@ -261,11 +258,14 @@ export default function DailyConversation() {
     setTimeout(() => { setTyping(false); setStep(2); }, 800);
   };
 
+  // Le soir n'a plus d'etape "facteurs" separee (retiree) : on enchaine directement sur
+  // l'analyse/la routine une fois l'exposition solaire renseignee. `typing` reste actif
+  // sans interruption jusqu'a ce que handleFactorsDone bascule sur analysisStep.
   const handleQ3Evening = (answer: Q3EveningAnswer) => {
     if (step !== 2 || isMorning) return;
     setAnswerQ3(answer);
     setTyping(true);
-    setTimeout(() => { setTyping(false); setStep(3); }, 800);
+    setTimeout(() => { handleFactorsDone(); }, 800);
   };
 
   const toggleFactor = (pill: string) => {
@@ -305,8 +305,6 @@ export default function DailyConversation() {
       if (answerQ2 === "Oui")             food_quality = "Équilibrée";
       else if (answerQ2 === "Non")        food_quality = "Grasses / Sucrées";
       else if (answerQ2 === "Passable")   food_quality = "Quelconque";
-
-      if (selectedFactors.has("Alcool"))  alcohol_drinks = 1;
     }
 
     await (supabase as any).from("daily_checkins").upsert(
@@ -319,7 +317,6 @@ export default function DailyConversation() {
         alcohol_drinks,
         extra_factors: {
           medication:   selectedFactors.has("Médicament"),
-          travel:       selectedFactors.has("Voyage"),
           sun_exposure: answerQ3 === "Oui" || answerQ3 === "Un peu",
           new_product:  false,
         },
@@ -356,11 +353,6 @@ export default function DailyConversation() {
     }
 
     setAnalysisStep(3);
-  };
-
-  const handleStartRoutine = async () => {
-    setSaving(true);
-    navigate("/routine-player");
   };
 
   const cycleSubtitle =
@@ -499,17 +491,7 @@ export default function DailyConversation() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {!isMorning && step >= 3 && (
-            <motion.div key="q4" variants={fadeUp} initial="hidden" animate="visible">
-              <AiBubble>
-                <p className="text-sm text-foreground/90">Quelque chose d'autre à noter ?</p>
-              </AiBubble>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {factorsDone && (
+          {factorsDone && isMorning && (
             <motion.div key="ans-factors" variants={fadeUp} initial="hidden" animate="visible">
               <UserBubble>{factorsSummary}</UserBubble>
             </motion.div>
@@ -605,31 +587,12 @@ export default function DailyConversation() {
             </motion.div>
           ) : analysisStep >= 3 ? (
             <motion.div key="cta" variants={fadeUp} initial="hidden" animate="visible">
-              {optimizedRoutine.length > 0 ? (
-                <div className="space-y-2.5">
-                  <button
-                    onClick={handleStartRoutine}
-                    disabled={saving}
-                    className="w-full h-14 rounded-full bg-primary text-primary-foreground font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-60"
-                  >
-                    {saving ? "Un instant…" : <>Commencer ma routine <ChevronRight size={18} /></>}
-                  </button>
-                  <button
-                    onClick={skip}
-                    disabled={saving}
-                    className="w-full h-12 rounded-full font-semibold text-sm flex items-center justify-center gap-2 border border-border/60 text-muted-foreground hover:text-primary hover:border-primary transition-all disabled:opacity-60"
-                  >
-                    Voir ma perle <ChevronRight size={16} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={skip}
-                  className="w-full h-12 rounded-full font-semibold text-sm flex items-center justify-center border border-border/60 text-muted-foreground"
-                >
-                  Retour au dashboard
-                </button>
-              )}
+              <button
+                onClick={skip}
+                className="w-full h-14 rounded-full bg-primary text-primary-foreground font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 premium-shadow hover:opacity-90 transition-all active:scale-[0.98]"
+              >
+                Voir ma perle <ChevronRight size={18} />
+              </button>
             </motion.div>
           ) : analysisStep >= 1 ? null : step === 0 ? (
             <motion.div key="inp0" variants={fadeUp} initial="hidden" animate="visible" className="flex gap-2 flex-wrap justify-end">
@@ -652,10 +615,10 @@ export default function DailyConversation() {
                 <PillButton key={a} label={a} active={answerQ3 === a} onClick={() => handleQ3Evening(a)} />
               ))}
             </motion.div>
-          ) : (step === 2 && isMorning) || (step === 3 && !isMorning) ? (
+          ) : step === 2 && isMorning ? (
             <motion.div key="inp-factors" variants={fadeUp} initial="hidden" animate="visible" className="space-y-3">
               <div className="flex gap-2 flex-wrap justify-end">
-                {(isMorning ? MORNING_FACTOR_PILLS : EVENING_FACTOR_PILLS).map(pill => (
+                {MORNING_FACTOR_PILLS.map(pill => (
                   <PillButton
                     key={pill}
                     label={pill}

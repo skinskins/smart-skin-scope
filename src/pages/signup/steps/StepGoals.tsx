@@ -1,3 +1,4 @@
+import SelectableOption from "@/pages/signup/components/SelectableOption";
 import type { SignupStepProps } from "@/pages/signup/types";
 
 const StepGoals = ({ BackButton, skinGoals, toggleGoal }: SignupStepProps) => {
@@ -13,9 +14,9 @@ const StepGoals = ({ BackButton, skinGoals, toggleGoal }: SignupStepProps) => {
             <div className="space-y-8 flex-1 overflow-y-auto pb-4 custom-scrollbar pr-1">
                 <div className="grid grid-cols-2 gap-3 mt-2">
                     {['Hydratation', 'Anti-âge', 'Éclat / Glow', 'Anti-imperfections', 'Apaiser', 'Taches', 'Pores', 'Anti-cernes'].map((goal) => (
-                        <button type="button" key={goal} onClick={() => toggleGoal(goal)} className={`py-4 px-2 border rounded-2xl transition-all text-[10px] font-bold uppercase tracking-widest ${skinGoals.includes(goal) ? 'bg-primary text-primary-foreground border-primary premium-shadow' : 'bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20'}`}>
+                        <SelectableOption key={goal} selected={skinGoals.includes(goal)} onClick={() => toggleGoal(goal)}>
                             {goal}
-                        </button>
+                        </SelectableOption>
                     ))}
                 </div>
             </div>

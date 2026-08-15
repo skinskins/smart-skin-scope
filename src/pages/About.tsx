@@ -32,7 +32,7 @@ const About = () => {
                 <div>
                     <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1 px-1">Nacre</p>
                     <p className="text-[14px] text-muted-foreground px-1">
-                        Diagnostic IA et conseils personnalisés pour votre peau, adaptés à votre cycle et à votre quotidien.
+                        Analyse IA et conseils personnalisés pour votre peau, adaptés à votre cycle et à votre quotidien.
                     </p>
                 </div>
 

@@ -105,7 +105,7 @@ const Progress = () => {
           <CalendarDays size={32} className="text-muted-foreground mx-auto mb-3" />
           <p className="text-foreground font-semibold mb-1">Pas encore assez de données</p>
           <p className="text-sm text-muted-foreground">
-            Effectuez au moins 2 diagnostics pour voir votre progression.
+            Effectuez au moins 2 analyses pour voir votre progression.
           </p>
         </motion.div>
       ) : (
