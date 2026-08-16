@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdviceCard, Conseil, pilierGroupFromPriority } from "@/components/AdviceCard";
 import { BetaWelcomeModal } from "@/components/BetaWelcomeModal";
-import RoutineLoadingMessage from "@/components/RoutineLoadingMessage";
+import RoutineLoadingMessage, { ADVICE_LOADING_MESSAGES, ADVICE_BUTTON_MESSAGES, RotatingLabel } from "@/components/RoutineLoadingMessage";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
 type SkinPhotoRow = { date: string; analysis_json: any; storage_path: string; publicUrl?: string };
@@ -628,9 +628,8 @@ const Dashboard = () => {
               )}
             </>
           ) : adviceGenerating ? (
-            <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
-              <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin flex-shrink-0" />
-              <p className="text-sm text-muted-foreground">Préparation de votre conseil…</p>
+            <div className="bg-white rounded-2xl p-4 border border-border/10">
+              <RoutineLoadingMessage messages={ADVICE_LOADING_MESSAGES} />
             </div>
           ) : adviceError ? (
             <div className="bg-white rounded-2xl p-4 flex items-center gap-3 border border-border/10">
@@ -668,18 +667,20 @@ const Dashboard = () => {
                 <button
                   onClick={handleUpdateAdvice}
                   disabled={adviceUpdating || regensRemaining === 0}
-                  className={`w-full py-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 ${
+                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition active:scale-95 ${
                     regensRemaining === 0
                       ? "bg-muted/50 text-muted-foreground border border-border/40 cursor-not-allowed"
-                      : "border border-border/40 text-muted-foreground hover:bg-muted/10 disabled:opacity-40"
+                      : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
                   }`}
                 >
                   <RefreshCw size={12} className={adviceUpdating ? "animate-spin" : ""} />
-                  {adviceUpdating
-                    ? "Mise à jour..."
-                    : regensRemaining === 0
-                      ? "Limite atteinte pour cette semaine"
-                      : "Mettre à jour mes conseils"}
+                  {adviceUpdating ? (
+                    <RotatingLabel messages={ADVICE_BUTTON_MESSAGES} />
+                  ) : regensRemaining === 0 ? (
+                    "Limite atteinte pour cette semaine"
+                  ) : (
+                    "Mettre à jour mes conseils"
+                  )}
                 </button>
 
                 {regensRemaining !== null && (
