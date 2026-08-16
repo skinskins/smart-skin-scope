@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { AdviceCard, Conseil, pilierGroupFromPriority } from "@/components/AdviceCard";
+import { RotatingLabel, ADVICE_BUTTON_MESSAGES } from "@/components/RoutineLoadingMessage";
 
 type WeeklyRow = {
   id: string;
@@ -229,14 +230,20 @@ const WeeklyPlan = () => {
               <button
                 onClick={handleUpdateAdvice}
                 disabled={regenerating || regensRemaining === 0}
-                className="w-full py-2.5 rounded-xl border border-border/30 bg-transparent text-[11px] text-muted-foreground flex items-center justify-center gap-1.5 transition hover:bg-muted/10 active:scale-95 disabled:opacity-50"
+                className={`w-full py-2.5 rounded-xl text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition active:scale-95 ${
+                  regensRemaining === 0
+                    ? "bg-muted/50 text-muted-foreground border border-border/40 cursor-not-allowed"
+                    : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                }`}
               >
                 <RefreshCw size={11} className={regenerating ? "animate-spin" : ""} />
-                {regenerating
-                  ? "Mise à jour..."
-                  : regensRemaining === 0
-                    ? "Limite atteinte pour cette semaine"
-                    : "Mettre à jour mes conseils"}
+                {regenerating ? (
+                  <RotatingLabel messages={ADVICE_BUTTON_MESSAGES} />
+                ) : regensRemaining === 0 ? (
+                  "Limite atteinte pour cette semaine"
+                ) : (
+                  "Mettre à jour mes conseils"
+                )}
               </button>
               {regensRemaining !== null && (
                 <p className="text-[10px] text-muted-foreground text-center mt-1.5">

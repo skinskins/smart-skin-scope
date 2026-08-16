@@ -252,21 +252,21 @@ const Profile = () => {
   return (
     <div className="min-h-screen pb-32 max-w-lg mx-auto bg-background">
 
-      {/* Header sombre */}
-      <div className="bg-slate-900 px-6 pt-14 pb-8">
+      {/* Header */}
+      <div className="bg-primary px-6 pt-14 pb-8">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl font-bold text-white">{initials}</span>
+          <div className="w-16 h-16 rounded-full bg-primary-foreground/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-2xl font-bold text-primary-foreground">{initials}</span>
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-display text-white truncate">
+            <h1 className="text-2xl font-display text-primary-foreground truncate">
               {[firstName, lastName].filter(Boolean).join(" ") || "Mon profil"}
             </h1>
 
           </div>
           <button
             onClick={handleLogout}
-            className="ml-auto flex-shrink-0 text-white/40 hover:text-white/70 transition-colors p-2 -mr-2"
+            className="ml-auto flex-shrink-0 text-primary-foreground/40 hover:text-primary-foreground/70 transition-colors p-2 -mr-2"
             aria-label="Se déconnecter"
           >
             <LogOut size={18} strokeWidth={1.8} />

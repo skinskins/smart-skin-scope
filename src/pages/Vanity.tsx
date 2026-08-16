@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Trash2, SlidersHorizontal, Scan, FileUp } from "lucide-react";
+import { Check, X, Search, Plus, Trash2, SlidersHorizontal, Scan, FileUp, RefreshCw } from "lucide-react";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
@@ -10,7 +10,7 @@ import { RoutineCard } from "@/components/RoutineCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PRESET_DEVICES } from "@/data/presetDevices";
-import RoutineLoadingMessage from "@/components/RoutineLoadingMessage";
+import RoutineLoadingMessage, { RotatingLabel, ROUTINE_BUTTON_MESSAGES } from "@/components/RoutineLoadingMessage";
 
 type CatalogProduct = {
   id: string;
@@ -658,7 +658,7 @@ const Vanity = () => {
                   onChange={handleScanFile}
                 />
               </div>
-              {productScanCredits !== null && (
+              {productScanCredits !== null && productScanCredits <= 2 && (
                 <p className="text-[10px] text-muted-foreground text-right mt-1.5">
                   {productScanCredits} scan{productScanCredits !== 1 ? "s" : ""} de produits restant{productScanCredits !== 1 ? "s" : ""} cette semaine
                 </p>
@@ -963,16 +963,19 @@ const Vanity = () => {
                 <button
                   onClick={refreshRoutine}
                   disabled={regensRemaining === 0 || refreshingRoutine}
-                  className={`w-full py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${regensRemaining !== 0
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/30 text-muted-foreground cursor-not-allowed"
+                  className={`w-full py-3 rounded-2xl text-[11px] font-bold tracking-wide transition-all flex items-center justify-center gap-2 ${regensRemaining !== 0
+                    ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                    : "bg-muted/50 text-muted-foreground border border-border/40 cursor-not-allowed"
                     }`}
                 >
-                  {refreshingRoutine
-                    ? "Optimisation en cours..."
-                    : regensRemaining === 0
-                      ? "Limite atteinte pour cette semaine"
-                      : "Recharger ma routine avec mes nouveaux produits"}
+                  <RefreshCw size={12} className={refreshingRoutine ? "animate-spin" : ""} />
+                  {refreshingRoutine ? (
+                    <RotatingLabel messages={ROUTINE_BUTTON_MESSAGES} />
+                  ) : regensRemaining === 0 ? (
+                    "Limite atteinte pour cette semaine"
+                  ) : (
+                    "Recharger ma routine avec mes nouveaux produits"
+                  )}
                 </button>
                 {regensRemaining !== null && (
                   <p className="text-[11px] text-muted-foreground text-center mt-2">
