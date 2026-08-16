@@ -658,7 +658,7 @@ const Vanity = () => {
                   onChange={handleScanFile}
                 />
               </div>
-              {productScanCredits !== null && (
+              {productScanCredits !== null && productScanCredits <= 2 && (
                 <p className="text-[10px] text-muted-foreground text-right mt-1.5">
                   {productScanCredits} scan{productScanCredits !== 1 ? "s" : ""} de produits restant{productScanCredits !== 1 ? "s" : ""} cette semaine
                 </p>
