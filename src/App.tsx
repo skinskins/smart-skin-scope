@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "./pages/Dashboard";
@@ -17,7 +18,6 @@ import Profile from "./pages/Profile";
 import Vanity from "./pages/Vanity";
 import Signup from "./pages/Signup";
 import BottomNav from "./components/BottomNav";
-import DailyCheckinBubble from "./components/DailyCheckinBubble";
 import PricingValueScreen from "./pages/PricingValueScreen";
 import PricingPlanScreen from "./pages/PricingPlanScreen";
 import RoutineSetupOnboarding from "./pages/RoutineSetupOnboarding";
@@ -171,7 +171,6 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <BottomNav />
-        <DailyCheckinBubble />
         <div style={{
           position: "fixed", bottom: 72, right: 8, zIndex: 99999,
           fontSize: 10, color: "rgba(0,0,0,0.4)", pointerEvents: "none",
@@ -182,6 +181,7 @@ const App = () => (
         </div>
       </BrowserRouter>
     </TooltipProvider>
+    <Analytics />
   </QueryClientProvider>
 );
 
