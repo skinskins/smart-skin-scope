@@ -70,7 +70,7 @@ const SuiviJour = () => {
   const [skinScansRemaining, setSkinScansRemaining] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_SKIN_SCANS_PER_WEEK = 2;
+  const MAX_SKIN_SCANS_PER_WEEK = 1;
   // Même calcul (UTC) que skin-analysis côté serveur, pour rester cohérent avec la valeur
   // stockée dans skin_scan_week — ce compteur est juste informatif, pas une vraie limite
   // recalculée côté client.

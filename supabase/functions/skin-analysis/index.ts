@@ -26,7 +26,7 @@ function getMonday(dateStr: string): string {
   return d.toISOString().split("T")[0];
 }
 
-const MAX_SKIN_SCANS_PER_WEEK = 2;
+const MAX_SKIN_SCANS_PER_WEEK = 1;
 
 // Le cache/plafond de scans protège un userId : on ne peut donc pas faire confiance au
 // user_id envoyé dans le body (même règle que product-scan / generate-weekly-advice). On

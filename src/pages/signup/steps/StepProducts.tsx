@@ -66,7 +66,7 @@ const StepProducts = ({ BackButton, productSearchQuery, setProductSearchQuery, p
                             {selectedOnboardingProducts.map((p: any) => (
                                 <div key={p.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-2xl shadow-sm w-full max-w-full">
                                     <div className="w-10 h-10 bg-muted/50 rounded-lg overflow-hidden flex items-center justify-center border border-border/50 shrink-0">
-                                        <ProductPhoto url={p.photo_url} name={p.product_name} type={p.product_type} iconSize={14} />
+                                        <ProductPhoto url={p.photo_url} name={p.product_name} type={p.product_type} iconSize={14} showPhoto={false} />
                                     </div>
                                     <div className="flex flex-1 min-w-0 flex-col">
                                         <p className="text-xs font-bold text-foreground break-words">{p.product_name}</p>
