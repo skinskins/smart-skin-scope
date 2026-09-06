@@ -1,8 +1,11 @@
-import { CheckCircle2, Lock, Mail, Shield, User } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Lock, Mail, Shield, User } from "lucide-react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import type { SignupStepProps } from "@/pages/signup/types";
 
 const StepAccount = ({ BackButton, firstName, setFirstName, lastName, setLastName, email, setEmail, password, setPassword }: SignupStepProps) => {
+    const [showPassword, setShowPassword] = useState(false);
+
     return (
         <>
             <div className="mb-10 flex items-start gap-4">
@@ -42,7 +45,15 @@ const StepAccount = ({ BackButton, firstName, setFirstName, lastName, setLastNam
                     <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-4">Mot de passe</label>
                     <div className="relative">
                         <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-40" size={16} strokeWidth={1.5} />
-                        <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-12" />
+                        <Input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-12 pr-12" />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-60 hover:opacity-100 transition-opacity"
+                            aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                        >
+                            {showPassword ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+                        </button>
                     </div>
                     <div className="px-4 space-y-2">
                         <p className={`text-[9px] flex items-center gap-2 ${password.length >= 8 ? 'text-primary' : 'text-muted-foreground/40'}`}><CheckCircle2 size={10} /> 8 caractères minimum</p>
