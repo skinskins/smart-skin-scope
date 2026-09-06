@@ -135,6 +135,11 @@ serve(async (req) => {
 CONTEXTE :
 - Âge déclaré : ${age} ans
 
+PRINCIPE DE PRUDENCE DIAGNOSTIQUE (prioritaire sur tout le reste) :
+Cette analyse est lue telle quelle par une utilisatrice, sans avis médical pour la contextualiser. Une fausse alerte (signaler un problème qui n'existe pas) est plus dommageable qu'un score neutre : elle inquiète inutilement et fait perdre confiance dans l'outil. Ne conclus pas trop vite à un diagnostic : prends le temps d'examiner la photo avant de trancher, plutôt que de signaler la première anomalie possible. Un signe peut être réel sans être flagrant — l'objectif n'est pas d'exiger une certitude absolue, mais d'éviter de sauter à une conclusion sur un indice trop faible ou isolé.
+- Une texture de peau normale, une légère variation de teint ou un pore visible ne sont PAS des anomalies à signaler — ce sont des caractéristiques de peau ordinaires.
+- "points_attention" et "conditions_detectees" ne doivent pas être remplis par réflexe : ne les utilise que pour des observations que tu es prêt à défendre, pas pour la première hypothèse venue.
+
 INSTRUCTIONS QUALITÉ :
 Avant d'analyser, évalue la qualité de la photo :
 - Lunettes (de vue ou de soleil) portées, yeux masqués → rejette avec le code "sunglasses"
@@ -194,14 +199,14 @@ Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
       "zones": "description courte ou null"
     },
     "conditions_detectees": {
-      "eczema": "Cherche activement : plaques sèches délimitées, desquamation, lichénification (peau épaissie), rougeurs localisées différentes de l'acné, zones affectées typiques (joues, contour yeux, cou). Retourne true si présent, false sinon.",
+      "eczema": "Avant de répondre true, vérifie que plusieurs signes se recoupent : plaques sèches délimitées, desquamation, lichénification (peau épaissie), rougeurs localisées différentes de l'acné, sur une zone typique (joues, contour yeux, cou). Une peau simplement sèche ou une rougeur diffuse légère et isolée ne suffit pas = false.",
       "eczema_zones": "zones visibles ou null",
-      "rosacea": "Cherche : rougeur diffuse centro-faciale, télangiectasies (petits vaisseaux visibles), papules sans comédons, flush chronique. true | false",
+      "rosacea": "Avant de répondre true, vérifie que plusieurs signes se recoupent : rougeur diffuse centro-faciale, télangiectasies (petits vaisseaux visibles), papules sans comédons, flush chronique. Une rougeur légère isolée ne suffit pas = false.",
       "rosacea_zones": "zones visibles ou null",
-      "dermite_seborrheique": "Cherche : squames jaunâtres front/ailes du nez/sourcils, peau grasse localisée. true | false",
-      "perioral_dermatitis": "Cherche : petites papules/pustules regroupées autour de la bouche ou du nez. true | false",
-      "milium": "Cherche : petits kystes blancs 1-2mm, souvent contour yeux. true | false",
-      "hypersensibilite_reactive": "Peau visiblement réactive, capillaires dilatés, aspect fragile généralisé. true | false"
+      "dermite_seborrheique": "true si squames jaunâtres visibles sur front/ailes du nez/sourcils, peau grasse localisée. Sinon false.",
+      "perioral_dermatitis": "true si petites papules/pustules regroupées autour de la bouche ou du nez. Sinon false.",
+      "milium": "true si petits kystes blancs 1-2mm visibles, souvent contour yeux. Sinon false.",
+      "hypersensibilite_reactive": "true si la peau apparaît réactive de façon assez marquée (capillaires dilatés, aspect fragile généralisé) — pas pour une simple rougeur passagère. Sinon false."
     },
     "points_forts": ["point positif 1", "point positif 2"],
     "points_attention": ["observation clinique 1", "observation clinique 2"],
@@ -209,7 +214,7 @@ Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
   }
 }
 
-IMPORTANT pour conditions_detectees : sois précis et n'hésite pas à détecter même une légère manifestation. Une plaque sèche localisée sur la joue avec contours nets = eczéma probable. Mieux vaut signaler et laisser l'utilisatrice confirmer que de passer à côté d'une condition importante pour sa routine.`;
+IMPORTANT pour conditions_detectees : chaque condition à true doit pouvoir se justifier par une description précise de ce que tu observes dans sa zone. Ne réponds pas true sur un simple soupçon ou un signe isolé et faible — prends le temps de vérifier que l'observation tient avant de la retenir. Un faux positif (signaler une condition absente) reste plus dommageable pour l'utilisatrice qu'un score neutre.`;
 
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
