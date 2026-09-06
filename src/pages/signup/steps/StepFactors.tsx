@@ -41,6 +41,7 @@ type OrbState = "positive" | "neutral" | "negative";
 const StepFactors = ({ BackButton, defaultFactors = [], addDefaultFactor, removeDefaultFactor }: SignupStepProps) => {
     const orbRef  = useRef<HTMLDivElement>(null);
     const orbAnim = useAnimation();
+    const [isDraggingTag, setIsDraggingTag] = useState(false);
 
     const wellbeingScore = defaultFactors.reduce((sum, key) => {
         const t = TAGS.find(t => t.key === key);
@@ -145,12 +146,18 @@ const StepFactors = ({ BackButton, defaultFactors = [], addDefaultFactor, remove
             </AnimatePresence>
 
             {/* Nuage de tags draggables */}
-            <div className="flex-1 relative overflow-y-auto custom-scrollbar pr-1">
+            <div className={`flex-1 relative pr-1 custom-scrollbar ${isDraggingTag ? "overflow-visible" : "overflow-y-auto"}`}>
                 <AnimatePresence>
                     {visibleTags.length > 0 ? (
                         <motion.div layout className="flex flex-wrap gap-2.5 justify-center">
                             {visibleTags.map(tag => (
-                                <DraggableTag key={tag.key} tag={tag} orbRef={orbRef} onAbsorb={absorbTag} />
+                                <DraggableTag
+                                    key={tag.key}
+                                    tag={tag}
+                                    orbRef={orbRef}
+                                    onAbsorb={absorbTag}
+                                    onDragStateChange={setIsDraggingTag}
+                                />
                             ))}
                         </motion.div>
                     ) : (
@@ -176,17 +183,22 @@ type DraggableTagProps = {
     tag: Tag;
     orbRef: React.RefObject<HTMLDivElement>;
     onAbsorb: (key: string) => void;
+    onDragStateChange?: (dragging: boolean) => void;
 };
 
-function DraggableTag({ tag, orbRef, onAbsorb }: DraggableTagProps) {
+function DraggableTag({ tag, orbRef, onAbsorb, onDragStateChange }: DraggableTagProps) {
     const [absorbed, setAbsorbed] = useState(false);
     const draggedRef = useRef(false);
 
-    const handleDragStart = () => { draggedRef.current = false; };
+    const handleDragStart = () => {
+        draggedRef.current = false;
+        onDragStateChange?.(true);
+    };
 
     const handleDrag = () => { draggedRef.current = true; };
 
     const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: { point: { x: number; y: number } }) => {
+        onDragStateChange?.(false);
         const orb = orbRef.current?.getBoundingClientRect();
         if (!orb) return;
         const { x, y } = info.point;
