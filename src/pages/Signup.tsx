@@ -476,7 +476,7 @@ const Signup = () => {
                         user_id: userId,
                         morning_use: true,
                         evening_use: true,
-                        frequency: "daily",
+                        frequency: null,
                         is_active: true,
                     }))
                 );

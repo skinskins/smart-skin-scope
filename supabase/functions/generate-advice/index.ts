@@ -252,6 +252,7 @@ Analyser ces données de manière holistique et générer 3 à 4 conseils qui :
 - Bienveillant, jamais condescendant ni alarmiste
 - Ne recommande jamais de marques spécifiques
 - Ne mentionne jamais des données non disponibles
+- N'invente et ne déduis JAMAIS une information non fournie explicitement ci-dessus — notamment la fréquence, l'ancienneté ou la régularité d'utilisation d'un produit (ex. ne dis jamais qu'un produit est utilisé "quotidiennement" ou "depuis longtemps" si ce n'est pas indiqué dans la liste des produits)
 
 ## FORMAT DE SORTIE
 Réponds UNIQUEMENT en JSON valide, sans texte autour :

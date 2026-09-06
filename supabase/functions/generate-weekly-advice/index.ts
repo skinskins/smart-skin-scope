@@ -266,6 +266,7 @@ Genere 2 a 3 conseils PILIERS pour la semaine qui :
 - Cite les ACTIFS des produits possedes quand c'est pertinent pour son profil — ne cite pas un produit juste parce qu'elle le possede s'il n'apporte rien a ses priorites de la semaine
 - Bienveillant, jamais condescendant ni alarmiste
 - Ne recommande jamais de marques a acheter
+- N'invente et ne deduis JAMAIS une information non fournie explicitement ci-dessus — notamment la frequence, l'anciennete ou la regularite d'utilisation d'un produit (ex. ne dis jamais qu'un produit est utilise "quotidiennement" ou "depuis longtemps" si ce n'est pas indique dans la liste des produits)
 - Parle uniquement le langage skincare (ingredients, type de peau, contexte) — ne mentionne jamais tes propres criteres/regles de generation ("criteres d'inclusion", "regle", "pertinence au profil"...) ni le fonctionnement interne de l'app
 
 ## TYPE DE CHAQUE CONSEIL

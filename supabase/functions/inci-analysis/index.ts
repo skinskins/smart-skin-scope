@@ -157,7 +157,11 @@ serve(async (req) => {
     // ── 4. Liste produits avec IDs ─────────────────────────────────────────────
     const productList = allProducts.length > 0
       ? allProducts.map(p => {
-          const freq = p.frequency && p.frequency !== "daily" ? ` [fréquence: ${p.frequency}]` : "";
+          const freq = p.frequency === "daily"
+            ? ""
+            : p.frequency
+              ? ` [fréquence déclarée: ${p.frequency}]`
+              : " [fréquence d'usage non précisée par l'utilisatrice]";
           const line = `[ID:${p.id}] ${p.product_name}${p.brand ? ` (${p.brand})` : ""}${p.product_type ? ` — ${p.product_type}` : ""}${freq}`;
           return p.ingredients ? `${line}\n  INCI: ${p.ingredients}` : line;
         }).join("\n")
@@ -243,6 +247,7 @@ Génère 2 à 3 conseils qui expliquent les choix de la Mission 1.
 - Jamais de conseils génériques ("buvez de l'eau", "protégez-vous du soleil")
 - Types : "warning" (danger actif) | "alerte" (prudence) | "astuce" (optimisation) | "observation" (info)
 - Priorités : "1" haute | "2" moyenne | "3" basse
+- N'invente et ne déduis JAMAIS une donnée non fournie explicitement ci-dessus : si la fréquence d'usage d'un produit est marquée "non précisée", ne dis jamais qu'elle l'utilise "quotidiennement", "tous les jours" ou "depuis longtemps" — reste sur ce que les données disent réellement, ou reste factuel sans supposer d'habitude.
 
 ---
 
