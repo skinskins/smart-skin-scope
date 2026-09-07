@@ -227,16 +227,28 @@ type DraggableTagProps = {
 function DraggableTag({ tag, orbRef, onAbsorb }: DraggableTagProps) {
   const [absorbed, setAbsorbed] = useState(false);
   const draggedRef = useRef(false);
+  const tagRef = useRef<HTMLButtonElement>(null);
 
   const handleDragStart = () => { draggedRef.current = false; };
 
   const handleDrag = () => { draggedRef.current = true; };
 
-  const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: { point: { x: number; y: number } }) => {
+  const handleDragEnd = () => {
     const orb = orbRef.current?.getBoundingClientRect();
-    if (!orb) return;
-    const { x, y } = info.point;
-    const hit = x >= orb.left && x <= orb.right && y >= orb.top && y <= orb.bottom;
+    const tagRect = tagRef.current?.getBoundingClientRect();
+    if (!orb || !tagRect) return;
+
+    // Valide dès que le tag touche une partie du cercle, pas seulement son centre :
+    // on compare le point du cercle le plus proche du rectangle du tag à son rayon.
+    const cx = orb.left + orb.width / 2;
+    const cy = orb.top + orb.height / 2;
+    const radius = orb.width / 2;
+    const closestX = Math.max(tagRect.left, Math.min(cx, tagRect.right));
+    const closestY = Math.max(tagRect.top, Math.min(cy, tagRect.bottom));
+    const dx = cx - closestX;
+    const dy = cy - closestY;
+    const hit = dx * dx + dy * dy <= radius * radius;
+
     if (hit) {
       setAbsorbed(true);
       onAbsorb(tag.key);
@@ -253,6 +265,7 @@ function DraggableTag({ tag, orbRef, onAbsorb }: DraggableTagProps) {
 
   return (
     <motion.button
+      ref={tagRef}
       drag
       dragSnapToOrigin
       dragTransition={{ bounceStiffness: 300, bounceDamping: 20 }}

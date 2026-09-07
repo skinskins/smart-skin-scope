@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, LogOut } from "lucide-react";
+import { ChevronRight, LogOut, MapPin } from "lucide-react";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { setGeoPermissionState } from "@/lib/locationPreference";
+import { resolveCityName, formatResolvedLocation } from "@/lib/geocode";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -123,9 +125,13 @@ const Profile = () => {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [manualLocation, setManualLocation] = useState<string | null>(null);
+  const [locationMode, setLocationMode] = useState<"geo" | "manual">("geo");
+  const [locatingNow, setLocatingNow] = useState(false);
+  const [detectedCity, setDetectedCity] = useState<string | null>(null);
 
   const [editingField, setEditingField] = useState<
-    "name" | "type" | "problems" | "goals" | "cycle" | "carnation" | "age" | null
+    "name" | "type" | "problems" | "goals" | "cycle" | "carnation" | "age" | "location" | null
   >(null);
 
   useEffect(() => {
@@ -137,7 +143,7 @@ const Profile = () => {
         if (meta?.last_name) setLastName(meta.last_name);
         const { data } = await (supabase as any)
           .from("profiles")
-          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age, default_factors")
+          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age, default_factors, manual_location")
           .eq("id", session.user.id)
           .single();
         if (data) {
@@ -150,6 +156,8 @@ const Profile = () => {
           if (data.last_period_date) setLastPeriodDate(data.last_period_date);
           if (data.cycle_duration) setCycleDuration(data.cycle_duration);
           if (data.age) setAge(data.age);
+          setManualLocation(data.manual_location ?? null);
+          setLocationMode(data.manual_location ? "manual" : "geo");
           if (data.default_factors) {
             setDefaultFactors(
               Object.entries(data.default_factors as Record<string, boolean>)
@@ -175,6 +183,7 @@ const Profile = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        const locationToSave = locationMode === "manual" ? (manualLocation?.trim() || null) : null;
         await (supabase as any).from("profiles").update({
           first_name: firstName,
           last_name: lastName,
@@ -185,8 +194,14 @@ const Profile = () => {
           age: age,
           last_period_date: lastPeriodDate,
           cycle_duration: cycleDuration,
+          manual_location: locationToSave,
         }).eq("id", session.user.id);
         await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } });
+        if (locationToSave) {
+          localStorage.setItem("manualLocation", locationToSave);
+        } else {
+          localStorage.removeItem("manualLocation");
+        }
         toast.success("Profil mis à jour");
         setEditingField(null);
       }
@@ -195,6 +210,27 @@ const Profile = () => {
       toast.error("Erreur de sauvegarde");
     }
     setSaving(false);
+  };
+
+  const handleUseCurrentLocation = () => {
+    setLocatingNow(true);
+    setDetectedCity(null);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setGeoPermissionState("granted");
+        setManualLocation(null);
+        setLocatingNow(false);
+        const resolved = await resolveCityName(pos.coords.latitude, pos.coords.longitude);
+        const cityLabel = resolved ? formatResolvedLocation(resolved) : null;
+        setDetectedCity(cityLabel);
+        toast.success(cityLabel ? `Position mise à jour : ${cityLabel}` : "Position mise à jour");
+      },
+      () => {
+        setGeoPermissionState("denied");
+        setLocatingNow(false);
+        toast.error("Impossible d'accéder à votre position");
+      }
+    );
   };
 
   const handleConfirmDelete = async () => {
@@ -295,6 +331,15 @@ const Profile = () => {
             wrapValue
             onClick={() => setFactorsOpen(true)}
           />
+          <Row
+            label="Localisation"
+            value={
+              locationMode === "manual"
+                ? (manualLocation || "–")
+                : detectedCity || "Position actuelle"
+            }
+            onClick={() => setEditingField("location")}
+          />
         </div>
 
         <SectionTitle>MON SUIVI</SectionTitle>
@@ -339,6 +384,7 @@ const Profile = () => {
               {editingField === "cycle" && "Mon cycle"}
               {editingField === "carnation" && "Carnation"}
               {editingField === "age" && "Âge"}
+              {editingField === "location" && "Localisation"}
             </DialogTitle>
           </DialogHeader>
 
@@ -466,6 +512,64 @@ const Profile = () => {
                 onChange={(e) => setAge(parseInt(e.target.value) || null)}
                 autoFocus
               />
+            )}
+
+            {editingField === "location" && (
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLocationMode("geo")}
+                    className={`flex-1 py-4 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${locationMode === "geo" ? "bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]" : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20"}`}
+                  >
+                    Position actuelle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocationMode("manual")}
+                    className={`flex-1 py-4 rounded-[24px] border text-[11px] font-bold uppercase tracking-widest transition-all ${locationMode === "manual" ? "bg-primary text-primary-foreground border-primary premium-shadow scale-[1.02]" : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/20"}`}
+                  >
+                    Saisie manuelle
+                  </button>
+                </div>
+
+                {locationMode === "manual" ? (
+                  <Input
+                    type="text"
+                    placeholder="Ex: Paris"
+                    className="h-16 rounded-[24px] bg-muted/20 border-none text-lg font-display px-6 focus:ring-1 ring-primary/20"
+                    value={manualLocation ?? ""}
+                    onChange={(e) => setManualLocation(e.target.value)}
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleUseCurrentLocation}
+                    disabled={locatingNow}
+                    className="w-full h-16 flex items-center justify-center gap-3 bg-muted/20 rounded-[24px] text-[13px] font-semibold text-foreground/70 disabled:opacity-60"
+                  >
+                    {locatingNow ? (
+                      <span className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <MapPin size={18} strokeWidth={1.8} />
+                    )}
+                    {locatingNow ? "Localisation…" : "Mettre à jour ma position"}
+                  </button>
+                )}
+
+                {locationMode === "geo" && detectedCity && (
+                  <p className="text-center text-sm text-primary font-semibold">
+                    ✓ Position détectée · {detectedCity}
+                  </p>
+                )}
+
+                <p className="text-[12px] text-muted-foreground px-1">
+                  {locationMode === "geo"
+                    ? "La météo et la qualité de l'air s'actualisent automatiquement selon votre position."
+                    : "La météo et la qualité de l'air seront basées sur cette ville."}
+                </p>
+              </div>
             )}
           </div>
 

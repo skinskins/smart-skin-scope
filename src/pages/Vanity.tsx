@@ -327,16 +327,17 @@ const Vanity = () => {
 
   useEffect(() => {
     const search = async () => {
-      if (searchQuery.length < 2 && !typeFilter) {
+      const trimmedQuery = searchQuery.trim();
+      if (trimmedQuery.length < 2 && !typeFilter) {
         setCatalogResults([]);
         return;
       }
       setIsSearching(true);
       try {
-        if (searchQuery.length >= 2) {
+        if (trimmedQuery.length >= 2) {
           // Recherche texte -> Open Beauty Facts (catalogue large)
           const { data, error } = await supabase.functions.invoke("product-search", {
-            body: { query: searchQuery },
+            body: { query: trimmedQuery },
           });
           if (!error && data?.products) {
             setCatalogResults(data.products);

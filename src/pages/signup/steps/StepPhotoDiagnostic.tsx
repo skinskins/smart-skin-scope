@@ -1,6 +1,7 @@
 import { Camera } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useRef } from "react";
 import type { ChangeEvent } from "react";
 import type { SignupStepProps } from "@/pages/signup/types";
 
@@ -17,7 +18,20 @@ const inferSkinProblems = (analysis: any): string[] => {
     return problems;
 };
 
-const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboardingPhotoBase64, setAnalysisLoading, setOnboardingAnalysis, setCorrectedSkinType, setCorrectedProblems }: SignupStepProps) => {
+const extractErrorMessage = async (error: any): Promise<string | null> => {
+    const errorText = error.context
+        ? await (error.context as Response).text().catch(() => error.message)
+        : error.message;
+    try {
+        return JSON.parse(errorText)?.error ?? null;
+    } catch {
+        return null;
+    }
+};
+
+const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboardingPhotoBase64, setAnalysisLoading, photoCheckLoading, setPhotoCheckLoading, setOnboardingAnalysis, setCorrectedSkinType, setCorrectedProblems }: SignupStepProps) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const handlePhotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -38,22 +52,52 @@ const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboar
             img.src = url;
         });
         setOnboardingPhotoBase64(base64);
+        setPhotoCheckLoading?.(true);
+
+        // ── Phase 1 : vérification rapide de la qualité (retour quasi immédiat) ──
+        // C'est ce qui bloque la navigation à cette étape : on ne laisse pas
+        // l'utilisatrice avancer tant qu'on ne sait pas si la photo est exploitable.
+        try {
+            const { data, error } = await supabase.functions.invoke("skin-analysis", {
+                body: { imageBase64: base64, age: age || undefined, qualityOnly: true },
+            });
+
+            if (error) {
+                const parsedMessage = await extractErrorMessage(error);
+                setOnboardingPhotoBase64(null);
+                toast.error(parsedMessage ?? "Erreur lors de la vérification — réessaie plus tard.");
+                setPhotoCheckLoading?.(false);
+                return;
+            }
+
+            if (data?.rejected) {
+                setOnboardingPhotoBase64(null);
+                localStorage.setItem("nacre_photo_pending_retry", "1");
+                toast.error(data.reason ?? "Photo non exploitable — reprends une photo bien éclairée, de face.");
+                setPhotoCheckLoading?.(false);
+                return;
+            }
+
+            localStorage.removeItem("nacre_photo_pending_retry");
+            setPhotoCheckLoading?.(false);
+        } catch {
+            setOnboardingPhotoBase64(null);
+            toast.error("Erreur lors de la vérification — réessaie plus tard.");
+            setPhotoCheckLoading?.(false);
+            return;
+        }
+
+        // ── Phase 2 : analyse complète en tâche de fond ──────────────────────────
+        // La photo est déjà validée, l'utilisatrice peut avancer ; ce résultat n'est
+        // consommé que plus tard, à l'étape de revue du diagnostic (StepDiagnosticReview).
         setAnalysisLoading(true);
         supabase.functions.invoke("skin-analysis", {
             body: { imageBase64: base64, age: age || undefined },
-        }).then(({ data }) => {
-            if (data?.rejected) {
-                setOnboardingPhotoBase64(null);
-                setAnalysisLoading(false);
-                localStorage.setItem("nacre_photo_pending_retry", "1");
-                toast.error(data.reason ?? "Photo non exploitable, reprends une photo bien eclairee.");
-                return;
-            }
-            if (data?.analysis) {
+        }).then(({ data, error }) => {
+            if (!error && data?.analysis) {
                 setOnboardingAnalysis(data.analysis);
                 setCorrectedSkinType(data.analysis.type_peau_detecte ?? "");
                 setCorrectedProblems?.(inferSkinProblems(data.analysis));
-                localStorage.removeItem("nacre_photo_pending_retry");
             }
             setAnalysisLoading(false);
         }).catch(() => setAnalysisLoading(false));
@@ -70,7 +114,11 @@ const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboar
             </div>
 
             <div className="flex-1 flex flex-col gap-6">
-                <div className="relative rounded-3xl overflow-hidden bg-muted/20 border border-border/40" style={{ height: 320 }}>
+                <div
+                    className={`relative rounded-3xl overflow-hidden bg-muted/20 border border-border/40 ${photoCheckLoading ? "" : "cursor-pointer"}`}
+                    style={{ height: 320 }}
+                    onClick={() => !photoCheckLoading && fileInputRef.current?.click()}
+                >
                     {onboardingPhotoBase64 ? (
                         <img src={`data:image/jpeg;base64,${onboardingPhotoBase64}`} alt="Photo peau" className="w-full h-full object-cover" />
                     ) : (
@@ -79,17 +127,28 @@ const StepPhotoDiagnostic = ({ BackButton, age, onboardingPhotoBase64, setOnboar
                             <p className="text-sm">Visage démaquillé, face à la lumière</p>
                         </div>
                     )}
+                    {photoCheckLoading && (
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-3">
+                            <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <p className="text-white text-sm font-medium">Vérification de la photo…</p>
+                        </div>
+                    )}
                 </div>
 
                 <p className="text-[11px] text-muted-foreground text-center leading-relaxed px-4">
                     Votre photo est utilisée uniquement pour l'analyse de peau, conformément à notre politique de confidentialité.
                 </p>
 
-                <label className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest cursor-pointer hover:opacity-90 transition-all active:scale-[0.98]">
+                <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={photoCheckLoading}
+                    className={`w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest transition-all active:scale-[0.98] ${photoCheckLoading ? "opacity-50 pointer-events-none" : "cursor-pointer hover:opacity-90"}`}
+                >
                     <Camera size={18} strokeWidth={2} />
                     {onboardingPhotoBase64 ? "Reprendre la photo" : "Prendre une photo"}
-                    <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
-                </label>
+                </button>
+                <input ref={fileInputRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} disabled={photoCheckLoading} />
             </div>
         </>
     );

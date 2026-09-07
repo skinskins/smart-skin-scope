@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { SignupStepProps } from "@/pages/signup/types";
+import { resolveCityName, formatResolvedLocation } from "@/lib/geocode";
 
 const StepLocation = ({ BackButton, locationMode, setLocationMode, manualCity, setManualCity, geoLoading, setGeoLoading }: SignupStepProps) => {
+    const [detectedCity, setDetectedCity] = useState<string | null>(null);
+
     return (
         <>
             <div className="mb-10 flex items-start gap-4">
@@ -29,15 +33,25 @@ const StepLocation = ({ BackButton, locationMode, setLocationMode, manualCity, s
                 </div>
                 <button type="button" disabled={geoLoading} onClick={() => {
                     setGeoLoading(true);
+                    setDetectedCity(null);
                     navigator.geolocation.getCurrentPosition(
-                        () => { setLocationMode('geo'); setGeoLoading(false); },
+                        async (pos) => {
+                            setLocationMode('geo');
+                            setGeoLoading(false);
+                            const resolved = await resolveCityName(pos.coords.latitude, pos.coords.longitude);
+                            if (resolved) setDetectedCity(formatResolvedLocation(resolved));
+                        },
                         () => { setGeoLoading(false); setLocationMode('manual'); }
                     );
                 }} className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow disabled:opacity-60">
                     {geoLoading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <MapPin size={18} strokeWidth={1.5} />}
                     {geoLoading ? 'Localisation...' : 'Autoriser la localisation'}
                 </button>
-                {locationMode === 'geo' && <p className="text-center text-sm text-primary font-semibold">✓ Localisation activée</p>}
+                {locationMode === 'geo' && (
+                    <p className="text-center text-sm text-primary font-semibold">
+                        ✓ Localisation activée{detectedCity ? ` · ${detectedCity}` : ""}
+                    </p>
+                )}
                 {locationMode === 'manual' ? (
                     <Input value={manualCity} onChange={(e) => setManualCity(e.target.value)} placeholder="Ex: Paris" className="h-14" />
                 ) : (

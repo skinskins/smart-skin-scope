@@ -61,21 +61,9 @@ export const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${typeConf.accent}`} />
 
-      <div className="flex items-start gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${typeConf.bg}`}>
           <Icon size={16} className={typeConf.color} strokeWidth={2} />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <span className={`text-[10px] font-bold uppercase tracking-wide ${typeConf.color}`}>
-            {typeConf.label}
-          </span>
-          <p className="text-[14px] font-display font-semibold text-foreground leading-snug mt-0.5 mb-1">
-            {conseil.advice_title}
-          </p>
-          <p className={`text-[12.5px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-2"}`}>
-            {conseil.advice_text}
-          </p>
         </div>
 
         <motion.div
@@ -86,6 +74,18 @@ export const AdviceCard = ({ conseil }: { conseil: Conseil }) => {
         >
           <ChevronDown size={13} className="text-muted-foreground" strokeWidth={2} />
         </motion.div>
+      </div>
+
+      <div className="min-w-0 mt-2">
+        <span className={`text-[10px] font-bold uppercase tracking-wide ${typeConf.color}`}>
+          {typeConf.label}
+        </span>
+        <p className="text-[14px] font-display font-semibold text-foreground leading-snug mt-0.5 mb-1">
+          {conseil.advice_title}
+        </p>
+        <p className={`text-[12.5px] text-muted-foreground leading-relaxed ${open ? "" : "line-clamp-2"}`}>
+          {conseil.advice_text}
+        </p>
       </div>
 
       <AnimatePresence>

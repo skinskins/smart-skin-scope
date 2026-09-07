@@ -161,6 +161,7 @@ const Signup = () => {
     const [onboardingPhotoBase64, setOnboardingPhotoBase64] = useState<string | null>(null);
     const [onboardingAnalysis, setOnboardingAnalysis] = useState<any>(null);
     const [analysisLoading, setAnalysisLoading] = useState(false);
+    const [photoCheckLoading, setPhotoCheckLoading] = useState(false);
     const [showDiagnostic, setShowDiagnostic] = useState(false);
     const [editingDiagnostic, setEditingDiagnostic] = useState(false);
     const [correctedSkinType, setCorrectedSkinType] = useState("");
@@ -241,10 +242,11 @@ const Signup = () => {
     };
 
     useEffect(() => {
-        if (productSearchQuery.length < 2) { setProductCatalogResults([]); return; }
+        const trimmedQuery = productSearchQuery.trim();
+        if (trimmedQuery.length < 2) { setProductCatalogResults([]); return; }
         const timer = setTimeout(async () => {
             const { data, error } = await supabase.functions.invoke("product-search", {
-                body: { query: productSearchQuery },
+                body: { query: trimmedQuery },
             });
             if (!error && data?.products) {
                 setProductCatalogResults(
@@ -645,6 +647,8 @@ const Signup = () => {
                                 onboardingPhotoBase64={onboardingPhotoBase64}
                                 setOnboardingPhotoBase64={setOnboardingPhotoBase64}
                                 setAnalysisLoading={setAnalysisLoading}
+                                photoCheckLoading={photoCheckLoading}
+                                setPhotoCheckLoading={setPhotoCheckLoading}
                                 setOnboardingAnalysis={setOnboardingAnalysis}
                                 setCorrectedSkinType={setCorrectedSkinType}
                                 setCorrectedProblems={setCorrectedProblems}
@@ -779,6 +783,7 @@ const Signup = () => {
 
                                         (step === 1 && (!age || !gender)) ||
                                         (step === 1.5 && (!personalizedRecommendationsConsent || !aiLearningConsent)) ||
+                                        (step === 2 && photoCheckLoading) ||
                                         (step === 3 && (!carnation || !skinType)) ||
                                         (step === 3.5 && skinGoals.length === 0) ||
                                         (step === 4 && !lastPeriodDate && !cycleStatus) ||
@@ -786,7 +791,7 @@ const Signup = () => {
                                     }
                                     className="w-full h-14 flex items-center justify-center gap-3 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest premium-shadow hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
                                 >
-                                    {loading ? "ENREGISTREMENT..." : step === 10 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
+                                    {loading ? "ENREGISTREMENT..." : (step === 2 && photoCheckLoading) ? "VÉRIFICATION DE LA PHOTO..." : step === 10 ? "TERMINER" : "SUIVANT"} <ChevronRight size={18} strokeWidth={2.5} />
                                 </button>
                             </div>
                         )}

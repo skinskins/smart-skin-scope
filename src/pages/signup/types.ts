@@ -10,6 +10,8 @@ export interface SignupStepProps {
   setOnboardingPhotoBase64?: Dispatch<SetStateAction<string | null>>;
   analysisLoading?: boolean;
   setAnalysisLoading?: Dispatch<SetStateAction<boolean>>;
+  photoCheckLoading?: boolean;
+  setPhotoCheckLoading?: Dispatch<SetStateAction<boolean>>;
   onboardingAnalysis?: any;
   setOnboardingAnalysis?: Dispatch<SetStateAction<any>>;
   correctedSkinType?: string;

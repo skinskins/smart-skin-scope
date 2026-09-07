@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getGeoPermissionState, setGeoPermissionState } from "@/lib/locationPreference";
 
 interface WeatherData {
   temp: number;
@@ -48,11 +49,15 @@ export const useWeatherData = (queryLocation?: string) => {
 
         if (queryLocation) {
           q = encodeURIComponent(queryLocation);
-        } else {
+        } else if ((await getGeoPermissionState()) !== "denied") {
           try {
             const coords = await getCoords();
             q = `${coords.lat},${coords.lon}`;
+            setGeoPermissionState("granted");
           } catch {
+            // Une fois la géolocalisation refusée (ou indisponible), on ne la
+            // redemande plus automatiquement aux prochaines connexions.
+            setGeoPermissionState("denied");
             console.log("Geolocation refusée → fallback Paris");
           }
         }

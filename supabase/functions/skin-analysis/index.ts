@@ -7,13 +7,14 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Messages figés côté serveur (plutôt que rédigés librement par Claude) pour les deux
+// Messages figés côté serveur (plutôt que rédigés librement par Claude) pour les
 // cas de rejet les plus fréquents, afin d'avoir une formulation soignée et constante.
 // Les autres rejets (éclairage, flou, maquillage, angle) gardent le message généré
 // dynamiquement par le modèle.
 const REJECTION_MESSAGES: Record<string, string> = {
   sunglasses: "Retire tes lunettes  pour une analyse fiable de ton visage.",
   no_face: "On ne détecte pas ton visage sur cette photo, recadre-toi bien de face, à bonne distance de la caméra.",
+  cropped: "Ton visage est coupé sur la photo, recadre-toi pour qu'on le voie en entier, du front au menton.",
 };
 
 // Renvoie le lundi (YYYY-MM-DD) de la semaine d'une date donnee — cohérent avec les autres
@@ -55,7 +56,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, age: ageParam } = await req.json();
+    const { imageBase64, age: ageParam, qualityOnly } = await req.json();
 
     if (!imageBase64) {
       return new Response(JSON.stringify({ error: "imageBase64 requis" }), {
@@ -76,9 +77,11 @@ serve(async (req) => {
     const today = new Date().toISOString().split("T")[0];
 
     // ── 1. Si user connecté : vérifier cache + plafond hebdo ──────────────
+    // Sauté en mode qualityOnly : c'est une vérification préalable, pas une vraie
+    // analyse — elle ne doit ni consommer le plafond hebdo ni renvoyer un résultat en cache.
     let scansUsedThisWeek = 0;
     const weekStart = getMonday(today);
-    if (user_id) {
+    if (user_id && !qualityOnly) {
       const { data: existing } = await supabase
         .from("skin_photos")
         .select("id, analysis_json")
@@ -130,7 +133,32 @@ serve(async (req) => {
         : "image/webp";
 
     // ── 4. Appel Claude Vision ─────────────────────────────────────────────
-    const prompt = `Tu es un expert en analyse cutanée clinique et dermatologie. Analyse cette photo de visage et génère UNIQUEMENT un diagnostic objectif de l'état de la peau, sans recommandations ni conseils.
+    // Critères de qualité partagés entre le mode rapide (qualityOnly) et l'analyse complète,
+    // pour ne jamais avoir deux définitions du rejet qui divergent.
+    const QUALITY_CRITERIA = `- Lunettes portées, de vue OU de soleil, peu importe que les yeux restent visibles à travers des verres transparents ou soient masqués par des verres teintés → rejette systématiquement avec le code "sunglasses"
+- Aucun visage détecté sur la photo → rejette avec le code "no_face"
+- Tête/visage coupé par le cadre : moins de 4/5e de la tête n'est visible dans la photo (front, menton ou un côté du visage hors cadre) → rejette avec le code "cropped"
+- Éclairage insuffisant → rejette avec le code "lighting"
+- Visage flou ou trop loin → rejette avec le code "blur"
+- Maquillage épais visible → rejette avec le code "makeup"
+- Angle de profil (pas de face) → rejette avec le code "angle"`;
+
+    const QUALITY_REJECTION_FORMAT = `{"photo_quality":"rejected","rejection_code":"sunglasses|no_face|cropped|lighting|blur|makeup|angle","rejection_reason":"message court en français avec conseil pratique (utilisé seulement si le code n'est pas sunglasses/no_face/cropped)"}`;
+
+    // Mode rapide : ne fait QUE le contrôle qualité, pas de diagnostic — utilisé pour
+    // débloquer la navigation côté onboarding sans attendre l'analyse complète.
+    const qualityOnlyPrompt = `Tu es un expert en analyse cutanée clinique. Évalue UNIQUEMENT la qualité de cette photo de visage pour un futur diagnostic de peau — ne fais AUCUNE analyse de la peau elle-même à ce stade.
+
+Critères de rejet :
+${QUALITY_CRITERIA}
+
+Si rejetée, réponds UNIQUEMENT :
+${QUALITY_REJECTION_FORMAT}
+
+Si acceptable, réponds UNIQUEMENT :
+{"photo_quality":"ok"}`;
+
+    const fullPrompt = `Tu es un expert en analyse cutanée clinique et dermatologie. Analyse cette photo de visage et génère UNIQUEMENT un diagnostic objectif de l'état de la peau, sans recommandations ni conseils.
 
 CONTEXTE :
 - Âge déclaré : ${age} ans
@@ -142,15 +170,10 @@ Cette analyse est lue telle quelle par une utilisatrice, sans avis médical pour
 
 INSTRUCTIONS QUALITÉ :
 Avant d'analyser, évalue la qualité de la photo :
-- Lunettes (de vue ou de soleil) portées, yeux masqués → rejette avec le code "sunglasses"
-- Aucun visage détecté sur la photo → rejette avec le code "no_face"
-- Éclairage insuffisant → rejette avec le code "lighting"
-- Visage flou ou trop loin → rejette avec le code "blur"
-- Maquillage épais visible → rejette avec le code "makeup"
-- Angle de profil (pas de face) → rejette avec le code "angle"
+${QUALITY_CRITERIA}
 
 Si rejetée, réponds UNIQUEMENT :
-{"photo_quality":"rejected","rejection_code":"sunglasses|no_face|lighting|blur|makeup|angle","rejection_reason":"message court en français avec conseil pratique (utilisé seulement si le code n'est pas sunglasses/no_face)"}
+${QUALITY_REJECTION_FORMAT}
 
 Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
 {
@@ -216,6 +239,8 @@ Si acceptable, réponds UNIQUEMENT avec ce JSON sans texte autour :
 
 IMPORTANT pour conditions_detectees : chaque condition à true doit pouvoir se justifier par une description précise de ce que tu observes dans sa zone. Ne réponds pas true sur un simple soupçon ou un signe isolé et faible — prends le temps de vérifier que l'observation tient avant de la retenir. Un faux positif (signaler une condition absente) reste plus dommageable pour l'utilisatrice qu'un score neutre.`;
 
+    const prompt = qualityOnly ? qualityOnlyPrompt : fullPrompt;
+
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -225,7 +250,7 @@ IMPORTANT pour conditions_detectees : chaque condition à true doit pouvoir se j
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1500,
+        max_tokens: qualityOnly ? 150 : 1500,
         messages: [{
           role: "user",
           content: [
@@ -256,6 +281,15 @@ IMPORTANT pour conditions_detectees : chaque condition à true doit pouvoir se j
       const reason = REJECTION_MESSAGES[parsed.rejection_code] ?? parsed.rejection_reason;
       return new Response(
         JSON.stringify({ rejected: true, reason }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Mode rapide : photo acceptée, on s'arrête là — pas d'analyse, pas de sauvegarde.
+    // L'appel complet (sans qualityOnly) suit en tâche de fond côté client.
+    if (qualityOnly) {
+      return new Response(
+        JSON.stringify({ photo_quality: "ok" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
