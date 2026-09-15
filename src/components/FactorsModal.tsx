@@ -13,7 +13,7 @@ const FACTORS = [
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (irritationReported: boolean) => void;
 };
 
 export const FactorsModal = ({ open, onClose, onSaved }: Props) => {
@@ -36,7 +36,8 @@ export const FactorsModal = ({ open, onClose, onSaved }: Props) => {
 
   const saveFactors = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { onSaved(); return; }
+    const irritationReported = selectedFactors.has("Peau irritée");
+    if (!session) { onSaved(irritationReported); return; }
     const today = new Date().toISOString().split("T")[0];
     await (supabase as any).from("daily_checkins").upsert(
       {
@@ -63,7 +64,7 @@ export const FactorsModal = ({ open, onClose, onSaved }: Props) => {
     setTimeout(() => {
       setFactorsSaved(false);
       setSelectedFactors(new Set());
-      onSaved();
+      onSaved(irritationReported);
     }, 800);
   };
 
