@@ -14,6 +14,8 @@ export interface CategoryProductInfo {
   addedAt: string | null;
   frequency: string | null;
   frequencyDays: number | null;
+  productId: string;
+  productName: string;
 }
 
 export interface WeatherSnapshot {
@@ -40,12 +42,15 @@ export interface NightDecision {
   category: ActiveCategory | "recovery";
   justificationFr: string;
   conflictsToExclude: ActiveCategory[];
+  productId: string | null;
+  productName: string | null;
 }
 
 export interface ForecastDay {
   date: string;
   category: ActiveCategory | "recovery";
   justificationFr: string;
+  productName: string | null;
 }
 
 export interface SettleInputs {

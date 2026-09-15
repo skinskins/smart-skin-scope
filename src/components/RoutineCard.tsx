@@ -8,6 +8,10 @@ interface RoutineCardProps {
   onToggle?: (id: string) => void;
   showPhotos?: boolean;
   emptyMessage?: string;
+  /** Product id the skin-cycling engine picked for tonight — tagged "→ Ce soir" in place of the usual frequency badge. */
+  tonightProductId?: string | null;
+  /** Short reason shown under that product's name, e.g. "Rétinol ce soir — dernière application il y a 20 j." */
+  tonightReason?: string | null;
 }
 
 export const RoutineCard = ({
@@ -16,6 +20,8 @@ export const RoutineCard = ({
   onToggle,
   showPhotos = false,
   emptyMessage = "Aucun produit dans cette routine",
+  tonightProductId = null,
+  tonightReason = null,
 }: RoutineCardProps) => {
   if (products.length === 0) {
     return (
@@ -58,6 +64,9 @@ export const RoutineCard = ({
               {product.brand && (
                 <p className="text-[11px] text-muted-foreground">{product.brand}</p>
               )}
+              {product.id === tonightProductId && tonightReason && (
+                <p className="text-[11px] text-primary mt-0.5">{tonightReason}</p>
+              )}
             </div>
 
             {showPhotos && interactive && (
@@ -68,14 +77,9 @@ export const RoutineCard = ({
               </div>
             )}
 
-            {product.frequency === "weekly" && (
-              <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                → Cette semaine
-              </span>
-            )}
-            {product.frequency === "monthly" && (
-              <span className="text-[10px] text-muted-foreground border border-border/40 rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
-                → Ce mois
+            {product.id === tonightProductId && (
+              <span className="text-[10px] font-bold text-primary-foreground bg-primary border border-primary rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                → Ce soir
               </span>
             )}
           </>

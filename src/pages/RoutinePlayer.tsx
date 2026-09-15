@@ -67,7 +67,7 @@ const RoutinePlayer = () => {
   const [stepsReady, setStepsReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [eveningActiveProducts, setEveningActiveProducts] = useState<
-    { product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
+    { id: string; product_name: string; product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
   >([]);
   const [todayISO] = useState(() => new Date().toISOString().split("T")[0]);
 
@@ -107,7 +107,7 @@ const RoutinePlayer = () => {
       if (!isMorning) {
         const { data: allEvening } = await (supabase as any)
           .from("user_products")
-          .select("product_type, ingredients, added_at, frequency, frequency_days")
+          .select("id, product_name, product_type, ingredients, added_at, frequency, frequency_days")
           .eq("user_id", session.user.id)
           .eq("is_active", true)
           .eq("evening_use", true);
@@ -136,13 +136,13 @@ const RoutinePlayer = () => {
         return;
       }
 
-      // Fallback : produits quotidiens habituels
+      // Fallback : produits habituels de la routine
       const { data: fallback } = await (supabase as any)
         .from("user_products")
-        .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, ingredients")
+        .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, ingredients")
         .eq("user_id", session.user.id)
-        .eq(isMorning ? "morning_use" : "evening_use", true)
-        .eq("frequency", "daily");
+        .eq("is_active", true)
+        .eq(isMorning ? "morning_use" : "evening_use", true);
       const fallbackSteps: Step[] = (fallback ?? [])
         .map((p: any) => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
         .sort((a: Step, b: Step) => a.order - b.order);

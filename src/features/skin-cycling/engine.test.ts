@@ -9,6 +9,8 @@ const retinolProduct: CategoryProductInfo = {
   addedAt: "2026-01-01",
   frequency: "weekly",
   frequencyDays: null,
+  productId: "prod-retinol-1",
+  productName: "Sérum Rétinol",
 };
 
 const exfoliantProduct: CategoryProductInfo = {
@@ -16,6 +18,8 @@ const exfoliantProduct: CategoryProductInfo = {
   addedAt: "2026-01-01",
   frequency: "weekly",
   frequencyDays: null,
+  productId: "prod-exfoliant-1",
+  productName: "Exfoliant AHA/BHA",
 };
 
 function baseInputs(overrides: Partial<EngineInputs> = {}): EngineInputs {
@@ -76,6 +80,22 @@ describe("decideTonight", () => {
     ];
     const decision = decideTonight(baseInputs({ states }));
     expect(decision.category).toBe("retinol");
+  });
+
+  it("names the specific product driving the decision (structured, not inline in the sentence)", () => {
+    const decision = decideTonight(baseInputs());
+    expect(decision.productName).not.toBeNull();
+    expect(decision.productId).not.toBeNull();
+  });
+
+  it("returns no product name for a recovery decision", () => {
+    const states: CategoryState[] = [
+      { category: "retinol", lastAppliedDate: "2026-03-09", currentIntervalDays: 7, toleranceScore: 1.0 },
+    ];
+    const decision = decideTonight(baseInputs({ states }));
+    expect(decision.category).toBe("recovery");
+    expect(decision.productName).toBeNull();
+    expect(decision.productId).toBeNull();
   });
 });
 

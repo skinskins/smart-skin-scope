@@ -14,6 +14,8 @@ import type {
 } from "./types";
 
 type EveningProduct = {
+  id: string;
+  product_name: string;
   product_type: string | null;
   ingredients: string | null;
   added_at: string | null;
@@ -49,7 +51,16 @@ export function useSkinCyclingRecommendation(
       eveningProducts
         .map((p) => {
           const category = resolveActiveCategory(p.product_type, p.ingredients);
-          return category ? { category, addedAt: p.added_at, frequency: p.frequency, frequencyDays: p.frequency_days } : null;
+          return category
+            ? {
+                category,
+                addedAt: p.added_at,
+                frequency: p.frequency,
+                frequencyDays: p.frequency_days,
+                productId: p.id,
+                productName: p.product_name,
+              }
+            : null;
         })
         .filter((p): p is CategoryProductInfo => p !== null),
     [eveningProducts],
@@ -149,11 +160,13 @@ export function useSkinCyclingRecommendation(
     });
   }, [loading, todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels]);
 
+  // 7 jours : assez pour un "plan de la semaine" cliquable (Vanity), les autres écrans
+  // n'affichent qu'un extrait (NightRecommendationBanner tronque à 3 par défaut).
   const forecast: ForecastDay[] = useMemo(() => {
     if (loading) return [];
     return buildForecast(
       { today: todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels },
-      3,
+      7,
     );
   }, [loading, todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels]);
 

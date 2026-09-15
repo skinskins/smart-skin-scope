@@ -44,21 +44,35 @@ function addDays(dateISO: string, days: number): string {
   return `${y}-${m}-${day}`;
 }
 
+function declaredIntervalFor(p: CategoryProductInfo): number {
+  if (p.frequencyDays) return p.frequencyDays;
+  switch (p.frequency) {
+    case "daily":
+      return 1;
+    case "weekly":
+      return 7;
+    case "monthly":
+      return 30;
+    default:
+      return 3;
+  }
+}
+
+/**
+ * The product driving the category's schedule — the one applied most often (shortest
+ * declared interval). Used both for the base spacing calculation and to name the specific
+ * product in the user-facing justification, so the two stay in sync.
+ */
+function pickRepresentativeProduct(products: CategoryProductInfo[]): CategoryProductInfo | null {
+  if (products.length === 0) return null;
+  return products.reduce((best, p) =>
+    declaredIntervalFor(p) < declaredIntervalFor(best) ? p : best,
+  );
+}
+
 function declaredIntervalDays(products: CategoryProductInfo[]): number {
-  const intervals = products.map((p) => {
-    if (p.frequencyDays) return p.frequencyDays;
-    switch (p.frequency) {
-      case "daily":
-        return 1;
-      case "weekly":
-        return 7;
-      case "monthly":
-        return 30;
-      default:
-        return 3;
-    }
-  });
-  return intervals.length > 0 ? Math.min(...intervals) : 3;
+  const representative = pickRepresentativeProduct(products);
+  return representative ? declaredIntervalFor(representative) : 3;
 }
 
 function isRampingUp(products: CategoryProductInfo[], today: string): boolean {
@@ -153,6 +167,8 @@ export function decideTonight(inputs: EngineInputs): NightDecision {
       category: "recovery",
       justificationFr: "Pas d'actif fort dans ta routine du soir — routine douce ce soir.",
       conflictsToExclude: ["retinol", "exfoliant"],
+      productId: null,
+      productName: null,
     };
   }
 
@@ -161,6 +177,8 @@ export function decideTonight(inputs: EngineInputs): NightDecision {
       category: "recovery",
       justificationFr: "Ce soir : récupération — actif fort utilisé hier, on laisse la peau respirer.",
       conflictsToExclude: ["retinol", "exfoliant"],
+      productId: null,
+      productName: null,
     };
   }
 
@@ -169,6 +187,8 @@ export function decideTonight(inputs: EngineInputs): NightDecision {
       category: "recovery",
       justificationFr: "Ce soir : récupération — plusieurs signaux de stress cutané cette semaine, mieux vaut souffler.",
       conflictsToExclude: ["retinol", "exfoliant"],
+      productId: null,
+      productName: null,
     };
   }
 
@@ -189,6 +209,8 @@ export function decideTonight(inputs: EngineInputs): NightDecision {
       category: "recovery",
       justificationFr: "Aucun actif fort dû ce soir — routine douce.",
       conflictsToExclude: presentCategories,
+      productId: null,
+      productName: null,
     };
   }
 
@@ -202,10 +224,17 @@ export function decideTonight(inputs: EngineInputs): NightDecision {
     ? `dernière application il y a ${winner.daysSince} j`
     : "jamais appliqué jusqu'ici";
 
+  // Product naming stays structured (productId/productName) rather than inline in the
+  // sentence — the UI tags the actual product row in the routine list instead of repeating
+  // its name inside the card text.
+  const winnerProduct = pickRepresentativeProduct(inputs.products.filter((p) => p.category === winner.category));
+
   return {
     category: winner.category,
     justificationFr: `${CATEGORY_LABEL_FR[winner.category]} ce soir — ${daysSinceLabel}${describeModifiers(winner.detail)}.`,
     conflictsToExclude: presentCategories.filter((c) => c !== winner.category),
+    productId: winnerProduct?.productId ?? null,
+    productName: winnerProduct?.productName ?? null,
   };
 }
 
@@ -216,7 +245,7 @@ export function buildForecast(inputs: EngineInputs, days = 3): ForecastDay[] {
   for (let i = 1; i <= days; i++) {
     const date = addDays(inputs.today, i);
     const decision = decideTonight({ ...inputs, today: date, states });
-    forecast.push({ date, category: decision.category, justificationFr: decision.justificationFr });
+    forecast.push({ date, category: decision.category, justificationFr: decision.justificationFr, productName: decision.productName });
 
     if (decision.category !== "recovery") {
       states = states.map((s) =>

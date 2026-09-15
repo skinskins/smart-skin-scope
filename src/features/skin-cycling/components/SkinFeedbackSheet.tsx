@@ -52,8 +52,8 @@ const SkinFeedbackSheet = ({ open, onClose, onSaved }: Props) => {
     <Drawer open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
       <DrawerContent className="px-6 pb-10">
         <DrawerHeader className="text-left px-0 pt-2 pb-4">
-          <DrawerTitle className="text-xl font-display text-foreground">Un souci ce soir ?</DrawerTitle>
-          <p className="text-[11px] text-muted-foreground mt-1">Optionnel — juste pour ajuster ta routine.</p>
+          <DrawerTitle className="text-xl font-display text-foreground">Un souci sur votre peau ?</DrawerTitle>
+          <p className="text-[11px] text-muted-foreground mt-1">Juste pour ajuster ta routine.</p>
         </DrawerHeader>
 
         <div className="flex flex-wrap gap-2 mb-8">

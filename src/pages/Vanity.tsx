@@ -1,20 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, Search, Plus, Trash2, SlidersHorizontal, Scan, FileUp, RefreshCw } from "lucide-react";
+import { Check, X, Search, Plus, Trash2, Scan, FileUp, RefreshCw } from "lucide-react";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
 import { RoutineCard } from "@/components/RoutineCard";
+import RoutineTimesCard from "@/components/RoutineTimesCard";
 import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PRESET_DEVICES } from "@/data/presetDevices";
 import RoutineLoadingMessage, { RotatingLabel, ROUTINE_BUTTON_MESSAGES } from "@/components/RoutineLoadingMessage";
 import { useSkinCyclingRecommendation } from "@/features/skin-cycling/useSkinCyclingRecommendation";
 import { resolveActiveCategory } from "@/features/skin-cycling/resolveActiveCategory";
-import NightRecommendationBanner from "@/features/skin-cycling/components/NightRecommendationBanner";
 import SkinFeedbackSheet from "@/features/skin-cycling/components/SkinFeedbackSheet";
+import WeeklyPlanSheet from "@/features/skin-cycling/components/WeeklyPlanSheet";
 
 type CatalogProduct = {
   id: string;
@@ -23,7 +24,6 @@ type CatalogProduct = {
   photo_url: string | null;
   product_type: string | null;
   user_id: string | null;
-  frequency?: string | null;
 };
 
 type DiagnosticResult = {
@@ -48,12 +48,6 @@ const renderDiagnosticMetrics = (metrics: Record<string, any>) => {
   if (metrics?.eclat_global != null) rows.push({ label: "Éclat global", value: `${metrics.eclat_global}/10` });
   return rows;
 };
-
-const FREQ_OPTIONS = [
-  { value: "daily", label: "Quotidienne", sub: "Utilisé chaque jour" },
-  { value: "weekly", label: "Hebdomadaire", sub: "Quelques fois par semaine" },
-  { value: "monthly", label: "Mensuelle", sub: "Traitement ponctuel" },
-] as const;
 
 // Doit rester synchro avec MAX_MANUAL_REGENS_PER_WEEK côté generate-weekly-advice — recharger
 // la routine consomme le même plafond hebdo que "Mettre à jour mes conseils" (pas de cooldown
@@ -101,14 +95,11 @@ const Vanity = () => {
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
   const [removeModalProduct, setRemoveModalProduct] = useState<CatalogProduct | null>(null);
   const [removeReason, setRemoveReason] = useState<string | null>(null);
-  const [frequencyModal, setFrequencyModal] = useState<{ product: CatalogProduct; mode: "add" | "edit" } | null>(null);
-  const [selectedFrequency, setSelectedFrequency] = useState<"daily" | "weekly" | "monthly">("daily");
   const [deleteMode, setDeleteMode] = useState(false);
-  const [activeRoutineTab, setActiveRoutineTab] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
   const [morningDone, setMorningDone] = useState(false);
   const [eveningDone, setEveningDone] = useState(false);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [showWeekPlan, setShowWeekPlan] = useState(false);
   const [optimizedMorning, setOptimizedMorning] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [optimizedEvening, setOptimizedEvening] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [routineCurationChecked, setRoutineCurationChecked] = useState(false);
@@ -201,15 +192,9 @@ const Vanity = () => {
     userProducts.filter(p => (p as any).product_type === "device").map(p => p.product_name)
   );
 
-  const dailyProducts = routineProducts.filter(p => p.frequency === "daily");
-  const weeklyProducts = routineProducts.filter(p => p.frequency === "weekly");
-  const monthlyProducts = routineProducts.filter(p => p.frequency === "monthly");
-
   // La routine affichee est celle decidee par inci-analysis (pertinence au profil), pas
   // l'inventaire brut : posseder un produit (scan, onboarding...) ne veut pas dire qu'il
-  // doit apparaitre ici tant que la curation ne l'a pas retenu. Intersection sur
-  // routineProducts (toutes fréquences) et non dailyProducts : un actif fort hebdomadaire
-  // (rétinol, exfoliant...) retenu par inci-analysis doit pouvoir apparaître ici.
+  // doit apparaitre ici tant que la curation ne l'a pas retenu.
   const morningProducts = optimizedMorning
     ? routineProducts.filter(p => optimizedMorning.product_ids.includes(p.id))
     : [];
@@ -244,7 +229,7 @@ const Vanity = () => {
     if (!userId || !routineCurationChecked || autoCurationTriggeredRef.current) return;
     if (optimizedMorning || optimizedEvening) return;
     if (routineProductsLoading) return;
-    if (dailyProducts.length === 0) return;
+    if (routineProducts.length === 0) return;
 
     autoCurationTriggeredRef.current = true;
     setAutoCurating(true);
@@ -272,16 +257,7 @@ const Vanity = () => {
         setAutoCurating(false);
       }
     })();
-  }, [userId, routineCurationChecked, optimizedMorning, optimizedEvening, routineProductsLoading, dailyProducts.length]);
-
-  const toggleRoutineProduct = (id: string) => {
-    setCheckedRoutineProducts(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  }, [userId, routineCurationChecked, optimizedMorning, optimizedEvening, routineProductsLoading, routineProducts.length]);
 
   const setRoutineDone = async (moment: "morning" | "evening", done: boolean) => {
     if (!userId) return;
@@ -396,39 +372,23 @@ const Vanity = () => {
     return () => clearTimeout(timer);
   }, [searchQuery, typeFilter]);
 
-  const confirmFrequency = async () => {
-    if (!frequencyModal || !userId) return;
-    const { product, mode } = frequencyModal;
-
-    if (mode === "add") {
-      const { data, error } = await (supabase as any)
-        .from("user_products")
-        .insert({
-          product_name: product.product_name,
-          brand: product.brand,
-          photo_url: product.photo_url,
-          product_type: product.product_type,
-          user_id: userId,
-          morning_use: true,
-          evening_use: true,
-          frequency: selectedFrequency,
-          source: "catalog",
-        })
-        .select()
-        .single();
-      if (!error && data) setUserProducts(prev => [...prev, data]);
-    } else {
-      await (supabase as any)
-        .from("user_products")
-        .update({ frequency: selectedFrequency })
-        .eq("id", product.id)
-        .eq("user_id", userId);
-      setUserProducts(prev =>
-        prev.map(p => p.id === product.id ? { ...p, frequency: selectedFrequency } : p)
-      );
-      refetchRoutine();
-    }
-    setFrequencyModal(null);
+  const addProductFromCatalog = async (product: CatalogProduct) => {
+    if (!userId) return;
+    const { data, error } = await (supabase as any)
+      .from("user_products")
+      .insert({
+        product_name: product.product_name,
+        brand: product.brand,
+        photo_url: product.photo_url,
+        product_type: product.product_type,
+        user_id: userId,
+        morning_use: true,
+        evening_use: true,
+        source: "catalog",
+      })
+      .select()
+      .single();
+    if (!error && data) setUserProducts(prev => [...prev, data]);
   };
 
   const insertScannedProduct = async (product: {
@@ -762,8 +722,7 @@ const Vanity = () => {
                           <button
                             onClick={() => {
                               if (alreadyAdded) return;
-                              setFrequencyModal({ product: p, mode: "add" });
-                              setSelectedFrequency("daily");
+                              addProductFromCatalog(p);
                             }}
                             disabled={alreadyAdded}
                             className={`w-9 h-9 rounded-full flex items-center justify-center transition-all shrink-0 self-end sm:self-auto ml-auto sm:ml-0 ${alreadyAdded
@@ -833,14 +792,9 @@ const Vanity = () => {
                               initial={{ opacity: 0, x: -10 }}
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: 10 }}
-                              onClick={() => {
-                                if (deleteMode) return;
-                                setFrequencyModal({ product: p, mode: "edit" });
-                                setSelectedFrequency((p.frequency as "daily" | "weekly" | "monthly") || "daily");
-                              }}
                               className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all shadow-sm ${deleteMode
                                 ? "border-destructive/20 bg-destructive/5"
-                                : "border-border bg-background/40 hover:border-primary/30 cursor-pointer"
+                                : "border-border bg-background/40"
                                 }`}
                             >
                               <div className="flex items-center gap-3 min-w-0">
@@ -850,30 +804,14 @@ const Vanity = () => {
                                 <div className="min-w-0">
                                   <p className="text-xs font-bold text-foreground truncate">{p.product_name}</p>
                                   <p className="text-[10px] text-muted-foreground uppercase tracking-tighter truncate">{p.brand}</p>
-                                  {p.frequency && (
-                                    <p className="text-[10px] text-primary/70 font-bold uppercase tracking-widest mt-0.5">
-                                      {p.frequency === "daily" ? "Quotidien" : p.frequency === "weekly" ? "Hebdo" : "Mensuel"}
-                                    </p>
-                                  )}
                                 </div>
                               </div>
-                              {deleteMode ? (
+                              {deleteMode && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); setRemoveModalProduct(p); setRemoveReason(null); }}
                                   className="w-8 h-8 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive hover:text-white transition-all shrink-0"
                                 >
                                   <Trash2 size={15} strokeWidth={1.8} />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setFrequencyModal({ product: p, mode: "edit" });
-                                    setSelectedFrequency((p.frequency as "daily" | "weekly" | "monthly") || "daily");
-                                  }}
-                                  className="w-8 h-8 rounded-full bg-muted/30 text-muted-foreground flex items-center justify-center hover:bg-primary/10 hover:text-primary transition-all shrink-0"
-                                >
-                                  <SlidersHorizontal size={14} strokeWidth={1.8} />
                                 </button>
                               )}
                             </motion.div>
@@ -967,56 +905,46 @@ const Vanity = () => {
         </div>
       ) : (
         <div>
-          {/* Sous-onglets */}
-          <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar">
-            {([
-              { key: "daily", label: "Quotidienne" },
-              { key: "weekly", label: "Hebdomadaire" },
-              { key: "monthly", label: "Mensuelle" },
-            ] as const).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveRoutineTab(key)}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${activeRoutineTab === key
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border/40 text-muted-foreground"
-                  }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <RoutineTimesCard userId={userId} />
 
-          {/* Contenu */}
-          {activeRoutineTab === "daily" ? (
-            <div className="space-y-6">
+          <div className="space-y-6 mt-6">
               <div>
                 <button
                   onClick={refreshRoutine}
                   disabled={regensRemaining === 0 || refreshingRoutine}
-                  className={`w-full py-3 rounded-2xl text-[11px] font-bold tracking-wide transition-all flex items-center justify-center gap-2 ${regensRemaining !== 0
+                  className={`w-full py-3 rounded-2xl transition-all flex flex-col items-center justify-center gap-1 ${regensRemaining !== 0
                     ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
                     : "bg-muted/50 text-muted-foreground border border-border/40 cursor-not-allowed"
                     }`}
                 >
-                  <RefreshCw size={12} className={refreshingRoutine ? "animate-spin" : ""} />
-                  {refreshingRoutine ? (
-                    <RotatingLabel messages={ROUTINE_BUTTON_MESSAGES} />
-                  ) : regensRemaining === 0 ? (
-                    "Limite atteinte pour cette semaine"
-                  ) : (
-                    "Recharger ma routine avec mes nouveaux produits"
+                  <span className="flex items-center justify-center gap-2 text-[11px] font-bold tracking-wide">
+                    <RefreshCw size={12} className={refreshingRoutine ? "animate-spin" : ""} />
+                    {refreshingRoutine ? (
+                      <RotatingLabel messages={ROUTINE_BUTTON_MESSAGES} />
+                    ) : regensRemaining === 0 ? (
+                      "Limite atteinte pour cette semaine"
+                    ) : (
+                      "Recharger ma routine avec mes nouveaux produits"
+                    )}
+                  </span>
+                  {regensRemaining !== null && (
+                    <span className="text-[10px] font-medium tracking-normal opacity-70">
+                      {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
+                    </span>
                   )}
                 </button>
-                {regensRemaining !== null && (
-                  <p className="text-[11px] text-muted-foreground text-center mt-2">
-                    {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
-                  </p>
-                )}
                 {routineRefreshError && (
                   <p className="text-[11px] text-destructive text-center mt-1.5">{routineRefreshError}</p>
                 )}
               </div>
+              {cyclingForecast.length > 0 && (morningProducts.length > 0 || rawEveningProducts.length > 0) && (
+                <button
+                  onClick={() => setShowWeekPlan(true)}
+                  className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors px-1 -mb-2"
+                >
+                  Voir le plan de la semaine (matin & soir) →
+                </button>
+              )}
               {morningProducts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-3 px-1">
@@ -1053,15 +981,13 @@ const Vanity = () => {
                     )}
                   </div>
 
-                  {cyclingDecision && (
-                    <NightRecommendationBanner decision={cyclingDecision} forecast={cyclingForecast} />
-                  )}
-
                   {eveningProducts.length > 0 ? (
                     <>
                       <RoutineCard
                         products={eveningProducts}
                         showPhotos
+                        tonightProductId={cyclingDecision?.productId ?? null}
+                        tonightReason={cyclingDecision?.category !== "recovery" ? cyclingDecision?.justificationFr ?? null : null}
                       />
                       {optimizedEvening?.inci_message && (
                         <div className="bg-primary/5 rounded-2xl p-4 mt-3 border border-primary/10">
@@ -1072,7 +998,7 @@ const Vanity = () => {
                     </>
                   ) : (
                     <div className="rounded-2xl border border-dashed border-border/40 bg-muted/10 py-4 text-center text-sm text-muted-foreground">
-                      Pas d'actif fort ce soir \u2014 profite d'une routine douce.
+                      Pas d'actif fort ce soir {"\u2014"} profite d'une routine douce.
                     </div>
                   )}
 
@@ -1089,7 +1015,7 @@ const Vanity = () => {
                     onClick={() => setShowFeedbackSheet(true)}
                     className="w-full mt-2 py-2 text-[12px] text-muted-foreground/70 hover:text-foreground transition-colors"
                   >
-                    Un souci ce soir ? {"\u2192"} Signaler
+                    Un souci sur votre peau ? {"\u2192"} Signaler
                   </button>
                 </div>
               )}
@@ -1097,9 +1023,9 @@ const Vanity = () => {
                 <div className="text-center py-12 space-y-3">
                   {autoCurating ? (
                     <RoutineLoadingMessage />
-                  ) : dailyProducts.length === 0 ? (
+                  ) : routineProducts.length === 0 ? (
                     <>
-                      <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine quotidienne</p>
+                      <p className="text-sm text-muted-foreground italic">Aucun produit dans votre routine</p>
                       <button
                         onClick={() => setActiveMainTab("produits")}
                         className="text-sm font-semibold text-primary"
@@ -1115,72 +1041,8 @@ const Vanity = () => {
                 </div>
               )}
             </div>
-          ) : (
-            <RoutineCard
-              products={activeRoutineTab === "weekly" ? weeklyProducts : monthlyProducts}
-              checkedIds={checkedRoutineProducts}
-              onToggle={toggleRoutineProduct}
-              showPhotos
-              emptyMessage="Aucun produit dans cette routine"
-            />
-          )}
         </div>
       )}
-      {/* Bottom sheet fréquence */}
-      <Drawer
-        open={!!frequencyModal}
-        onOpenChange={(open) => { if (!open) setFrequencyModal(null); }}
-      >
-        <DrawerContent className="px-6 pb-10">
-          <DrawerHeader className="text-left px-0 pt-2 pb-4">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-              {frequencyModal?.product.brand}
-            </p>
-            <DrawerTitle className="text-xl font-display text-foreground">
-              {frequencyModal?.mode === "add" ? "Fréquence d'utilisation" : frequencyModal?.product.product_name}
-            </DrawerTitle>
-          </DrawerHeader>
-
-          <p className="text-sm font-bold text-foreground mb-4">À quelle fréquence utilisez-vous ce produit ?</p>
-
-          <div className="space-y-3 mb-8">
-            {FREQ_OPTIONS.map(({ value, label, sub }) => (
-              <button
-                key={value}
-                onClick={() => setSelectedFrequency(value)}
-                className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${selectedFrequency === value
-                  ? "border-primary bg-primary/5"
-                  : "border-border/40 bg-background/40"
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all ${selectedFrequency === value ? "border-primary bg-primary" : "border-border"
-                    }`} />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{label}</p>
-                    <p className="text-[11px] text-muted-foreground">{sub}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            <button
-              onClick={confirmFrequency}
-              className="w-full h-12 bg-primary text-primary-foreground rounded-full font-bold uppercase tracking-widest transition-all active:scale-95"
-            >
-              {frequencyModal?.mode === "add" ? "Ajouter le produit" : "Enregistrer"}
-            </button>
-            <button
-              onClick={() => setFrequencyModal(null)}
-              className="w-full h-12 text-muted-foreground text-sm font-medium"
-            >
-              Annuler
-            </button>
-          </div>
-        </DrawerContent>
-      </Drawer>
 
       {/* Bottom sheet suppression */}
       <Drawer
@@ -1300,6 +1162,13 @@ const Vanity = () => {
         open={showFeedbackSheet}
         onClose={() => setShowFeedbackSheet(false)}
         onSaved={() => { setShowFeedbackSheet(false); refetchCycling(); }}
+      />
+
+      <WeeklyPlanSheet
+        open={showWeekPlan}
+        onClose={() => setShowWeekPlan(false)}
+        forecast={cyclingForecast}
+        morningProducts={morningProducts}
       />
 
     </div>

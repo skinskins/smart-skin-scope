@@ -12,6 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import FactorsPicker, { FACTOR_LABELS } from "@/components/FactorsPicker";
+import RoutineTimesDrawer, { toHHMM } from "@/components/RoutineTimesDrawer";
 
 const CARNATION_LABELS: Record<string, string> = {
   très_claire: "Très claire",
@@ -129,6 +130,10 @@ const Profile = () => {
   const [locationMode, setLocationMode] = useState<"geo" | "manual">("geo");
   const [locatingNow, setLocatingNow] = useState(false);
   const [detectedCity, setDetectedCity] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [morningRoutineTime, setMorningRoutineTime] = useState<string | null>(null);
+  const [eveningRoutineTime, setEveningRoutineTime] = useState<string | null>(null);
+  const [routineTimesOpen, setRoutineTimesOpen] = useState(false);
 
   const [editingField, setEditingField] = useState<
     "name" | "type" | "problems" | "goals" | "cycle" | "carnation" | "age" | "location" | null
@@ -138,12 +143,13 @@ const Profile = () => {
     const fetchProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        setUserId(session.user.id);
         const meta = session.user.user_metadata as any;
         if (meta?.first_name) setFirstName(meta.first_name);
         if (meta?.last_name) setLastName(meta.last_name);
         const { data } = await (supabase as any)
           .from("profiles")
-          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age, default_factors, manual_location")
+          .select("first_name, last_name, skin_type, skin_problems, skin_goals, carnation, last_period_date, cycle_duration, age, default_factors, manual_location, morning_routine_time, evening_routine_time")
           .eq("id", session.user.id)
           .single();
         if (data) {
@@ -158,6 +164,8 @@ const Profile = () => {
           if (data.age) setAge(data.age);
           setManualLocation(data.manual_location ?? null);
           setLocationMode(data.manual_location ? "manual" : "geo");
+          setMorningRoutineTime(toHHMM(data.morning_routine_time));
+          setEveningRoutineTime(toHHMM(data.evening_routine_time));
           if (data.default_factors) {
             setDefaultFactors(
               Object.entries(data.default_factors as Record<string, boolean>)
@@ -340,13 +348,16 @@ const Profile = () => {
             }
             onClick={() => setEditingField("location")}
           />
+          <Row
+            label="Horaires de routine"
+            value={
+              morningRoutineTime && eveningRoutineTime
+                ? `Matin ${morningRoutineTime} · Soir ${eveningRoutineTime}`
+                : "–"
+            }
+            onClick={() => setRoutineTimesOpen(true)}
+          />
         </div>
-
-        <SectionTitle>MON SUIVI</SectionTitle>
-        <div>
-          <Row label="Passeport de peau" onClick={() => navigate("/passport/preview")} />
-        </div>
-
 
         <SectionTitle>COMPTE</SectionTitle>
         <div>
@@ -647,6 +658,19 @@ const Profile = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      <RoutineTimesDrawer
+        open={routineTimesOpen}
+        onClose={() => setRoutineTimesOpen(false)}
+        userId={userId}
+        initialMorning={morningRoutineTime}
+        initialEvening={eveningRoutineTime}
+        onSaved={(morning, evening) => {
+          setMorningRoutineTime(morning);
+          setEveningRoutineTime(evening);
+          toast.success("Horaires enregistrés");
+        }}
+      />
     </div>
   );
 };

@@ -9,6 +9,8 @@ interface Props {
   forecast?: ForecastDay[];
   /** Compact rendering for dense screens (e.g. Dashboard) — hides the forecast toggle/strip. */
   compact?: boolean;
+  /** When provided, replaces the inline forecast toggle with a link to the full weekly plan (Vanity). */
+  onViewWeekPlan?: () => void;
 }
 
 const CATEGORY_LABEL_FR: Record<NightDecision["category"], string> = {
@@ -22,9 +24,10 @@ const dayLabelFr = (dateISO: string): string => {
   return d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
 };
 
-const NightRecommendationBanner = ({ decision, forecast = [], compact = false }: Props) => {
+const NightRecommendationBanner = ({ decision, forecast = [], compact = false, onViewWeekPlan }: Props) => {
   const [showForecast, setShowForecast] = useState(false);
   const isRecovery = decision.category === "recovery";
+  const previewForecast = forecast.slice(0, 3);
 
   return (
     <motion.div
@@ -59,15 +62,24 @@ const NightRecommendationBanner = ({ decision, forecast = [], compact = false }:
 
       {!compact && forecast.length > 0 && (
         <div className="mt-3">
-          <button
-            onClick={() => setShowForecast((s) => !s)}
-            className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            Voir les prochains jours
-            <ChevronDown size={12} className={cn("transition-transform", showForecast && "rotate-180")} />
-          </button>
+          {onViewWeekPlan ? (
+            <button
+              onClick={onViewWeekPlan}
+              className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              Voir le plan de la semaine →
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowForecast((s) => !s)}
+              className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              Voir les prochains jours
+              <ChevronDown size={12} className={cn("transition-transform", showForecast && "rotate-180")} />
+            </button>
+          )}
           <AnimatePresence>
-            {showForecast && (
+            {!onViewWeekPlan && showForecast && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
@@ -76,7 +88,7 @@ const NightRecommendationBanner = ({ decision, forecast = [], compact = false }:
                 className="overflow-hidden"
               >
                 <div className="flex gap-2 pt-3">
-                  {forecast.map((day) => (
+                  {previewForecast.map((day) => (
                     <div
                       key={day.date}
                       title={day.justificationFr}

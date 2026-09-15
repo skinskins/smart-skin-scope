@@ -7,7 +7,6 @@ import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
 import { useSkinCyclingRecommendation } from "@/features/skin-cycling/useSkinCyclingRecommendation";
 import { resolveActiveCategory } from "@/features/skin-cycling/resolveActiveCategory";
-import NightRecommendationBanner from "@/features/skin-cycling/components/NightRecommendationBanner";
 
 // Le soir n'a plus d'etape "facteurs" (retiree) — cette liste ne sert plus qu'au matin.
 const MORNING_FACTOR_PILLS = ["Sucré/Gras", "Stress élevé", "Médicament"];
@@ -140,14 +139,14 @@ export default function DailyConversation() {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [eveningActiveProducts, setEveningActiveProducts] = useState<
-    { product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
+    { id: string; product_name: string; product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
   >([]);
   const [todayISO] = useState(() => new Date().toISOString().split("T")[0]);
 
   const isMorning = new Date().getHours() < 18;
 
   const cyclingUserId = !isMorning ? userId : null;
-  const { decision: cyclingDecision, forecast: cyclingForecast } =
+  const { decision: cyclingDecision } =
     useSkinCyclingRecommendation(eveningActiveProducts, cyclingUserId, todayISO);
 
   const visibleOptimizedRoutine = useMemo(() => {
@@ -262,7 +261,7 @@ export default function DailyConversation() {
         if (!isMorning) {
           const { data: allEvening } = await (supabase as any)
             .from("user_products")
-            .select("product_type, ingredients, added_at, frequency, frequency_days")
+            .select("id, product_name, product_type, ingredients, added_at, frequency, frequency_days")
             .eq("user_id", session.user.id)
             .eq("is_active", true)
             .eq("evening_use", true);
@@ -574,10 +573,6 @@ export default function DailyConversation() {
                     <p className="text-sm text-muted-foreground leading-snug">{routineExplanation}</p>
                   )}
 
-                  {!isMorning && cyclingDecision && (
-                    <NightRecommendationBanner decision={cyclingDecision} forecast={cyclingForecast} />
-                  )}
-
                   {visibleOptimizedRoutine.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       {!isMorning && optimizedRoutine.length > 0
@@ -588,6 +583,7 @@ export default function DailyConversation() {
                     <div className="space-y-2.5">
                       {visibleOptimizedRoutine.map(p => {
                         const duration = getDuration(p.product_type);
+                        const isTonight = !isMorning && p.product_id === cyclingDecision?.productId;
                         return (
                           <div key={p.product_id} className="flex items-center gap-2.5">
                             {p.photo_url ? (
@@ -604,7 +600,15 @@ export default function DailyConversation() {
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-medium text-foreground truncate">{p.product_name}</p>
                               <p className="text-[11px] text-muted-foreground">{p.brand} · {duration} min</p>
+                              {isTonight && cyclingDecision?.justificationFr && (
+                                <p className="text-[11px] text-primary mt-0.5">{cyclingDecision.justificationFr}</p>
+                              )}
                             </div>
+                            {isTonight && (
+                              <span className="text-[10px] font-bold text-primary-foreground bg-primary rounded-full px-2 py-0.5 flex-shrink-0 whitespace-nowrap">
+                                → Ce soir
+                              </span>
+                            )}
                           </div>
                         );
                       })}

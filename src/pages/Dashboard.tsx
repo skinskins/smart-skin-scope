@@ -14,7 +14,6 @@ import { BetaWelcomeModal } from "@/components/BetaWelcomeModal";
 import RoutineLoadingMessage, { ADVICE_LOADING_MESSAGES, ADVICE_BUTTON_MESSAGES, RotatingLabel } from "@/components/RoutineLoadingMessage";
 import { useSkinCyclingRecommendation } from "@/features/skin-cycling/useSkinCyclingRecommendation";
 import { resolveActiveCategory } from "@/features/skin-cycling/resolveActiveCategory";
-import NightRecommendationBanner from "@/features/skin-cycling/components/NightRecommendationBanner";
 
 type RoutineLogRow = { date: string; morning_routine_done: boolean | null; evening_routine_done: boolean | null };
 type SkinPhotoRow = { date: string; analysis_json: any; storage_path: string; publicUrl?: string };
@@ -117,7 +116,7 @@ const Dashboard = () => {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [eveningActiveProducts, setEveningActiveProducts] = useState<
-    { product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
+    { id: string; product_name: string; product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
   >([]);
   const [todayISO] = useState(() => new Date().toISOString().split("T")[0]);
   const isDashboardEvening = new Date().getHours() >= 15;
@@ -180,7 +179,7 @@ const Dashboard = () => {
     if (!isMorning) {
       const { data: allEvening } = await (supabase as any)
         .from("user_products")
-        .select("product_type, ingredients, added_at, frequency, frequency_days")
+        .select("id, product_name, product_type, ingredients, added_at, frequency, frequency_days")
         .eq("user_id", session.user.id)
         .eq("is_active", true)
         .eq("evening_use", true);
@@ -206,13 +205,12 @@ const Dashboard = () => {
 
     if (autoCurationTriggeredRef.current) return;
 
-    // Rien a curer si aucun produit quotidien actif (nouvelle utilisatrice sans produits).
+    // Rien a curer si aucun produit actif (nouvelle utilisatrice sans produits).
     const { count } = await (supabase as any)
       .from("user_products")
       .select("id", { count: "exact", head: true })
       .eq("user_id", session.user.id)
-      .eq("is_active", true)
-      .eq("frequency", "daily");
+      .eq("is_active", true);
     if (!count) return;
 
     autoCurationTriggeredRef.current = true;
@@ -751,10 +749,6 @@ const Dashboard = () => {
             )}
           </div>
 
-          {isDashboardEvening && cyclingDecision && (
-            <NightRecommendationBanner decision={cyclingDecision} compact />
-          )}
-
           {routineCurating ? (
             <div className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10">
               <RoutineLoadingMessage />
@@ -762,20 +756,22 @@ const Dashboard = () => {
           ) : visibleRoutineProducts.length > 0 ? (
             <>
               <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-                {visibleRoutineProducts.map((p, i) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, scale: 0.85 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.05, type: "spring", stiffness: 400, damping: 22 }}
-                    className="flex flex-col items-center gap-1 shrink-0 w-14"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
-                      <ProductTypeIcon type={p.product_type} size={28} />
-                    </div>
-                    <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.product_name || p.brand}</p>
-                  </motion.div>
-                ))}
+                {visibleRoutineProducts.map((p, i) => {
+                  return (
+                    <motion.div
+                      key={p.id}
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.05, type: "spring", stiffness: 400, damping: 22 }}
+                      className="flex flex-col items-center gap-1 shrink-0 w-14"
+                    >
+                      <div className="relative w-12 h-12 rounded-xl bg-muted/30 border border-border/40 overflow-hidden flex items-center justify-center">
+                        <ProductTypeIcon type={p.product_type} size={28} />
+                      </div>
+                      <p className="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{p.product_name || p.brand}</p>
+                    </motion.div>
+                  );
+                })}
               </div>
               <button
                 onClick={() => navigate("/vanity")}
@@ -786,7 +782,7 @@ const Dashboard = () => {
             </>
           ) : routineProducts.length > 0 ? (
             <div className="w-full py-4 rounded-2xl border border-dashed border-border/40 bg-muted/10 text-sm text-muted-foreground text-center">
-              Pas d'actif fort ce soir — profite d'une routine douce.
+              Pas d'actif fort aujourd'hui — profite d'une routine douce.
             </div>
           ) : (
             <button
