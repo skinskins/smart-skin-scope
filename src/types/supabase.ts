@@ -590,6 +590,76 @@ export type Database = {
           },
         ]
       }
+      skin_cycling_state: {
+        Row: {
+          category: string
+          current_interval_days: number
+          id: string
+          last_applied_date: string | null
+          tolerance_score: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          current_interval_days?: number
+          id?: string
+          last_applied_date?: string | null
+          tolerance_score?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          current_interval_days?: number
+          id?: string
+          last_applied_date?: string | null
+          tolerance_score?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skin_cycling_state_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      skin_feedback_log: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          issues: string[]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          issues?: string[]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          issues?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skin_feedback_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skin_photos: {
         Row: {
           created_at: string

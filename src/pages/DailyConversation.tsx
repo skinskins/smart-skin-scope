@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
+import { useSkinCyclingRecommendation } from "@/features/skin-cycling/useSkinCyclingRecommendation";
+import { resolveActiveCategory } from "@/features/skin-cycling/resolveActiveCategory";
+import NightRecommendationBanner from "@/features/skin-cycling/components/NightRecommendationBanner";
 
 // Le soir n'a plus d'etape "facteurs" (retiree) — cette liste ne sert plus qu'au matin.
 const MORNING_FACTOR_PILLS = ["Sucré/Gras", "Stress élevé", "Médicament"];
@@ -36,6 +39,7 @@ type OptimizedProduct = {
   product_type: string | null;
   photo_url:    string | null;
   order:        number;
+  ingredients?: string | null;
 };
 
 const fadeUp = {
@@ -134,7 +138,25 @@ export default function DailyConversation() {
   const [routineExplanation,setRouteExplanation]  = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const [userId, setUserId] = useState<string | null>(null);
+  const [eveningActiveProducts, setEveningActiveProducts] = useState<
+    { product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
+  >([]);
+  const [todayISO] = useState(() => new Date().toISOString().split("T")[0]);
+
   const isMorning = new Date().getHours() < 18;
+
+  const cyclingUserId = !isMorning ? userId : null;
+  const { decision: cyclingDecision, forecast: cyclingForecast } =
+    useSkinCyclingRecommendation(eveningActiveProducts, cyclingUserId, todayISO);
+
+  const visibleOptimizedRoutine = useMemo(() => {
+    if (isMorning || !cyclingDecision) return optimizedRoutine;
+    return optimizedRoutine.filter((p) => {
+      const category = resolveActiveCategory(p.product_type, p.ingredients);
+      return !category || !cyclingDecision.conflictsToExclude.includes(category);
+    });
+  }, [optimizedRoutine, isMorning, cyclingDecision]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -221,19 +243,32 @@ export default function DailyConversation() {
         if (routineLog?.product_ids?.length > 0) {
           const { data: products } = await (supabase as any)
             .from("user_products")
-            .select("id, product_name, brand, product_type, photo_url")
+            .select("id, product_name, brand, product_type, photo_url, ingredients")
             .in("id", routineLog.product_ids);
           if (products) {
             const ordered = routineLog.product_ids
               .map((id: string, i: number) => {
                 const p = products.find((x: any) => x.id === id);
-                return p ? { product_id: p.id, product_name: p.product_name, brand: p.brand, product_type: p.product_type, photo_url: p.photo_url, order: i + 1 } : null;
+                return p ? { product_id: p.id, product_name: p.product_name, brand: p.brand, product_type: p.product_type, photo_url: p.photo_url, ingredients: p.ingredients, order: i + 1 } : null;
               })
               .filter(Boolean) as OptimizedProduct[];
             setOptimizedRoutine(ordered);
           }
           setRouteExplanation(routineLog.inci_message ?? null);
         }
+
+        // Actifs forts eligibles ce soir (toutes frequences) — alimente le moteur
+        // skin-cycling qui filtre/justifie la routine affichee plus bas.
+        if (!isMorning) {
+          const { data: allEvening } = await (supabase as any)
+            .from("user_products")
+            .select("product_type, ingredients, added_at, frequency, frequency_days")
+            .eq("user_id", session.user.id)
+            .eq("is_active", true)
+            .eq("evening_use", true);
+          setEveningActiveProducts(allEvening ?? []);
+        }
+        setUserId(session.user.id);
 
         setAnalysisStep(3);
         setScreen("chat");
@@ -539,13 +574,19 @@ export default function DailyConversation() {
                     <p className="text-sm text-muted-foreground leading-snug">{routineExplanation}</p>
                   )}
 
-                  {optimizedRoutine.length === 0 ? (
+                  {!isMorning && cyclingDecision && (
+                    <NightRecommendationBanner decision={cyclingDecision} forecast={cyclingForecast} />
+                  )}
+
+                  {visibleOptimizedRoutine.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                      Aucun produit dans ta routine pour l'instant.
+                      {!isMorning && optimizedRoutine.length > 0
+                        ? "Pas d'actif fort ce soir — profite d'une routine douce."
+                        : "Aucun produit dans ta routine pour l'instant."}
                     </p>
                   ) : (
                     <div className="space-y-2.5">
-                      {optimizedRoutine.map(p => {
+                      {visibleOptimizedRoutine.map(p => {
                         const duration = getDuration(p.product_type);
                         return (
                           <div key={p.product_id} className="flex items-center gap-2.5">

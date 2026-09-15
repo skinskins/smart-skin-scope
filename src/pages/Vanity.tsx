@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { PRESET_DEVICES } from "@/data/presetDevices";
 import RoutineLoadingMessage, { RotatingLabel, ROUTINE_BUTTON_MESSAGES } from "@/components/RoutineLoadingMessage";
+import { useSkinCyclingRecommendation } from "@/features/skin-cycling/useSkinCyclingRecommendation";
+import { resolveActiveCategory } from "@/features/skin-cycling/resolveActiveCategory";
+import NightRecommendationBanner from "@/features/skin-cycling/components/NightRecommendationBanner";
+import SkinFeedbackSheet from "@/features/skin-cycling/components/SkinFeedbackSheet";
 
 type CatalogProduct = {
   id: string;
@@ -104,6 +108,7 @@ const Vanity = () => {
   const [checkedRoutineProducts, setCheckedRoutineProducts] = useState<Set<string>>(new Set());
   const [morningDone, setMorningDone] = useState(false);
   const [eveningDone, setEveningDone] = useState(false);
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [optimizedMorning, setOptimizedMorning] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [optimizedEvening, setOptimizedEvening] = useState<{ product_ids: string[]; inci_message: string | null } | null>(null);
   const [routineCurationChecked, setRoutineCurationChecked] = useState(false);
@@ -202,13 +207,35 @@ const Vanity = () => {
 
   // La routine affichee est celle decidee par inci-analysis (pertinence au profil), pas
   // l'inventaire brut : posseder un produit (scan, onboarding...) ne veut pas dire qu'il
-  // doit apparaitre ici tant que la curation ne l'a pas retenu.
+  // doit apparaitre ici tant que la curation ne l'a pas retenu. Intersection sur
+  // routineProducts (toutes fréquences) et non dailyProducts : un actif fort hebdomadaire
+  // (rétinol, exfoliant...) retenu par inci-analysis doit pouvoir apparaître ici.
   const morningProducts = optimizedMorning
-    ? dailyProducts.filter(p => optimizedMorning.product_ids.includes(p.id))
+    ? routineProducts.filter(p => optimizedMorning.product_ids.includes(p.id))
     : [];
-  const eveningProducts = optimizedEvening
-    ? dailyProducts.filter(p => optimizedEvening.product_ids.includes(p.id))
+  const rawEveningProducts = optimizedEvening
+    ? routineProducts.filter(p => optimizedEvening.product_ids.includes(p.id))
     : [];
+
+  const todayISO = new Date().toISOString().split("T")[0];
+  const eveningActiveProducts = routineProducts.filter(p => p.evening_use);
+  const { decision: cyclingDecision, forecast: cyclingForecast, settle: settleCycling, refetch: refetchCycling } =
+    useSkinCyclingRecommendation(eveningActiveProducts, userId, todayISO);
+
+  const eveningProducts = cyclingDecision
+    ? rawEveningProducts.filter(p => {
+        const category = resolveActiveCategory(p.product_type, p.ingredients);
+        return !category || !cyclingDecision.conflictsToExclude.includes(category);
+      })
+    : rawEveningProducts;
+
+  const eveningAppliedCategory = (() => {
+    if (!cyclingDecision || cyclingDecision.category === "recovery") return null;
+    const present = eveningProducts.some(
+      p => resolveActiveCategory(p.product_type, p.ingredients) === cyclingDecision.category,
+    );
+    return present ? cyclingDecision.category : null;
+  })();
 
   // Premiere curation automatique : si aucune routine optimisee n'existe encore pour
   // aujourd'hui (nouvelle utilisatrice, produits fraichement scannes...) on la genere tout
@@ -269,6 +296,9 @@ const Vanity = () => {
         { user_id: userId, date: todayStr, [field]: done },
         { onConflict: "user_id,date" }
       );
+    if (!error && moment === "evening" && done) {
+      settleCycling({ appliedCategory: eveningAppliedCategory });
+    }
     if (error) {
       console.warn("routine_logs upsert:", error.message);
       // Rollback si echec
@@ -1014,22 +1044,38 @@ const Vanity = () => {
                   </button>
                 </div>
               )}
-              {eveningProducts.length > 0 && (
+              {rawEveningProducts.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-3 px-1">
                     <p className="text-base font-bold text-foreground">Routine du soir</p>
-                    <p className="text-sm font-semibold text-primary">{eveningProducts.length} produit{eveningProducts.length > 1 ? "s" : ""}</p>
+                    {eveningProducts.length > 0 && (
+                      <p className="text-sm font-semibold text-primary">{eveningProducts.length} produit{eveningProducts.length > 1 ? "s" : ""}</p>
+                    )}
                   </div>
-                  <RoutineCard
-                    products={eveningProducts}
-                    showPhotos
-                  />
-                  {optimizedEvening?.inci_message && (
-                    <div className="bg-primary/5 rounded-2xl p-4 mt-3 border border-primary/10">
-                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5">Conseil d'application</p>
-                      <p className="text-[13px] text-foreground/85 leading-relaxed">{optimizedEvening.inci_message}</p>
+
+                  {cyclingDecision && (
+                    <NightRecommendationBanner decision={cyclingDecision} forecast={cyclingForecast} />
+                  )}
+
+                  {eveningProducts.length > 0 ? (
+                    <>
+                      <RoutineCard
+                        products={eveningProducts}
+                        showPhotos
+                      />
+                      {optimizedEvening?.inci_message && (
+                        <div className="bg-primary/5 rounded-2xl p-4 mt-3 border border-primary/10">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5">Conseil d'application</p>
+                          <p className="text-[13px] text-foreground/85 leading-relaxed">{optimizedEvening.inci_message}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border/40 bg-muted/10 py-4 text-center text-sm text-muted-foreground">
+                      Pas d'actif fort ce soir \u2014 profite d'une routine douce.
                     </div>
                   )}
+
                   <button
                     onClick={() => setRoutineDone("evening", !eveningDone)}
                     className={`w-full mt-3 py-3 rounded-2xl text-sm font-bold transition-all ${eveningDone
@@ -1039,9 +1085,15 @@ const Vanity = () => {
                   >
                     {eveningDone ? "Routine du soir faite \u2713" : "J'ai fait ma routine du soir"}
                   </button>
+                  <button
+                    onClick={() => setShowFeedbackSheet(true)}
+                    className="w-full mt-2 py-2 text-[12px] text-muted-foreground/70 hover:text-foreground transition-colors"
+                  >
+                    Un souci ce soir ? {"\u2192"} Signaler
+                  </button>
                 </div>
               )}
-              {morningProducts.length === 0 && eveningProducts.length === 0 && (
+              {morningProducts.length === 0 && rawEveningProducts.length === 0 && (
                 <div className="text-center py-12 space-y-3">
                   {autoCurating ? (
                     <RoutineLoadingMessage />
@@ -1243,6 +1295,12 @@ const Vanity = () => {
           {scanMessage}
         </div>
       )}
+
+      <SkinFeedbackSheet
+        open={showFeedbackSheet}
+        onClose={() => setShowFeedbackSheet(false)}
+        onSaved={() => { setShowFeedbackSheet(false); refetchCycling(); }}
+      />
 
     </div>
   );

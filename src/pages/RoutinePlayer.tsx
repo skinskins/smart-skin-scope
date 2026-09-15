@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronRight, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type RoutineProduct } from "@/hooks/useRoutineProducts";
 import { FactorsModal } from "@/components/FactorsModal";
 import { supabase } from "@/integrations/supabase/client";
+import { useSkinCyclingRecommendation } from "@/features/skin-cycling/useSkinCyclingRecommendation";
+import { resolveActiveCategory } from "@/features/skin-cycling/resolveActiveCategory";
+import NightRecommendationBanner from "@/features/skin-cycling/components/NightRecommendationBanner";
 
 type Step = RoutineProduct & {
   order: number;
@@ -60,9 +63,33 @@ const RoutinePlayer = () => {
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const alarmFiredRef = useRef(false);
   const goNextRef = useRef<() => Promise<void>>();
-  const [steps, setSteps] = useState<Step[]>([]);
+  const [rawSteps, setRawSteps] = useState<Step[]>([]);
   const [stepsReady, setStepsReady] = useState(false);
-  const loading = !stepsReady;
+  const [userId, setUserId] = useState<string | null>(null);
+  const [eveningActiveProducts, setEveningActiveProducts] = useState<
+    { product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
+  >([]);
+  const [todayISO] = useState(() => new Date().toISOString().split("T")[0]);
+
+  const cyclingUserId = !isMorning ? userId : null;
+  const { decision, forecast, loading: cyclingLoading, settle } =
+    useSkinCyclingRecommendation(eveningActiveProducts, cyclingUserId, todayISO);
+
+  const steps = useMemo(() => {
+    if (isMorning || !decision) return rawSteps;
+    return rawSteps.filter((s) => {
+      const category = resolveActiveCategory(s.product_type, s.ingredients);
+      return !category || !decision.conflictsToExclude.includes(category);
+    });
+  }, [rawSteps, isMorning, decision]);
+
+  const appliedCategory = useMemo(() => {
+    if (isMorning || !decision || decision.category === "recovery") return null;
+    const present = steps.some((s) => resolveActiveCategory(s.product_type, s.ingredients) === decision.category);
+    return present ? decision.category : null;
+  }, [isMorning, decision, steps]);
+
+  const loading = !stepsReady || (!isMorning && cyclingLoading);
 
 
   // Initialisation séquentielle : daily_routine_log → fallback user_products
@@ -70,9 +97,22 @@ const RoutinePlayer = () => {
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { setStepsReady(true); return; }
+      setUserId(session.user.id);
 
       const today = new Date().toISOString().split("T")[0];
       const period = isMorning ? "morning" : "evening";
+
+      // Actifs forts éligibles ce soir, indépendamment de leur fréquence déclarée —
+      // alimente le moteur skin-cycling qui décide/filtre la routine plus bas.
+      if (!isMorning) {
+        const { data: allEvening } = await (supabase as any)
+          .from("user_products")
+          .select("product_type, ingredients, added_at, frequency, frequency_days")
+          .eq("user_id", session.user.id)
+          .eq("is_active", true)
+          .eq("evening_use", true);
+        setEveningActiveProducts(allEvening ?? []);
+      }
 
       // Priorité : routine générée par DailyConversation
       const { data: logData } = await (supabase as any)
@@ -91,7 +131,7 @@ const RoutinePlayer = () => {
         const hydrated: Step[] = (products ?? [])
           .map((p: any) => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
           .sort((a: Step, b: Step) => a.order - b.order);
-        setSteps(hydrated);
+        setRawSteps(hydrated);
         setStepsReady(true);
         return;
       }
@@ -106,7 +146,7 @@ const RoutinePlayer = () => {
       const fallbackSteps: Step[] = (fallback ?? [])
         .map((p: any) => ({ ...p, order: getOrder(p.product_type), durationMin: getDuration(p.product_type) }))
         .sort((a: Step, b: Step) => a.order - b.order);
-      setSteps(fallbackSteps);
+      setRawSteps(fallbackSteps);
       setStepsReady(true);
     };
     init();
@@ -183,6 +223,25 @@ const RoutinePlayer = () => {
     );
   }
 
+  if (steps.length === 0 && rawSteps.length > 0 && decision) {
+    return (
+      <div className="min-h-screen bg-[#F0EBE3] flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-full max-w-sm mb-4">
+          <NightRecommendationBanner decision={decision} forecast={forecast} />
+        </div>
+        <p className="text-sm text-muted-foreground mb-8">
+          Pas d'actif fort ce soir — profite d'une routine douce avec tes produits habituels.
+        </p>
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="h-12 px-8 bg-primary text-primary-foreground rounded-full font-bold text-sm"
+        >
+          Retour
+        </button>
+      </div>
+    );
+  }
+
   if (steps.length === 0) {
     return (
       <div className="min-h-screen bg-[#F0EBE3] flex flex-col items-center justify-center px-6 text-center">
@@ -234,7 +293,11 @@ const RoutinePlayer = () => {
         <FactorsModal
           open={showFactorsModal}
           onClose={() => { setShowFactorsModal(false); navigate("/dashboard"); }}
-          onSaved={() => { setShowFactorsModal(false); navigate("/dashboard"); }}
+          onSaved={(irritationReported) => {
+            if (!isMorning) settle({ appliedCategory, irritationReportedToday: irritationReported });
+            setShowFactorsModal(false);
+            navigate("/dashboard");
+          }}
         />
       </>
     );
@@ -277,6 +340,12 @@ const RoutinePlayer = () => {
           <p className="text-[11px] text-muted-foreground">{step.durationMin} min</p>
         </div>
       </div>
+
+      {!isMorning && decision && (
+        <div className="px-5">
+          <NightRecommendationBanner decision={decision} forecast={forecast} />
+        </div>
+      )}
 
       <div className="flex-1 px-5 flex flex-col">
         <AnimatePresence mode="wait">
