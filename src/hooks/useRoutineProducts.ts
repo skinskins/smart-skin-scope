@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSessionUserId } from "@/hooks/useSessionUserId";
 
 export type RoutineProduct = {
   id: string;
@@ -15,27 +17,37 @@ export type RoutineProduct = {
   added_at?: string | null;
 };
 
+const fetchRoutineProducts = async (userId: string): Promise<RoutineProduct[]> => {
+  const { data } = await (supabase as any)
+    .from("user_products")
+    .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, frequency_days, ingredients, added_at")
+    .eq("user_id", userId)
+    .eq("is_active", true);
+  return data ?? [];
+};
+
 export const useRoutineProducts = () => {
-  const [products, setProducts] = useState<RoutineProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setLoading(false); return; }
-    const { data } = await (supabase as any)
-      .from("user_products")
-      .select("id, product_name, brand, product_type, photo_url, morning_use, evening_use, frequency, frequency_days, ingredients, added_at")
-      .eq("user_id", session.user.id)
-      .eq("is_active", true);
-    setProducts(data ?? []);
-    setLoading(false);
-  }, []);
+  const { data: userId = null } = useSessionUserId();
 
-  useEffect(() => { load(); }, [load]);
+  // Cached by userId: switching tabs and coming back re-renders the already-fetched
+  // products instantly instead of flashing an empty list while it refetches.
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ["routine-products", userId],
+    queryFn: () => fetchRoutineProducts(userId as string),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
 
-  const morning = useMemo(() => products.filter(p => p.morning_use), [products]);
-  const evening = useMemo(() => products.filter(p => p.evening_use), [products]);
+  const loading = !!userId && isLoading;
 
-  return { products, morning, evening, loading, refetch: load };
+  const morning = useMemo(() => products.filter((p) => p.morning_use), [products]);
+  const evening = useMemo(() => products.filter((p) => p.evening_use), [products]);
+
+  const refetch = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["routine-products", userId] });
+  }, [queryClient, userId]);
+
+  return { products, morning, evening, loading, refetch };
 };

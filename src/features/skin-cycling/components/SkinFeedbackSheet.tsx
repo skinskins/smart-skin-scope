@@ -63,11 +63,10 @@ const SkinFeedbackSheet = ({ open, onClose, onSaved }: Props) => {
               <button
                 key={issue}
                 onClick={() => toggleIssue(issue)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                  active
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/30"
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/20 border-transparent text-foreground/60 hover:bg-muted/30"
+                  }`}
               >
                 {issue}
               </button>

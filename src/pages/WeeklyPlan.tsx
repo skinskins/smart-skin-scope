@@ -230,26 +230,28 @@ const WeeklyPlan = () => {
               <button
                 onClick={handleUpdateAdvice}
                 disabled={regenerating || regensRemaining === 0}
-                className={`w-full py-2.5 rounded-xl text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition active:scale-95 ${
+                className={`w-full py-2.5 rounded-xl flex flex-col items-center justify-center gap-1 transition active:scale-95 ${
                   regensRemaining === 0
                     ? "bg-muted/50 text-muted-foreground border border-border/40 cursor-not-allowed"
                     : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
                 }`}
               >
-                <RefreshCw size={11} className={regenerating ? "animate-spin" : ""} />
-                {regenerating ? (
-                  <RotatingLabel messages={ADVICE_BUTTON_MESSAGES} />
-                ) : regensRemaining === 0 ? (
-                  "Limite atteinte pour cette semaine"
-                ) : (
-                  "Mettre à jour mes conseils"
+                <span className="flex items-center justify-center gap-1.5 text-[11px] font-bold tracking-wide">
+                  <RefreshCw size={11} className={regenerating ? "animate-spin" : ""} />
+                  {regenerating ? (
+                    <RotatingLabel messages={ADVICE_BUTTON_MESSAGES} />
+                  ) : regensRemaining === 0 ? (
+                    "Limite atteinte pour cette semaine"
+                  ) : (
+                    "Mettre à jour mes conseils"
+                  )}
+                </span>
+                {regensRemaining !== null && (
+                  <span className="text-[10px] font-medium tracking-normal opacity-70">
+                    {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
+                  </span>
                 )}
               </button>
-              {regensRemaining !== null && (
-                <p className="text-[10px] text-muted-foreground text-center mt-1.5">
-                  {MAX_MANUAL_REGENS_PER_WEEK - regensRemaining} / {MAX_MANUAL_REGENS_PER_WEEK} mises à jour de conseils utilisées cette semaine
-                </p>
-              )}
               {updateError && (
                 <p className="text-[10px] text-destructive text-center mt-1.5">{updateError}</p>
               )}

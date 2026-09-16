@@ -3,7 +3,9 @@ import { Sparkles, ImageOff, Plus, RefreshCw, Camera, ChevronRight, ChevronLeft,
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ProductTypeIcon } from "@/components/ProductTypeIcon";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSessionUserId } from "@/hooks/useSessionUserId";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { calculateCyclePhase } from "@/utils/cycle";
 import { PearlHero } from "@/components/PearlHero";
@@ -90,11 +92,146 @@ const nextCycleEvent = (cycleDay: number, cycleDuration: number): string => {
 
 // ── composant ────────────────────────────────────────────────────────────────
 
+type EveningActiveProduct = { id: string; product_name: string; product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null };
+
+type DashboardRoutineData = {
+  routineProducts: any[];
+  eveningActiveProducts: EveningActiveProduct[];
+};
+
+// Stable references so `data ?? EMPTY` doesn't hand useMemo a fresh array identity on every
+// render while the query has no data yet.
+const EMPTY_ROUTINE_PRODUCTS: any[] = [];
+const EMPTY_EVENING_PRODUCTS: EveningActiveProduct[] = [];
+
+// Hydrate une liste de product_id (routine curee) en objets produits complets, dans l'ordre.
+const hydrateRoutineProductIds = async (productIds: string[]): Promise<any[]> => {
+  if (productIds.length === 0) return [];
+  const { data: products } = await (supabase as any)
+    .from("user_products")
+    .select("id, product_name, brand, photo_url, product_type, ingredients")
+    .in("id", productIds);
+  if (!products) return [];
+  return productIds
+    .map((id: string) => products.find((p: any) => p.id === id))
+    .filter(Boolean);
+};
+
+// ── Routine produits — daily_routine_log en priorité, curation automatique sinon ─────
+// Meme logique que la page Vanity : la routine affichee est celle decidee par inci-analysis
+// (pertinence au profil), jamais un fallback "tout l'inventaire". Si aucune curation n'existe
+// encore pour aujourd'hui (typiquement juste apres l'onboarding), on la genere directement ici
+// sans obliger a passer par Mes Produits. Mise en cache react-query par (userId, todayISO) :
+// changer d'onglet et revenir affiche la routine deja curee instantanement plutot que de
+// re-declencher tout ce flux (et de repasser par l'etat vide) a chaque montage.
+const fetchDashboardRoutine = async (userId: string, todayISO: string): Promise<DashboardRoutineData> => {
+  const isMorning = new Date().getHours() < 15;
+
+  // Actifs forts eligibles ce soir, indépendamment de leur fréquence déclarée — alimente
+  // le moteur skin-cycling qui décide/filtre la routine affichée ci-dessous.
+  let eveningActiveProducts: EveningActiveProduct[] = [];
+  if (!isMorning) {
+    const { data: allEvening } = await (supabase as any)
+      .from("user_products")
+      .select("id, product_name, product_type, ingredients, added_at, frequency, frequency_days")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .eq("evening_use", true);
+    eveningActiveProducts = allEvening ?? [];
+  }
+
+  const { data: logData } = await (supabase as any)
+    .from("daily_routine_log")
+    .select("product_ids")
+    .eq("user_id", userId)
+    .eq("date", todayISO)
+    .eq("period", isMorning ? "morning" : "evening")
+    .maybeSingle();
+
+  if (logData) {
+    // Curation deja faite pour ce moment — y compris "0 produit pertinent", un resultat
+    // legitime qu'on ne remplace plus par l'inventaire brut.
+    const routineProducts = await hydrateRoutineProductIds(logData.product_ids ?? []);
+    return { routineProducts, eveningActiveProducts };
+  }
+
+  // Rien a curer si aucun produit actif (nouvelle utilisatrice sans produits).
+  const { count } = await (supabase as any)
+    .from("user_products")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_active", true);
+  if (!count) return { routineProducts: [], eveningActiveProducts };
+
+  try {
+    const [morningRes, eveningRes] = await Promise.all([
+      supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
+      supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
+    ]);
+    const currentRes = isMorning ? morningRes : eveningRes;
+    const ids = (currentRes.data?.routine ?? []).map((p: any) => p.product_id);
+    const routineProducts = await hydrateRoutineProductIds(ids);
+    return { routineProducts, eveningActiveProducts };
+  } catch (err) {
+    console.error("[dashboard] curation automatique routine:", err);
+    return { routineProducts: [], eveningActiveProducts };
+  }
+};
+
+type WeeklyAdviceResult = Conseil[] | null;
+
+// ── Conseils de la semaine (pilliers) ───────────────────────────────────────
+// Régénérés une fois par semaine (jamais chaque jour) — generate-weekly-advice gère
+// elle-même le cache hebdomadaire côté serveur, donc rappeler sans force ici ne
+// déclenche une vraie génération que si la semaine n'a encore rien produit. Mise en
+// cache react-query par (userId, weekStart) : changer d'onglet et revenir affiche
+// les conseils deja generes instantanement plutot que de repasser par l'etat
+// "Chargement de vos conseils…" a chaque montage.
+const fetchWeeklyAdvice = async (userId: string, weekStart: string): Promise<WeeklyAdviceResult> => {
+  const { data: existing } = await (supabase as any)
+    .from("weekly_advice_log")
+    .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
+    .order("priority", { ascending: true });
+
+  if (existing && existing.length > 0) {
+    return existing.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) }));
+  }
+
+  // Aucun conseil pour cette semaine → générer automatiquement (une seule fois — react-query
+  // deduplique les appels concurrents sur la meme clé, donc pas besoin de ref de garde ici).
+  const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: {} });
+  if (error) {
+    console.error("[dashboard] weekly advice generation failed:", error);
+    return null;
+  }
+  const { data: fresh } = await (supabase as any)
+    .from("weekly_advice_log")
+    .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
+    .order("priority", { ascending: true });
+  if (fresh && fresh.length > 0) {
+    return fresh.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) }));
+  }
+  return null;
+};
+
+// Lit le compteur de mises à jour manuelles directement en base (identique à WeeklyPlan.tsx).
+const fetchWeeklyAdviceRegensRemaining = async (userId: string, weekStart: string): Promise<number | null> => {
+  const { data } = await (supabase as any)
+    .from("profiles")
+    .select("weekly_advice_regen_count, weekly_advice_regen_week")
+    .eq("id", userId)
+    .single();
+  if (!data) return null;
+  const used = data.weekly_advice_regen_week === weekStart ? (data.weekly_advice_regen_count ?? 0) : 0;
+  return Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used);
+};
+
 const Dashboard = () => {
   const [checkinStatus] = useState<"loading" | "done">("done");
-  const [routineProducts, setRoutineProducts] = useState<any[]>([]);
-  const [routineCurating, setRoutineCurating] = useState(false);
-  const autoCurationTriggeredRef = useRef(false);
   const [userName, setUserName] = useState<string | null>(null);
   const [lastPeriodDate, setLastPeriodDate] = useState<string>("");
   const [cycleDuration, setCycleDuration] = useState<number>(28);
@@ -103,23 +240,28 @@ const Dashboard = () => {
   );
   const [streakCount, setStreakCount] = useState(0);
   const [streakLoaded, setStreakLoaded] = useState(false);
-  const [advices, setAdvices] = useState<Conseil[]>([]);
-  const [adviceGenerating, setAdviceGenerating] = useState(false);
-  const [adviceError, setAdviceError] = useState(false);
-  const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
   const [adviceUpdating, setAdviceUpdating] = useState(false);
   const [adviceUpdateError, setAdviceUpdateError] = useState<string | null>(null);
   const [skinPhotos, setSkinPhotos] = useState<SkinPhotoRow[]>([]);
   const [weekPhotoTaken, setWeekPhotoTaken] = useState<boolean | null>(null);
-  const autoGeneratedRef = useRef(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [userId, setUserId] = useState<string | null>(null);
-  const [eveningActiveProducts, setEveningActiveProducts] = useState<
-    { id: string; product_name: string; product_type: string | null; ingredients: string | null; added_at: string | null; frequency: string | null; frequency_days: number | null }[]
-  >([]);
+  const { data: userId = null } = useSessionUserId();
   const [todayISO] = useState(() => new Date().toISOString().split("T")[0]);
   const isDashboardEvening = new Date().getHours() >= 15;
+
+  const routineQueryKey = useMemo(() => ["dashboard-routine", userId, todayISO] as const, [userId, todayISO]);
+  const { data: routineData, isLoading: routineQueryLoading } = useQuery({
+    queryKey: routineQueryKey,
+    queryFn: () => fetchDashboardRoutine(userId as string, todayISO),
+    enabled: !!userId,
+    staleTime: 5 * 60_000,
+  });
+  const routineProducts = routineData?.routineProducts ?? EMPTY_ROUTINE_PRODUCTS;
+  const eveningActiveProducts = routineData?.eveningActiveProducts ?? EMPTY_EVENING_PRODUCTS;
+  const routineCurating = !!userId && routineQueryLoading;
+
   const cyclingUserId = isDashboardEvening ? userId : null;
   const { decision: cyclingDecision } = useSkinCyclingRecommendation(eveningActiveProducts, cyclingUserId, todayISO);
 
@@ -138,106 +280,7 @@ const Dashboard = () => {
     return filtered;
   }, [routineProducts, isDashboardEvening, cyclingDecision, eveningActiveProducts]);
 
-  // ── Pile de conseils — la carte du dessus se glisse au doigt (drag), les suivantes
-  // depassent derriere en eventail. adviceDirection pilote le sens des transitions
-  // d'entree/sortie ; adviceDragTilt fait pencher la carte pendant le glissement.
-  const [adviceStackOffset, setAdviceStackOffset] = useState(0);
-  const [adviceDirection, setAdviceDirection] = useState<1 | -1>(1);
-  const [adviceDragTilt, setAdviceDragTilt] = useState(0);
-  const stackedAdvices = advices.length > 0
-    ? advices.map((_, i) => advices[(i + adviceStackOffset) % advices.length])
-    : [];
-  const cycleAdviceStack = (dir: 1 | -1) => {
-    if (advices.length === 0) return;
-    setAdviceDirection(dir);
-    setAdviceStackOffset(o => (o + dir + advices.length) % advices.length);
-  };
-
   const { weather: liveWeather } = useWeatherData(manualLocation || undefined);
-
-  // Hydrate routineProducts a partir d'une liste ordonnee de product_id (routine curee).
-  const hydrateRoutineProducts = useCallback(async (productIds: string[]) => {
-    if (productIds.length === 0) { setRoutineProducts([]); return; }
-    const { data: products } = await (supabase as any)
-      .from("user_products")
-      .select("id, product_name, brand, photo_url, product_type, ingredients")
-      .in("id", productIds);
-    if (!products) { setRoutineProducts([]); return; }
-    const ordered = productIds
-      .map((id: string) => products.find((p: any) => p.id === id))
-      .filter(Boolean);
-    setRoutineProducts(ordered);
-  }, []);
-
-  // ── Routine produits — daily_routine_log en priorité, curation automatique sinon ─────
-  // Meme logique que la page Vanity : la routine affichee est celle decidee par
-  // inci-analysis (pertinence au profil), jamais un fallback "tout l'inventaire". Si
-  // aucune curation n'existe encore pour aujourd'hui (typiquement juste apres
-  // l'onboarding), on la genere directement ici sans obliger a passer par Mes Produits.
-  const fetchRoutineProducts = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    setUserId(session.user.id);
-    const isMorning = new Date().getHours() < 15;
-    const today = new Date().toISOString().split("T")[0];
-
-    // Actifs forts eligibles ce soir, indépendamment de leur fréquence déclarée — alimente
-    // le moteur skin-cycling qui décide/filtre la routine affichée ci-dessous.
-    if (!isMorning) {
-      const { data: allEvening } = await (supabase as any)
-        .from("user_products")
-        .select("id, product_name, product_type, ingredients, added_at, frequency, frequency_days")
-        .eq("user_id", session.user.id)
-        .eq("is_active", true)
-        .eq("evening_use", true);
-      setEveningActiveProducts(allEvening ?? []);
-    }
-
-    const { data: logData } = await (supabase as any)
-      .from("daily_routine_log")
-      .select("product_ids")
-      .eq("user_id", session.user.id)
-      .eq("date", today)
-      .eq("period", isMorning ? "morning" : "evening")
-      .maybeSingle();
-
-    if (logData) {
-      // Curation deja faite pour ce moment — y compris "0 produit pertinent", un resultat
-      // legitime qu'on ne remplace plus par l'inventaire brut.
-      await hydrateRoutineProducts(logData.product_ids ?? []);
-      return;
-    }
-
-    setRoutineProducts([]);
-
-    if (autoCurationTriggeredRef.current) return;
-
-    // Rien a curer si aucun produit actif (nouvelle utilisatrice sans produits).
-    const { count } = await (supabase as any)
-      .from("user_products")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", session.user.id)
-      .eq("is_active", true);
-    if (!count) return;
-
-    autoCurationTriggeredRef.current = true;
-    setRoutineCurating(true);
-    try {
-      const [morningRes, eveningRes] = await Promise.all([
-        supabase.functions.invoke("inci-analysis", { body: { user_id: session.user.id, period: "morning" } }),
-        supabase.functions.invoke("inci-analysis", { body: { user_id: session.user.id, period: "evening" } }),
-      ]);
-      const currentRes = isMorning ? morningRes : eveningRes;
-      const ids = (currentRes.data?.routine ?? []).map((p: any) => p.product_id);
-      await hydrateRoutineProducts(ids);
-    } catch (err) {
-      console.error("[dashboard] curation automatique routine:", err);
-    } finally {
-      setRoutineCurating(false);
-    }
-  }, [hydrateRoutineProducts]);
-
-  useEffect(() => { fetchRoutineProducts(); }, [fetchRoutineProducts]);
 
   // ── Photo de la semaine prise ? ───────────────────────────────────────────
   const [photoPendingRetry, setPhotoPendingRetry] = useState(false);
@@ -360,102 +403,71 @@ const Dashboard = () => {
   }, []);
 
   // ── Conseils de la semaine (pilliers) ───────────────────────────────────────
-  // Régénérés une fois par semaine (jamais chaque jour) — generate-weekly-advice gère
-  // elle-même le cache hebdomadaire côté serveur, donc rappeler sans force ici ne
-  // déclenche une vraie génération que si la semaine n'a encore rien produit.
-  const fetchAdvice = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    const weekStart = getMonday(todayLocalISO());
+  const weekStart = useMemo(() => getMonday(todayLocalISO()), []);
+  const adviceQueryKey = useMemo(() => ["weekly-advice", userId, weekStart] as const, [userId, weekStart]);
 
-    const { data: existing } = await (supabase as any)
-      .from("weekly_advice_log")
-      .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
-      .eq("user_id", session.user.id)
-      .eq("week_start", weekStart)
-      .order("priority", { ascending: true });
+  const { data: advicesData, isLoading: adviceQueryLoading, isError: adviceQueryFailed } = useQuery({
+    queryKey: adviceQueryKey,
+    queryFn: async () => {
+      const result = await fetchWeeklyAdvice(userId as string, weekStart);
+      if (result === null) throw new Error("weekly-advice-generation-failed");
+      return result;
+    },
+    enabled: !!userId,
+    staleTime: Infinity,
+    retry: false,
+  });
+  const advices = advicesData ?? [];
+  const adviceGenerating = !!userId && adviceQueryLoading;
+  const adviceError = adviceQueryFailed;
 
-    if (existing && existing.length > 0) {
-      setAdvices(existing.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) })));
-      setAdviceError(false);
-      return;
-    }
+  // ── Pile de conseils — la carte du dessus se glisse au doigt (drag), les suivantes
+  // depassent derriere en eventail. adviceDirection pilote le sens des transitions
+  // d'entree/sortie ; adviceDragTilt fait pencher la carte pendant le glissement.
+  const [adviceStackOffset, setAdviceStackOffset] = useState(0);
+  const [adviceDirection, setAdviceDirection] = useState<1 | -1>(1);
+  const [adviceDragTilt, setAdviceDragTilt] = useState(0);
+  const stackedAdvices = advices.length > 0
+    ? advices.map((_, i) => advices[(i + adviceStackOffset) % advices.length])
+    : [];
+  const cycleAdviceStack = (dir: 1 | -1) => {
+    if (advices.length === 0) return;
+    setAdviceDirection(dir);
+    setAdviceStackOffset(o => (o + dir + advices.length) % advices.length);
+  };
 
-    // Aucun conseil pour cette semaine → générer automatiquement (une seule fois)
-    if (autoGeneratedRef.current) return;
-    autoGeneratedRef.current = true;
-    setAdviceGenerating(true);
-    setAdviceError(false);
-    try {
-      const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: {} });
-      if (error) throw error;
-      const { data: fresh } = await (supabase as any)
-        .from("weekly_advice_log")
-        .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
-        .eq("user_id", session.user.id)
-        .eq("week_start", weekStart)
-        .order("priority", { ascending: true });
-      if (fresh && fresh.length > 0) {
-        setAdvices(fresh.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) })));
-      } else {
-        setAdviceError(true);
-      }
-    } catch (err) {
-      console.error("[dashboard] weekly advice generation failed:", err);
-      setAdviceError(true);
-    } finally {
-      setAdviceGenerating(false);
-    }
-  }, []);
-
-  // Lit le compteur de mises à jour manuelles directement en base (identique à WeeklyPlan.tsx) —
-  // utile même quand generate-weekly-advice n'a pas été rappelée (conseils déjà en cache).
-  const fetchAdviceLimits = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    const weekStart = getMonday(todayLocalISO());
-    const { data } = await (supabase as any)
-      .from("profiles")
-      .select("weekly_advice_regen_count, weekly_advice_regen_week")
-      .eq("id", session.user.id)
-      .single();
-    if (!data) return;
-    const used = data.weekly_advice_regen_week === weekStart ? (data.weekly_advice_regen_count ?? 0) : 0;
-    setRegensRemaining(Math.max(0, MAX_MANUAL_REGENS_PER_WEEK - used));
-  }, []);
-
-  useEffect(() => {
-    fetchAdvice().then(fetchAdviceLimits);
-  }, [fetchAdvice, fetchAdviceLimits]);
+  const regensQueryKey = useMemo(() => ["weekly-advice-regens", userId, weekStart] as const, [userId, weekStart]);
+  const { data: regensRemaining = null } = useQuery({
+    queryKey: regensQueryKey,
+    queryFn: () => fetchWeeklyAdviceRegensRemaining(userId as string, weekStart),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
 
   const handleRetryAdvice = () => {
-    autoGeneratedRef.current = false;
-    fetchAdvice().then(fetchAdviceLimits);
+    queryClient.invalidateQueries({ queryKey: adviceQueryKey });
   };
 
   // Mise à jour manuelle des conseils — plafonnée côté serveur (generate-weekly-advice),
   // même cap et même bouton que WeeklyPlan.tsx, mais accessible directement depuis le Dashboard.
   const handleUpdateAdvice = async () => {
-    if (adviceUpdating || regensRemaining === 0) return;
+    if (adviceUpdating || regensRemaining === 0 || !userId) return;
     setAdviceUpdating(true);
     setAdviceUpdateError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
       const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true } });
       if (error) throw new Error(await extractInvokeErrorMessage(error));
-      const weekStart = getMonday(todayLocalISO());
       const { data: fresh } = await (supabase as any)
         .from("weekly_advice_log")
         .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
-        .eq("user_id", session.user.id)
+        .eq("user_id", userId)
         .eq("week_start", weekStart)
         .order("priority", { ascending: true });
       if (fresh && fresh.length > 0) {
-        setAdvices(fresh.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) })));
-        setAdviceError(false);
+        const mapped = fresh.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) }));
+        queryClient.setQueryData(adviceQueryKey, mapped);
       }
-      await fetchAdviceLimits();
+      await queryClient.invalidateQueries({ queryKey: regensQueryKey });
     } catch (err) {
       console.error("[dashboard] advice update error:", err);
       setAdviceUpdateError(err instanceof Error ? err.message : "Erreur lors de la mise à jour");
@@ -467,7 +479,6 @@ const Dashboard = () => {
   // Prochaine génération automatique = lundi de la semaine suivante (cache hebdomadaire
   // côté generate-weekly-advice, cf. §3 des notes de recherche).
   const nextAdviceUpdateLabel = (() => {
-    const weekStart = getMonday(todayLocalISO());
     const next = new Date(weekStart + "T00:00:00");
     next.setDate(next.getDate() + 7);
     return next.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });

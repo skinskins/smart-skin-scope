@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateCyclePhaseForDate } from "@/utils/cycle";
 import { decideTonight, buildForecast, settleAfterCheckin } from "./engine";
@@ -23,6 +24,14 @@ type EveningProduct = {
   frequency_days: number | null;
 };
 
+type RecommendationData = {
+  states: CategoryState[];
+  weather: WeatherSnapshot | null;
+  cyclePhase: CyclePhase | null;
+  recentIrritationDates: string[];
+  recentStressLevels: { date: string; level: number }[];
+};
+
 const RECENT_DAYS_WINDOW = 3;
 
 const addDaysISO = (dateISO: string, days: number): string => {
@@ -34,17 +43,103 @@ const addDaysISO = (dateISO: string, days: number): string => {
   return `${y}-${m}-${day}`;
 };
 
+async function fetchRecommendationData(userId: string, todayISO: string): Promise<RecommendationData> {
+  const sinceDate = addDaysISO(todayISO, -RECENT_DAYS_WINDOW);
+
+  const [stateRes, weatherRes, profileRes, checkinsRes, feedbackRes] = await Promise.all([
+    (supabase as any)
+      .from("skin_cycling_state")
+      .select("category, last_applied_date, current_interval_days, tolerance_score")
+      .eq("user_id", userId),
+    (supabase as any)
+      .from("daily_weather")
+      .select("humidity, uv_index")
+      .eq("user_id", userId)
+      .eq("date", todayISO)
+      .maybeSingle(),
+    (supabase as any)
+      .from("profiles")
+      .select("last_period_date, cycle_duration, period_duration")
+      .eq("id", userId)
+      .maybeSingle(),
+    (supabase as any)
+      .from("daily_checkins")
+      .select("date, stress_level")
+      .eq("user_id", userId)
+      .gte("date", sinceDate)
+      .lte("date", todayISO),
+    (supabase as any)
+      .from("skin_feedback_log")
+      .select("date, issues")
+      .eq("user_id", userId)
+      .gte("date", sinceDate)
+      .lte("date", todayISO),
+  ]);
+
+  const states: CategoryState[] = (stateRes.data ?? []).map((r: any) => ({
+    category: r.category as ActiveCategory,
+    lastAppliedDate: r.last_applied_date,
+    currentIntervalDays: Number(r.current_interval_days),
+    // Postgres `numeric` columns come back from PostgREST as strings (precision-safe
+    // serialization) — must coerce explicitly, otherwise `toleranceScore + 0.05` silently
+    // becomes string concatenation instead of addition.
+    toleranceScore: Number(r.tolerance_score),
+  }));
+
+  const weather: WeatherSnapshot | null = weatherRes.data
+    ? { humidity: weatherRes.data.humidity, uvIndex: weatherRes.data.uv_index }
+    : null;
+
+  const profile = profileRes.data;
+  const cyclePhase = profile?.last_period_date
+    ? (calculateCyclePhaseForDate(
+        profile.last_period_date,
+        profile.cycle_duration ?? 28,
+        profile.period_duration ?? 5,
+        todayISO,
+      ) as CyclePhase | null)
+    : null;
+
+  const checkins = checkinsRes.data ?? [];
+  const recentStressLevels = checkins
+    .filter((c: any) => c.stress_level !== null && c.stress_level !== undefined)
+    .map((c: any) => ({ date: c.date, level: c.stress_level }));
+
+  const feedback = feedbackRes.data ?? [];
+  const recentIrritationDates = feedback
+    .filter((f: any) => (f.issues ?? []).length > 0)
+    .map((f: any) => f.date);
+
+  return { states, weather, cyclePhase, recentIrritationDates, recentStressLevels };
+}
+
 export function useSkinCyclingRecommendation(
   eveningProducts: EveningProduct[],
   userId: string | null,
   todayISO: string,
 ) {
-  const [states, setStates] = useState<CategoryState[]>([]);
-  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
-  const [cyclePhase, setCyclePhase] = useState<CyclePhase | null>(null);
-  const [recentIrritationDates, setRecentIrritationDates] = useState<string[]>([]);
-  const [recentStressLevels, setRecentStressLevels] = useState<{ date: string; level: number }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(
+    () => ["skin-cycling-recommendation", userId, todayISO] as const,
+    [userId, todayISO],
+  );
+
+  // Cached by (userId, todayISO): switching dashboard tabs and coming back shows the
+  // already-computed recommendation instantly instead of flashing back to a "no advice yet"
+  // state while it refetches in the background.
+  const { data, isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchRecommendationData(userId as string, todayISO),
+    enabled: !!userId,
+    staleTime: 60_000,
+  });
+
+  const loading = !!userId && isLoading;
+  const states = data?.states ?? [];
+  const weather = data?.weather ?? null;
+  const cyclePhase = data?.cyclePhase ?? null;
+  const recentIrritationDates = data?.recentIrritationDates ?? [];
+  const recentStressLevels = data?.recentStressLevels ?? [];
 
   const products: CategoryProductInfo[] = useMemo(
     () =>
@@ -66,89 +161,8 @@ export function useSkinCyclingRecommendation(
     [eveningProducts],
   );
 
-  const load = useCallback(async () => {
-    if (!userId) { setLoading(false); return; }
-    setLoading(true);
-
-    const sinceDate = addDaysISO(todayISO, -RECENT_DAYS_WINDOW);
-
-    const [stateRes, weatherRes, profileRes, checkinsRes, feedbackRes] = await Promise.all([
-      (supabase as any)
-        .from("skin_cycling_state")
-        .select("category, last_applied_date, current_interval_days, tolerance_score")
-        .eq("user_id", userId),
-      (supabase as any)
-        .from("daily_weather")
-        .select("humidity, uv_index")
-        .eq("user_id", userId)
-        .eq("date", todayISO)
-        .maybeSingle(),
-      (supabase as any)
-        .from("profiles")
-        .select("last_period_date, cycle_duration, period_duration")
-        .eq("id", userId)
-        .maybeSingle(),
-      (supabase as any)
-        .from("daily_checkins")
-        .select("date, stress_level")
-        .eq("user_id", userId)
-        .gte("date", sinceDate)
-        .lte("date", todayISO),
-      (supabase as any)
-        .from("skin_feedback_log")
-        .select("date, issues")
-        .eq("user_id", userId)
-        .gte("date", sinceDate)
-        .lte("date", todayISO),
-    ]);
-
-    setStates(
-      (stateRes.data ?? []).map((r: any) => ({
-        category: r.category as ActiveCategory,
-        lastAppliedDate: r.last_applied_date,
-        currentIntervalDays: Number(r.current_interval_days),
-        // Postgres `numeric` columns come back from PostgREST as strings (precision-safe
-        // serialization) — must coerce explicitly, otherwise `toleranceScore + 0.05` silently
-        // becomes string concatenation instead of addition.
-        toleranceScore: Number(r.tolerance_score),
-      })),
-    );
-
-    setWeather(
-      weatherRes.data ? { humidity: weatherRes.data.humidity, uvIndex: weatherRes.data.uv_index } : null,
-    );
-
-    const profile = profileRes.data;
-    setCyclePhase(
-      profile?.last_period_date
-        ? (calculateCyclePhaseForDate(
-            profile.last_period_date,
-            profile.cycle_duration ?? 28,
-            profile.period_duration ?? 5,
-            todayISO,
-          ) as CyclePhase | null)
-        : null,
-    );
-
-    const checkins = checkinsRes.data ?? [];
-    setRecentStressLevels(
-      checkins
-        .filter((c: any) => c.stress_level !== null && c.stress_level !== undefined)
-        .map((c: any) => ({ date: c.date, level: c.stress_level })),
-    );
-
-    const feedback = feedbackRes.data ?? [];
-    setRecentIrritationDates(
-      feedback.filter((f: any) => (f.issues ?? []).length > 0).map((f: any) => f.date),
-    );
-
-    setLoading(false);
-  }, [userId, todayISO]);
-
-  useEffect(() => { load(); }, [load]);
-
   const decision: NightDecision | null = useMemo(() => {
-    if (loading) return null;
+    if (loading || !data) return null;
     return decideTonight({
       today: todayISO,
       states,
@@ -158,17 +172,21 @@ export function useSkinCyclingRecommendation(
       recentIrritationDates,
       recentStressLevels,
     });
-  }, [loading, todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels]);
+  }, [loading, data, todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels]);
 
   // 7 jours : assez pour un "plan de la semaine" cliquable (Vanity), les autres écrans
   // n'affichent qu'un extrait (NightRecommendationBanner tronque à 3 par défaut).
   const forecast: ForecastDay[] = useMemo(() => {
-    if (loading) return [];
+    if (loading || !data) return [];
     return buildForecast(
       { today: todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels },
       7,
     );
-  }, [loading, todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels]);
+  }, [loading, data, todayISO, states, products, cyclePhase, weather, recentIrritationDates, recentStressLevels]);
+
+  const refetch = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey });
+  }, [queryClient, queryKey]);
 
   const settle = useCallback(
     async (args: { appliedCategory: ActiveCategory | null; irritationReportedToday?: boolean }) => {
@@ -202,12 +220,12 @@ export function useSkinCyclingRecommendation(
           .upsert(payload, { onConflict: "user_id,category" });
       }
 
-      await load();
+      await refetch();
     },
-    [userId, todayISO, states, load, recentIrritationDates],
+    [userId, todayISO, states, refetch, recentIrritationDates],
   );
 
   const irritationReportedToday = recentIrritationDates.includes(todayISO);
 
-  return { decision, forecast, loading, settle, irritationReportedToday, refetch: load };
+  return { decision, forecast, loading, settle, irritationReportedToday, refetch };
 }
