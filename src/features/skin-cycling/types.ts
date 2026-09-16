@@ -50,6 +50,7 @@ export interface ForecastDay {
   date: string;
   category: ActiveCategory | "recovery";
   justificationFr: string;
+  productId: string | null;
   productName: string | null;
 }
 

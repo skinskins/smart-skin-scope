@@ -114,12 +114,18 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ni après :
   "recognized": true,
   "product_name": "<nom exact du produit tel qu'il apparaît sur le packaging>",
   "brand": "<marque>",
-  "product_type": "<nettoyant|sérum|hydratant|spf|contour-yeux|masque|tonique|huile|baume|gommage|autre>",
+  "product_type": "<nettoyant|sérum|hydratant|spf|contour-yeux|masque|tonique|huile|baume|gommage|exfoliant|rétinol|autre>",
   "ingredients": "<liste INCI en texte brut, uniquement si clairement lisible, sinon null>"
 }
 
 Si le packaging n'est pas visible, illisible ou s'il ne s'agit pas d'un produit cosmétique, renvoie :
 { "recognized": false }
+
+IMPORTANT sur "product_type" : "exfoliant" et "rétinol" sont prioritaires sur "sérum" —
+un produit nommé "Sérum Exfoliant AHA/BHA" ou "Sérum Rétinol 0,3%" doit être classé
+"exfoliant" ou "rétinol", jamais "sérum", même si le mot "sérum" apparaît aussi sur le
+packaging. Ce sont des actifs forts qu'une routine ne doit jamais traiter comme un soin
+générique.
 
 Le nom et la marque sont les informations les plus importantes — concentre-toi sur ce qui est écrit sur le produit.`;
 

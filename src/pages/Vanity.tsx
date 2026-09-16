@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Search, Plus, Trash2, Scan, FileUp, RefreshCw } from "lucide-react";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
+import { useProductSearch } from "@/hooks/useProductSearch";
 import { PageHeader } from "@/components/PageHeader";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
 import { RoutineCard } from "@/components/RoutineCard";
@@ -111,11 +112,26 @@ const Vanity = () => {
   const { products: routineProducts, loading: routineProductsLoading, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
   const [userProducts, setUserProducts] = useState<CatalogProduct[]>([]);
-  const [catalogResults, setCatalogResults] = useState<CatalogProduct[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [typeFilterResults, setTypeFilterResults] = useState<CatalogProduct[]>([]);
+  const [typeFilterLoading, setTypeFilterLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [productTypes, setProductTypes] = useState<string[]>([]);
+  const { results: textSearchResults, status: textSearchStatus } = useProductSearch(searchQuery);
+
+  const trimmedSearchQuery = searchQuery.trim();
+  const isTextSearch = trimmedSearchQuery.length >= 2;
+  const catalogResults: CatalogProduct[] = isTextSearch
+    ? textSearchResults.map((p) => ({
+        id: p.id,
+        product_name: p.product_name,
+        brand: p.brand ?? "",
+        photo_url: p.photo_url,
+        product_type: p.product_type,
+        user_id: null,
+      }))
+    : typeFilterResults;
+  const isSearching = isTextSearch ? textSearchStatus === "loading" : typeFilterLoading;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -207,12 +223,27 @@ const Vanity = () => {
   const { decision: cyclingDecision, forecast: cyclingForecast, settle: settleCycling, refetch: refetchCycling } =
     useSkinCyclingRecommendation(eveningActiveProducts, userId, todayISO);
 
-  const eveningProducts = cyclingDecision
-    ? rawEveningProducts.filter(p => {
-        const category = resolveActiveCategory(p.product_type, p.ingredients);
-        return !category || !cyclingDecision.conflictsToExclude.includes(category);
-      })
-    : rawEveningProducts;
+  const eveningProducts = (() => {
+    if (!cyclingDecision) return rawEveningProducts;
+    const filtered = rawEveningProducts.filter(p => {
+      const category = resolveActiveCategory(p.product_type, p.ingredients);
+      return !category || !cyclingDecision.conflictsToExclude.includes(category);
+    });
+    // inci-analysis peut avoir exclu l'actif fort décidé par le moteur ce soir (raisons qui
+    // lui sont propres, ou routine générée avant qu'il ne soit dû) — s'il est dû, on l'ajoute
+    // explicitement plutôt que de ne filtrer que ce qu'elle avait déjà retenu.
+    if (cyclingDecision.category !== "recovery" && cyclingDecision.productId && !filtered.some(p => p.id === cyclingDecision.productId)) {
+      const decidedProduct = eveningActiveProducts.find(p => p.id === cyclingDecision.productId);
+      if (decidedProduct) return [...filtered, decidedProduct];
+    }
+    return filtered;
+  })();
+
+  // Produits du soir hors actif fort — appliqués chaque soir, répétés jour par jour dans le
+  // plan de la semaine (l'actif fort, lui, varie selon la décision du moteur).
+  const steadyEveningProducts = eveningProducts.filter(
+    p => !resolveActiveCategory(p.product_type, p.ingredients),
+  );
 
   const eveningAppliedCategory = (() => {
     if (!cyclingDecision || cyclingDecision.category === "recovery") return null;
@@ -332,45 +363,28 @@ const Vanity = () => {
   };
 
   useEffect(() => {
-    const search = async () => {
-      const trimmedQuery = searchQuery.trim();
-      if (trimmedQuery.length < 2 && !typeFilter) {
-        setCatalogResults([]);
-        return;
-      }
-      setIsSearching(true);
-      try {
-        if (trimmedQuery.length >= 2) {
-          // Recherche texte -> Open Beauty Facts (catalogue large)
-          const { data, error } = await supabase.functions.invoke("product-search", {
-            body: { query: trimmedQuery },
-          });
-          if (!error && data?.products) {
-            setCatalogResults(data.products);
-          } else {
-            setCatalogResults([]);
-          }
-        } else if (typeFilter) {
-          // Filtre par type seul -> catalogue interne
-          const { data, error } = await (supabase as any)
-            .from("user_products")
-            .select("*")
-            .is("user_id", null)
-            .eq("product_type", typeFilter)
-            .limit(8);
-          if (!error && data) setCatalogResults(data);
-        }
-      } catch (e) {
-        console.error(e);
-        setCatalogResults([]);
-      } finally {
-        setIsSearching(false);
-      }
+    // Filtre par type seul (catalogue interne) — actif uniquement quand aucun texte n'est saisi.
+    if (isTextSearch || !typeFilter) {
+      setTypeFilterResults([]);
+      return;
+    }
+    let cancelled = false;
+    setTypeFilterLoading(true);
+    (supabase as any)
+      .from("user_products")
+      .select("*")
+      .is("user_id", null)
+      .eq("product_type", typeFilter)
+      .limit(8)
+      .then(({ data, error }: { data: CatalogProduct[] | null; error: unknown }) => {
+        if (cancelled) return;
+        setTypeFilterResults(!error && data ? data : []);
+        setTypeFilterLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    const timer = setTimeout(search, 400);
-    return () => clearTimeout(timer);
-  }, [searchQuery, typeFilter]);
+  }, [isTextSearch, typeFilter]);
 
   const addProductFromCatalog = async (product: CatalogProduct) => {
     if (!userId) return;
@@ -737,6 +751,30 @@ const Vanity = () => {
                     })}
                   </div>
                 </div>
+              )}
+              {catalogResults.length === 0 && isSearching && (
+                <p className="text-center text-[11px] text-muted-foreground italic py-2">Recherche en cours...</p>
+              )}
+              {catalogResults.length === 0 && !isSearching && isTextSearch && textSearchStatus === "no-results" && (
+                <div className="text-center py-2 space-y-3">
+                  <p className="text-[11px] text-muted-foreground italic">Aucun résultat trouvé pour « {trimmedSearchQuery} »</p>
+                  {productScanCredits === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Plus de scans disponibles cette semaine — réessaie après ta prochaine recommandation hebdomadaire.
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => scanFileRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline"
+                    >
+                      <Scan size={13} /> Scanner le produit à la place
+                    </button>
+                  )}
+                </div>
+              )}
+              {catalogResults.length === 0 && !isSearching && isTextSearch && textSearchStatus === "error" && (
+                <p className="text-center text-[11px] text-destructive italic py-2">Recherche indisponible, réessaie dans un instant.</p>
               )}
             </div>
           </motion.div>
@@ -1169,6 +1207,8 @@ const Vanity = () => {
         onClose={() => setShowWeekPlan(false)}
         forecast={cyclingForecast}
         morningProducts={morningProducts}
+        steadyEveningProducts={steadyEveningProducts}
+        eveningActiveProducts={eveningActiveProducts}
       />
 
     </div>

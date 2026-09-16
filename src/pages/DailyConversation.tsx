@@ -151,11 +151,28 @@ export default function DailyConversation() {
 
   const visibleOptimizedRoutine = useMemo(() => {
     if (isMorning || !cyclingDecision) return optimizedRoutine;
-    return optimizedRoutine.filter((p) => {
+    const filtered = optimizedRoutine.filter((p) => {
       const category = resolveActiveCategory(p.product_type, p.ingredients);
       return !category || !cyclingDecision.conflictsToExclude.includes(category);
     });
-  }, [optimizedRoutine, isMorning, cyclingDecision]);
+    // inci-analysis peut avoir exclu l'actif fort décidé par le moteur ce soir — s'il est dû,
+    // on l'ajoute explicitement plutôt que de ne filtrer que ce qu'elle avait déjà retenu.
+    if (cyclingDecision.category !== "recovery" && cyclingDecision.productId && !filtered.some((p) => p.product_id === cyclingDecision.productId)) {
+      const decidedProduct = eveningActiveProducts.find((p) => p.id === cyclingDecision.productId);
+      if (decidedProduct) {
+        return [...filtered, {
+          product_id: decidedProduct.id,
+          product_name: decidedProduct.product_name,
+          brand: null,
+          product_type: decidedProduct.product_type,
+          photo_url: null,
+          order: filtered.length + 1,
+          ingredients: decidedProduct.ingredients,
+        }];
+      }
+    }
+    return filtered;
+  }, [optimizedRoutine, isMorning, cyclingDecision, eveningActiveProducts]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

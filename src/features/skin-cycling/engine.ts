@@ -16,6 +16,17 @@ export const CATEGORY_MIN_SPACING_DAYS: Record<ActiveCategory, number> = {
   exfoliant: 3,
 };
 
+// Products are added without a user-declared frequency now (no more manual picker at
+// add-time — `frequency`/`frequency_days` come back null from Supabase) — these are the
+// engine's own target cadences per category once a declared value isn't available, i.e.
+// almost always. Standard dermatological guidance: retinol ~every 2-3 nights once
+// established, exfoliant ~once a week. Still only a starting point — ramp-up/tolerance/
+// cycle/weather widen from here, and CATEGORY_MIN_SPACING_DAYS is the hard floor beneath it.
+const CATEGORY_DEFAULT_TARGET_DAYS: Record<ActiveCategory, number> = {
+  retinol: 3,
+  exfoliant: 7,
+};
+
 const REACTIVE_PHASES: CyclePhase[] = ["Lutéale", "Menstruelle"];
 const RAMP_UP_WINDOW_DAYS = 21;
 const RAMP_UP_FACTOR = 2.0;
@@ -54,7 +65,10 @@ function declaredIntervalFor(p: CategoryProductInfo): number {
     case "monthly":
       return 30;
     default:
-      return 3;
+      // No declared frequency (the normal case now) — fall back to the category's own
+      // target cadence rather than a flat number, so retinol and exfoliant don't end up
+      // with the same default spacing.
+      return CATEGORY_DEFAULT_TARGET_DAYS[p.category];
   }
 }
 
@@ -242,10 +256,12 @@ export function buildForecast(inputs: EngineInputs, days = 3): ForecastDay[] {
   let states = inputs.states.map((s) => ({ ...s }));
   const forecast: ForecastDay[] = [];
 
-  for (let i = 1; i <= days; i++) {
+  // i=0 est aujourd'hui — le plan doit rester cohérent avec la décision réellement affichée
+  // ce soir dans la routine, pas commencer à demain.
+  for (let i = 0; i < days; i++) {
     const date = addDays(inputs.today, i);
     const decision = decideTonight({ ...inputs, today: date, states });
-    forecast.push({ date, category: decision.category, justificationFr: decision.justificationFr, productName: decision.productName });
+    forecast.push({ date, category: decision.category, justificationFr: decision.justificationFr, productId: decision.productId, productName: decision.productName });
 
     if (decision.category !== "recovery") {
       states = states.map((s) =>

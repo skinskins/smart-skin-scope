@@ -116,11 +116,11 @@ export function ProductTypeIcon({ type, size = 40 }: ProductTypeIconProps) {
 
             {icon === "masque" && (
                 <g {...common}>
-                    <ellipse cx="30" cy="32" rx="17" ry="19" />
-                    <path d="M20 27 Q30 19 40 27" opacity="0.4" />
-                    <circle cx="25" cy="36" r="1.6" fill={STROKE} stroke="none" opacity="0.4" />
-                    <circle cx="35" cy="36" r="1.6" fill={STROKE} stroke="none" opacity="0.4" />
-                    <circle cx="30" cy="42" r="1.6" fill={STROKE} stroke="none" opacity="0.4" />
+                    <ellipse cx="30" cy="30" rx="19" ry="20" />
+                    <ellipse cx="23" cy="27" rx="4.2" ry="3.2" />
+                    <ellipse cx="37" cy="27" rx="4.2" ry="3.2" />
+                    <path d="M27 31 C27 35 27 37.5 30 37.5 C33 37.5 33 35 33 31" />
+                    <ellipse cx="30" cy="44" rx="6" ry="2.3" />
                 </g>
             )}
 

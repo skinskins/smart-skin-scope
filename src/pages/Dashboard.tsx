@@ -125,11 +125,18 @@ const Dashboard = () => {
 
   const visibleRoutineProducts = useMemo(() => {
     if (!isDashboardEvening || !cyclingDecision) return routineProducts;
-    return routineProducts.filter((p) => {
+    const filtered = routineProducts.filter((p) => {
       const category = resolveActiveCategory(p.product_type, p.ingredients);
       return !category || !cyclingDecision.conflictsToExclude.includes(category);
     });
-  }, [routineProducts, isDashboardEvening, cyclingDecision]);
+    // inci-analysis peut avoir exclu l'actif fort décidé par le moteur ce soir — s'il est dû,
+    // on l'ajoute explicitement plutôt que de ne filtrer que ce qu'elle avait déjà retenu.
+    if (cyclingDecision.category !== "recovery" && cyclingDecision.productId && !filtered.some((p) => p.id === cyclingDecision.productId)) {
+      const decidedProduct = eveningActiveProducts.find((p) => p.id === cyclingDecision.productId);
+      if (decidedProduct) return [...filtered, decidedProduct];
+    }
+    return filtered;
+  }, [routineProducts, isDashboardEvening, cyclingDecision, eveningActiveProducts]);
 
   // ── Pile de conseils — la carte du dessus se glisse au doigt (drag), les suivantes
   // depassent derriere en eventail. adviceDirection pilote le sens des transitions
@@ -698,29 +705,31 @@ const Dashboard = () => {
                 <button
                   onClick={handleUpdateAdvice}
                   disabled={adviceUpdating || regensRemaining === 0}
-                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition active:scale-95 ${
+                  className={`w-full py-2.5 rounded-xl flex flex-col items-center justify-center gap-1 transition active:scale-95 ${
                     regensRemaining === 0
                       ? "bg-muted/50 text-muted-foreground border border-border/40 cursor-not-allowed"
                       : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
                   }`}
                 >
-                  <RefreshCw size={12} className={adviceUpdating ? "animate-spin" : ""} />
-                  {adviceUpdating ? (
-                    <RotatingLabel messages={ADVICE_BUTTON_MESSAGES} />
-                  ) : regensRemaining === 0 ? (
-                    "Limite atteinte pour cette semaine"
-                  ) : (
-                    "Mettre à jour mes conseils"
+                  <span className="flex items-center justify-center gap-1.5 text-[11px] font-bold tracking-wide">
+                    <RefreshCw size={12} className={adviceUpdating ? "animate-spin" : ""} />
+                    {adviceUpdating ? (
+                      <RotatingLabel messages={ADVICE_BUTTON_MESSAGES} />
+                    ) : regensRemaining === 0 ? (
+                      "Limite atteinte pour cette semaine"
+                    ) : (
+                      "Mettre à jour mes conseils"
+                    )}
+                  </span>
+                  {regensRemaining !== null && (
+                    <span className="text-[10px] font-medium tracking-normal opacity-70">
+                      {regensRemaining > 0
+                        ? `${regensRemaining} mise${regensRemaining > 1 ? "s" : ""} à jour manuelle${regensRemaining > 1 ? "s" : ""} disponible${regensRemaining > 1 ? "s" : ""} cette semaine`
+                        : "Prochaines mises à jour manuelles dès la semaine prochaine"}
+                    </span>
                   )}
                 </button>
 
-                {regensRemaining !== null && (
-                  <p className="text-[10px] text-muted-foreground text-center mt-2">
-                    {regensRemaining > 0
-                      ? `${regensRemaining} mise${regensRemaining > 1 ? "s" : ""} à jour manuelle${regensRemaining > 1 ? "s" : ""} disponible${regensRemaining > 1 ? "s" : ""} cette semaine`
-                      : "Prochaines mises à jour manuelles dès la semaine prochaine"}
-                  </p>
-                )}
                 {adviceUpdateError && (
                   <p className="text-[10px] text-destructive text-center mt-1.5">{adviceUpdateError}</p>
                 )}

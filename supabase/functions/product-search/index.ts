@@ -33,14 +33,33 @@ const EXCLUDE_KEYWORDS = [
   "sun-body", "solaire-corps",
 ];
 
-function guessType(categories: string, name: string): string | null {
+// Mots-clés d'actifs forts — vérifiés contre le nom/catégorie OBF ET l'INCI, pas seulement
+// le nom/catégorie : Open Beauty Facts est souvent mal renseigné côté catégorie ("beaucoup
+// de produits cosmetiques sont mal renseignes sur Open Beauty Facts", cf. plus bas), donc un
+// produit dont la catégorie ne dit rien mais dont l'INCI liste "retinol"/"glycolic acid"
+// reste un actif fort — ce n'est pas spécifique à une marque, ça doit s'appliquer à tout
+// produit qui passe par cette recherche.
+const RETINOL_KEYWORDS = [
+  "retinol", "rétinol", "retinal", "rétinal", "retinoid", "rétinoïde", "tretinoin", "trétinoïne",
+];
+const EXFOLIANT_KEYWORDS = [
+  "exfoliant", "peeling", "gommage", "aha", "bha", "glycolic", "glycolique", "salicylic", "salicylique",
+];
+
+function guessType(categories: string, name: string, ingredients: string | null): string | null {
   const c = ((categories || "") + " " + (name || "")).toLowerCase();
+  // Actifs forts vérifiés en premier, avant "serum" : un produit nommé "Sérum Exfoliant
+  // AHA/BHA" ou "Sérum Rétinol 0,3%" contient aussi "sérum" et matcherait ce libellé
+  // générique en premier si on le laissait plus bas — masquant l'actif fort et empêchant
+  // le moteur skin-cycling de jamais le reconnaître (il finit appliqué tous les soirs).
+  const activeSearchText = (c + " " + (ingredients || "").toLowerCase());
+  if (RETINOL_KEYWORDS.some((k) => activeSearchText.includes(k))) return "retinol";
+  if (EXFOLIANT_KEYWORDS.some((k) => activeSearchText.includes(k))) return "exfoliant";
   if (c.includes("serum") || c.includes("sérum")) return "serum";
   if (c.includes("cleanser") || c.includes("nettoyant") || c.includes("gel nettoyant") || c.includes("demaquillant") || c.includes("démaquillant")) return "nettoyant";
   if (c.includes("sunscreen") || c.includes("spf") || c.includes("solaire") || c.includes("uv")) return "spf";
   if (c.includes("mask") || c.includes("masque")) return "masque";
   if (c.includes("toner") || c.includes("tonique") || c.includes("lotion")) return "lotion";
-  if (c.includes("exfoliant") || c.includes("peeling") || c.includes("gommage")) return "exfoliant";
   if (c.includes("eye") || c.includes("contour") || c.includes("yeux")) return "contour_yeux";
   if (c.includes("oil") || c.includes("huile")) return "huile";
   if (c.includes("moisturizer") || c.includes("creme") || c.includes("crème") || c.includes("hydratant") || c.includes("soin")) return "creme";
@@ -89,7 +108,7 @@ serve(async (req) => {
         return {
           product_name: name.trim(),
           brand,
-          product_type: guessType(categories, name),
+          product_type: guessType(categories, name, ingredients),
           // INCI non-obligatoire : beaucoup de produits cosmetiques sont mal renseignes sur
           // Open Beauty Facts (contrairement a Open Food Facts). Exiger une liste d'ingredients
           // ecartait silencieusement une grande partie des resultats reels ("le produit existe

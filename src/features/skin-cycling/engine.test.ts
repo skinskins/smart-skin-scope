@@ -99,6 +99,27 @@ describe("decideTonight", () => {
   });
 });
 
+describe("computeEffectiveInterval — no declared frequency (products are now added without one)", () => {
+  const noFreqRetinol: CategoryProductInfo = { ...retinolProduct, frequency: null, frequencyDays: null };
+  const noFreqExfoliant: CategoryProductInfo = { ...exfoliantProduct, frequency: null, frequencyDays: null };
+
+  it("defaults an un-declared retinol to a ~3-day target cadence", () => {
+    const detail = computeEffectiveInterval("retinol", undefined, [noFreqRetinol], "Folliculaire", null, TODAY);
+    expect(detail.effectiveDays).toBe(3);
+  });
+
+  it("defaults an un-declared exfoliant to a ~7-day target cadence (not the same as retinol)", () => {
+    const detail = computeEffectiveInterval("exfoliant", undefined, [noFreqExfoliant], "Folliculaire", null, TODAY);
+    expect(detail.effectiveDays).toBe(7);
+  });
+
+  it("still respects an explicit frequency_days override when one is set", () => {
+    const customRetinol: CategoryProductInfo = { ...retinolProduct, frequency: null, frequencyDays: 5 };
+    const detail = computeEffectiveInterval("retinol", undefined, [customRetinol], "Folliculaire", null, TODAY);
+    expect(detail.effectiveDays).toBe(5);
+  });
+});
+
 describe("computeEffectiveInterval", () => {
   it("widens spacing during ramp-up (first 21 days)", () => {
     const rampingProduct: CategoryProductInfo = { ...retinolProduct, addedAt: "2026-03-05" };
@@ -124,6 +145,27 @@ describe("computeEffectiveInterval", () => {
     const dailyProduct: CategoryProductInfo = { ...retinolProduct, frequency: "daily" };
     const detail = computeEffectiveInterval("retinol", highTolerance, [dailyProduct], "Folliculaire", null, TODAY);
     expect(detail.effectiveDays).toBeGreaterThanOrEqual(2);
+  });
+
+  it("never spaces an exfoliant less than its hard minimum (3j), even if declared \"daily\"", () => {
+    const dailyExfoliant: CategoryProductInfo = { ...exfoliantProduct, frequency: "daily" };
+    const detail = computeEffectiveInterval("exfoliant", undefined, [dailyExfoliant], "Folliculaire", null, TODAY);
+    expect(detail.effectiveDays).toBeGreaterThanOrEqual(3);
+  });
+
+  it("decideTonight never recommends an exfoliant declared \"daily\" two nights in a row", () => {
+    const dailyExfoliant: CategoryProductInfo = { ...exfoliantProduct, frequency: "daily" };
+    // Applied yesterday — the back-to-back rule alone would already block it, but this also
+    // exercises the case where overdueRatio is checked directly (state cleared, only 1 day
+    // simulated below via a fresh decideTonight call for "today").
+    const states: CategoryState[] = [
+      { category: "exfoliant", lastAppliedDate: TODAY, currentIntervalDays: 3, toleranceScore: 1.0 },
+    ];
+    const tomorrow = "2026-03-11";
+    const decision = decideTonight(
+      baseInputs({ products: [dailyExfoliant], states, today: tomorrow }),
+    );
+    expect(decision.category).not.toBe("exfoliant");
   });
 });
 

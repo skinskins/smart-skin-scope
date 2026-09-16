@@ -1,4 +1,5 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from "react";
+import type { ProductSearchStatus } from "@/hooks/useProductSearch";
 
 export interface SignupStepProps {
   BackButton?: () => JSX.Element;
@@ -18,10 +19,9 @@ export interface SignupStepProps {
   setCorrectedSkinType?: Dispatch<SetStateAction<string>>;
   correctedProblems?: string[];
   setCorrectedProblems?: Dispatch<SetStateAction<string[]>>;
-  editingDiagnostic?: boolean;
-  setEditingDiagnostic?: Dispatch<SetStateAction<boolean>>;
   showDiagnostic?: boolean;
   setShowDiagnostic?: Dispatch<SetStateAction<boolean>>;
+  skipIntroLoader?: boolean;
   skinGoals?: string[];
   toggleGoal?: (goal: string) => void;
   toggleOnboardingProduct?: (product: any) => void;
@@ -29,6 +29,7 @@ export interface SignupStepProps {
   productSearchQuery?: string;
   setProductSearchQuery?: Dispatch<SetStateAction<string>>;
   productCatalogResults?: any[];
+  productSearchStatus?: ProductSearchStatus;
   onboardingScanLoading?: boolean;
   onboardingScanMessage?: string | null;
   handleOnboardingProductScan?: (e: ChangeEvent<HTMLInputElement>) => void;

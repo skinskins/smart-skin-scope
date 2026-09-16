@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useProductSearch } from "@/hooks/useProductSearch";
 import matrixData from "@/data/skincare_matrix.json";
+import { buildObjectivePlan } from "@/utils/objectivePlan";
+import ObjectivePlanCard from "@/pages/signup/components/ObjectivePlanCard";
 import StepProfilePhysical from "@/pages/signup/steps/StepProfilePhysical";
 import StepConsent from "@/pages/signup/steps/StepConsent";
 import StepFactors, { FACTOR_TAG_KEYS } from "@/pages/signup/steps/StepFactors";
@@ -106,7 +109,7 @@ const Signup = () => {
 
     // Step 6 — Produits (sélection locale, insert après création compte)
     const [productSearchQuery, setProductSearchQuery] = useState("");
-    const [productCatalogResults, setProductCatalogResults] = useState<any[]>([]);
+    const { results: productCatalogResults, status: productSearchStatus } = useProductSearch(productSearchQuery);
     const [selectedOnboardingProducts, setSelectedOnboardingProducts] = useState<any[]>([]);
     const [onboardingScanLoading, setOnboardingScanLoading] = useState(false);
 
@@ -163,7 +166,8 @@ const Signup = () => {
     const [analysisLoading, setAnalysisLoading] = useState(false);
     const [photoCheckLoading, setPhotoCheckLoading] = useState(false);
     const [showDiagnostic, setShowDiagnostic] = useState(false);
-    const [editingDiagnostic, setEditingDiagnostic] = useState(false);
+    const [skipIntroLoader, setSkipIntroLoader] = useState(false);
+    const shownAnalysisRef = useRef<any>(null);
     const [correctedSkinType, setCorrectedSkinType] = useState("");
     const [correctedProblems, setCorrectedProblems] = useState<string[]>([]);
     const [showPreview, setShowPreview] = useState(false);
@@ -200,72 +204,22 @@ const Signup = () => {
         checkSession();
     }, [navigate]);
 
-    const generateAdvice = () => {
-        const advices: { title: string, content: string, iconStr: string }[] = [];
+    const buildObjective = () => buildObjectivePlan(matrix, {
+        skinType: correctedSkinType || skinType || onboardingAnalysis?.type_peau_detecte,
+        skinGoals,
+        skinProblems: correctedProblems.length > 0 ? correctedProblems : skinProblems,
+        age,
+        products: selectedOnboardingProducts,
+        defaultFactors,
+        analysis: onboardingAnalysis,
+    });
 
-        // 1. Type Advice
-        const typeInfo = matrix.types_de_peau.find((t: any) => t.type === skinType);
-        if (typeInfo) {
-            advices.push({
-                title: `Peau ${skinType}`,
-                content: `Votre priorité est de cibler : ${typeInfo.signal_prioritaire}. Privilégiez des actifs comme ${typeInfo.ingredients_a_privilegier.slice(0, 2).join(' ou ')}.`,
-                iconStr: "🛡️"
-            });
-        }
-
-        // 2. Goals Advice
-        skinGoals.forEach(goal => {
-            const goalInfo = matrix.objectifs.find((o: any) => o.objectif === goal);
-            if (goalInfo) {
-                let content = `Pour votre objectif ${goal}, misez sur ${goalInfo.actifs_cles.slice(0, 2).join(' et ')}.`;
-                if (goalInfo.regles.includes("SPF obligatoire")) {
-                    content += " N'oubliez jamais votre protection SPF le matin pour protéger vos résultats.";
-                }
-                advices.push({
-                    title: goal,
-                    content,
-                    iconStr: "✨"
-                });
-            }
-        });
-
-        // 3. Special Rules
-        if (skinType === "Sensible" || skinProblems.includes("Eczéma")) {
-            advices.push({
-                title: "Précaution",
-                content: "Votre peau étant réactive, effectuez toujours un patch test 24h avant d'introduire un nouvel actif.",
-                iconStr: "🩺"
-            });
-        }
-
-        return advices.slice(0, 4); // Show up to 4 advices
+    const goToDiagnostic = () => {
+        const alreadyShown = onboardingAnalysis && shownAnalysisRef.current === onboardingAnalysis;
+        setSkipIntroLoader(!!alreadyShown);
+        shownAnalysisRef.current = onboardingAnalysis;
+        setShowDiagnostic(true);
     };
-
-    useEffect(() => {
-        const trimmedQuery = productSearchQuery.trim();
-        if (trimmedQuery.length < 2) { setProductCatalogResults([]); return; }
-        const timer = setTimeout(async () => {
-            const { data, error } = await supabase.functions.invoke("product-search", {
-                body: { query: trimmedQuery },
-            });
-            if (!error && data?.products) {
-                setProductCatalogResults(
-                    data.products.map((p: any, i: number) => ({
-                        id: `search-${Date.now()}-${i}`,
-                        product_name: p.product_name,
-                        brand: p.brand,
-                        photo_url: p.photo_url,
-                        product_type: p.product_type,
-                        ingredients: p.ingredients,
-                    }))
-                );
-            } else {
-                setProductCatalogResults([]);
-            }
-        }, 400);
-        return () => clearTimeout(timer);
-    }, [productSearchQuery]);
-
 
     const toggleOnboardingProduct = (product: any) => {
         const isAdded = selectedOnboardingProducts.some(p => p.id === product.id);
@@ -284,7 +238,7 @@ const Signup = () => {
                 e.preventDefault();
                 if (showPreview) {
                     setShowPreview(false);
-                    if (onboardingPhotoBase64) setShowDiagnostic(true);
+                    if (onboardingPhotoBase64) goToDiagnostic();
                     else setStep(6);
                 }
                 else if (showDiagnostic) {
@@ -353,7 +307,7 @@ const Signup = () => {
 
         if (step === 6 && !showDiagnostic && !showPreview) {
             if (onboardingPhotoBase64) {
-                setShowDiagnostic(true);
+                goToDiagnostic();
             } else {
                 setShowPreview(true);
             }
@@ -555,26 +509,7 @@ const Signup = () => {
                         </div>
 
                         <div className="space-y-4 flex-1 relative overflow-y-auto custom-scrollbar pr-1">
-                            {generateAdvice().map((advice, idx) => (
-                                <motion.div
-                                    key={idx}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.15 + idx * 0.05 }}
-                                    className="flex flex-col gap-4 p-8 premium-card border-none bg-white/60 group transition-all hover:bg-white/40"
-                                >
-                                    <div className="flex gap-6">
-                                        <span className="text-4xl flex-shrink-0 group-hover:scale-110 transition-transform duration-500">{advice.iconStr}</span>
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h3 className="font-display text-xl text-foreground italic">{advice.title}</h3>
-                                                <div className="w-1.5 h-1.5 rounded-full bg-primary/20" />
-                                            </div>
-                                            <p className="text-[13px] text-foreground/80 leading-relaxed italic">{advice.content}</p>
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            ))}
+                            <ObjectivePlanCard plan={buildObjective()} />
 
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
@@ -693,6 +628,7 @@ const Signup = () => {
                                 productSearchQuery={productSearchQuery}
                                 setProductSearchQuery={setProductSearchQuery}
                                 productCatalogResults={productCatalogResults}
+                                productSearchStatus={productSearchStatus}
                                 selectedOnboardingProducts={selectedOnboardingProducts}
                                 onboardingScanLoading={onboardingScanLoading}
                                 onboardingScanMessage={onboardingScanMessage}
@@ -715,12 +651,13 @@ const Signup = () => {
 
                         {showDiagnostic && (
                             <StepDiagnosticReview
+                                BackButton={BackButton}
                                 age={age}
+                                setAge={setAge}
                                 onboardingPhotoBase64={onboardingPhotoBase64}
                                 analysisLoading={analysisLoading}
                                 onboardingAnalysis={onboardingAnalysis}
-                                editingDiagnostic={editingDiagnostic}
-                                setEditingDiagnostic={setEditingDiagnostic}
+                                skipIntroLoader={skipIntroLoader}
                                 correctedSkinType={correctedSkinType}
                                 setCorrectedSkinType={setCorrectedSkinType}
                                 correctedProblems={correctedProblems}

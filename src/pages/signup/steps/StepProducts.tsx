@@ -1,9 +1,12 @@
+import { useRef } from "react";
 import { Check, Plus, Scan, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import type { SignupStepProps } from "@/pages/signup/types";
 
-const StepProducts = ({ BackButton, productSearchQuery, setProductSearchQuery, productCatalogResults, selectedOnboardingProducts, onboardingScanLoading, onboardingScanMessage, handleOnboardingProductScan, toggleOnboardingProduct }: SignupStepProps) => {
+const StepProducts = ({ BackButton, productSearchQuery, setProductSearchQuery, productCatalogResults, productSearchStatus, selectedOnboardingProducts, onboardingScanLoading, onboardingScanMessage, handleOnboardingProductScan, toggleOnboardingProduct }: SignupStepProps) => {
+    const scanInputRef = useRef<HTMLInputElement>(null);
+    const results = productCatalogResults ?? [];
     return (
         <>
             <div className="mb-6 flex items-start gap-4">
@@ -21,18 +24,23 @@ const StepProducts = ({ BackButton, productSearchQuery, setProductSearchQuery, p
                         <div className="flex gap-2">
                             <div className="relative flex-1">
                                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                                <Input value={productSearchQuery} onChange={(e) => setProductSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="Chercher un produit ou marque..." className="pl-10 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary" />
+                                <Input value={productSearchQuery} onChange={(e) => setProductSearchQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} placeholder="Chercher un produit ou marque..." className="pl-10 pr-9 text-sm rounded-xl py-6 bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary" />
+                                {productSearchStatus === "loading" && (
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                    </div>
+                                )}
                             </div>
                             <label className="w-12 h-12 rounded-xl bg-muted/20 flex items-center justify-center text-foreground/60 hover:bg-muted/40 transition-colors flex-shrink-0 self-center cursor-pointer">
                                 {onboardingScanLoading ? <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" /> : <Scan size={18} strokeWidth={1.5} />}
-                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOnboardingProductScan} />
+                                <input ref={scanInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleOnboardingProductScan} />
                             </label>
                         </div>
                     </div>
                     <div className="p-5 space-y-4">
-                        {productCatalogResults.length > 0 ? (
+                        {results.length > 0 ? (
                             <div className="grid gap-3">
-                                {productCatalogResults.map((p: any) => {
+                                {results.map((p: any) => {
                                     const isAdded = selectedOnboardingProducts.some((s: any) => s.id === p.id);
                                     return (
                                         <div key={p.id} className="justify-center flex gap-3 p-3 bg-card border border-border rounded-2xl transition-all hover:border-primary/30 shadow-sm sm:flex-row sm:items-center sm:gap-3">
@@ -53,6 +61,21 @@ const StepProducts = ({ BackButton, productSearchQuery, setProductSearchQuery, p
                                     );
                                 })}
                             </div>
+                        ) : productSearchStatus === "loading" ? (
+                            <p className="text-center text-[11px] text-muted-foreground italic py-2">Recherche en cours...</p>
+                        ) : productSearchStatus === "no-results" ? (
+                            <div className="text-center py-2 space-y-3">
+                                <p className="text-[11px] text-muted-foreground italic">Aucun résultat trouvé pour « {productSearchQuery.trim()} »</p>
+                                <button
+                                    type="button"
+                                    onClick={() => scanInputRef.current?.click()}
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:underline"
+                                >
+                                    <Scan size={13} /> Scanner le produit à la place
+                                </button>
+                            </div>
+                        ) : productSearchStatus === "error" ? (
+                            <p className="text-center text-[11px] text-destructive italic py-2">Recherche indisponible, réessaie dans un instant.</p>
                         ) : (
                             <p className="text-center text-[11px] text-muted-foreground italic py-2">Tapez le nom d'un produit ou d'une marque pour rechercher</p>
                         )}
