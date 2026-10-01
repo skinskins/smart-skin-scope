@@ -106,6 +106,7 @@ const Signup = () => {
     const [locationMode, setLocationMode] = useState<"geo" | "manual" | null>(null);
     const [manualCity, setManualCity] = useState("");
     const [geoLoading, setGeoLoading] = useState(false);
+    const [detectedCity, setDetectedCity] = useState<string | null>(null);
 
     // Step 6 — Produits (sélection locale, insert après création compte)
     const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -415,7 +416,7 @@ const Signup = () => {
                 carnation: carnation || normalizeCarnation(onboardingAnalysis?.carnation_detectee) || null,
                 last_period_date: lastPeriodDate || null,
                 cycle_duration: cycleDuration,
-                manual_location: locationMode === "manual" ? manualCity || null : null,
+                manual_location: locationMode === "manual" ? (manualCity || null) : (locationMode === "geo" ? detectedCity : null),
                 personalized_recommendations_consent: personalizedRecommendationsConsent,
                 ai_learning_consent: aiLearningConsent,
                 product_research_consent: productResearchConsent,
@@ -646,6 +647,8 @@ const Signup = () => {
                                 setManualCity={setManualCity}
                                 geoLoading={geoLoading}
                                 setGeoLoading={setGeoLoading}
+                                detectedCity={detectedCity}
+                                setDetectedCity={setDetectedCity}
                             />
                         )}
 

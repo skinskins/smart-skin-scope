@@ -3,7 +3,7 @@ import { Sparkles, ImageOff, Plus, RefreshCw, Camera, ChevronRight, ChevronLeft,
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ProductTypeIcon } from "@/components/ProductTypeIcon";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSessionUserId } from "@/hooks/useSessionUserId";
 import { useWeatherData } from "@/hooks/useWeatherData";
@@ -241,6 +241,10 @@ const Dashboard = () => {
   const [streakCount, setStreakCount] = useState(0);
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [adviceUpdating, setAdviceUpdating] = useState(false);
+  // Verrou synchrone (cf. Vanity.tsx refreshingRoutineRef) : un double-clic rapide peut
+  // déclencher handleUpdateAdvice deux fois avant que React ne commite le re-render qui
+  // désactive le bouton — le state adviceUpdating seul ne suffit pas à l'empêcher.
+  const adviceUpdatingRef = useRef(false);
   const [adviceUpdateError, setAdviceUpdateError] = useState<string | null>(null);
   const [skinPhotos, setSkinPhotos] = useState<SkinPhotoRow[]>([]);
   const [weekPhotoTaken, setWeekPhotoTaken] = useState<boolean | null>(null);
@@ -451,7 +455,8 @@ const Dashboard = () => {
   // Mise à jour manuelle des conseils — plafonnée côté serveur (generate-weekly-advice),
   // même cap et même bouton que WeeklyPlan.tsx, mais accessible directement depuis le Dashboard.
   const handleUpdateAdvice = async () => {
-    if (adviceUpdating || regensRemaining === 0 || !userId) return;
+    if (adviceUpdatingRef.current || regensRemaining === 0 || !userId) return;
+    adviceUpdatingRef.current = true;
     setAdviceUpdating(true);
     setAdviceUpdateError(null);
     try {
@@ -472,6 +477,7 @@ const Dashboard = () => {
       console.error("[dashboard] advice update error:", err);
       setAdviceUpdateError(err instanceof Error ? err.message : "Erreur lors de la mise à jour");
     } finally {
+      adviceUpdatingRef.current = false;
       setAdviceUpdating(false);
     }
   };

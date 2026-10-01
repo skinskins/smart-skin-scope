@@ -1,19 +1,21 @@
 export interface ResolvedLocation {
   name: string;
-  region: string;
   country: string;
 }
 
 export async function resolveCityName(lat: number, lon: number): Promise<ResolvedLocation | null> {
   try {
     const res = await fetch(
-      `https://api.weatherapi.com/v1/search.json?key=b83edd2e98054a7fa91100224260704&q=${lat},${lon}`
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const first = Array.isArray(data) ? data[0] : null;
-    if (!first?.name) return null;
-    return { name: first.name, region: first.region ?? "", country: first.country ?? "" };
+    const address = data?.address;
+    if (!address) return null;
+    // zoom=10 targets city-level granularity so we don't surface a neighborhood/district name
+    const city = address.city ?? address.town ?? address.village ?? address.municipality ?? address.county;
+    if (!city) return null;
+    return { name: city, country: address.country ?? "" };
   } catch {
     return null;
   }

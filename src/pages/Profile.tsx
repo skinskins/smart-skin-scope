@@ -191,7 +191,7 @@ const Profile = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const locationToSave = locationMode === "manual" ? (manualLocation?.trim() || null) : null;
+        const locationToSave = locationMode === "manual" ? (manualLocation?.trim() || null) : detectedCity;
         await (supabase as any).from("profiles").update({
           first_name: firstName,
           last_name: lastName,

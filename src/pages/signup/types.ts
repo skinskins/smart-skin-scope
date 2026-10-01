@@ -39,6 +39,8 @@ export interface SignupStepProps {
   setManualCity?: Dispatch<SetStateAction<string>>;
   geoLoading?: boolean;
   setGeoLoading?: Dispatch<SetStateAction<boolean>>;
+  detectedCity?: string | null;
+  setDetectedCity?: Dispatch<SetStateAction<string | null>>;
   lastPeriodDate?: string;
   setLastPeriodDate?: Dispatch<SetStateAction<string>>;
   cycleDuration?: number;

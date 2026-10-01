@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { SignupStepProps } from "@/pages/signup/types";
 import { resolveCityName, formatResolvedLocation } from "@/lib/geocode";
 
-const StepLocation = ({ BackButton, locationMode, setLocationMode, manualCity, setManualCity, geoLoading, setGeoLoading }: SignupStepProps) => {
-    const [detectedCity, setDetectedCity] = useState<string | null>(null);
-
+const StepLocation = ({ BackButton, locationMode, setLocationMode, manualCity, setManualCity, geoLoading, setGeoLoading, detectedCity, setDetectedCity }: SignupStepProps) => {
     return (
         <>
             <div className="mb-10 flex items-start gap-4">
@@ -33,13 +30,13 @@ const StepLocation = ({ BackButton, locationMode, setLocationMode, manualCity, s
                 </div>
                 <button type="button" disabled={geoLoading} onClick={() => {
                     setGeoLoading(true);
-                    setDetectedCity(null);
+                    setDetectedCity?.(null);
                     navigator.geolocation.getCurrentPosition(
                         async (pos) => {
                             setLocationMode('geo');
                             setGeoLoading(false);
                             const resolved = await resolveCityName(pos.coords.latitude, pos.coords.longitude);
-                            if (resolved) setDetectedCity(formatResolvedLocation(resolved));
+                            if (resolved) setDetectedCity?.(formatResolvedLocation(resolved));
                         },
                         () => { setGeoLoading(false); setLocationMode('manual'); }
                     );

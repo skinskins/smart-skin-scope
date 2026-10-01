@@ -108,6 +108,12 @@ const Vanity = () => {
   const autoCurationTriggeredRef = useRef(false);
   const [regensRemaining, setRegensRemaining] = useState<number | null>(null);
   const [refreshingRoutine, setRefreshingRoutine] = useState(false);
+  // Verrou synchrone (vs. le state refreshingRoutine, qui n'est lu qu'au prochain render) :
+  // un double-tap rapide peut déclencher refreshRoutine() deux fois avant que React ne
+  // commite le re-render qui désactive le bouton — les deux appels liraient alors la même
+  // valeur figée de refreshingRoutine et passeraient tous les deux la garde, doublant les
+  // appels Claude (generate-weekly-advice + 2x inci-analysis).
+  const refreshingRoutineRef = useRef(false);
   const [routineRefreshError, setRoutineRefreshError] = useState<string | null>(null);
   const { products: routineProducts, loading: routineProductsLoading, refetch: refetchRoutine } = useRoutineProducts();
   const [userId, setUserId] = useState<string | null>(null);
@@ -318,7 +324,8 @@ const Vanity = () => {
   // hebdo — le même que "Mettre à jour mes conseils" (2 mises à jour manuelles/semaine,
   // plafond appliqué et décompté côté serveur par generate-weekly-advice).
   const refreshRoutine = async () => {
-    if (!userId || regensRemaining === 0 || refreshingRoutine) return;
+    if (!userId || regensRemaining === 0 || refreshingRoutineRef.current) return;
+    refreshingRoutineRef.current = true;
     setRefreshingRoutine(true);
     setRoutineRefreshError(null);
     try {
@@ -358,6 +365,7 @@ const Vanity = () => {
       console.warn("refreshRoutine:", e);
       setRoutineRefreshError("Erreur lors de la mise à jour — réessaie plus tard.");
     } finally {
+      refreshingRoutineRef.current = false;
       setRefreshingRoutine(false);
     }
   };
