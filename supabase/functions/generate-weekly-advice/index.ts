@@ -26,9 +26,10 @@ const DEFAULT_FACTOR_LABELS: Record<string, string> = {
   screens: "beaucoup d'écrans", smoking: "fumeuse", hormonal: "contraception hormonale",
 };
 
-// Plafond de régénérations MANUELLES (force:true) par semaine — la génération automatique
-// de début de semaine (force:false, aucun conseil encore présent) ne compte pas dedans,
-// elle est toujours autorisée une fois. Ça évite qu'un clic répété sur "Mettre à jour mes
+// Plafond de régénérations MANUELLES (force:true) par semaine calendaire — indépendant du
+// cycle de génération (désormais quotidien, cf. plus bas). La génération automatique du jour
+// (force:false, aucun conseil encore présent pour aujourd'hui) ne compte pas dedans, elle est
+// toujours autorisée une fois par jour. Ça évite qu'un clic répété sur "Mettre à jour mes
 // conseils" ne fasse exploser les coûts Claude et ne recrédite les scans à l'infini.
 const MAX_MANUAL_REGENS_PER_WEEK = 2;
 
@@ -58,7 +59,7 @@ serve(async (req) => {
   }
 
   try {
-    const { force } = await req.json();
+    const { force, date: clientDate } = await req.json();
 
     const user_id = await resolveAuthenticatedUserId(req);
     if (!user_id) {
@@ -73,46 +74,58 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const today = new Date().toISOString().split("T")[0];
-    const weekStart = getMonday(today);
+    // Le client envoie sa date LOCALE (YYYY-MM-DD) : en UTC, entre minuit et ~2h heure de
+    // Paris on serait encore la veille, et le Dashboard (qui lit weekly_advice_log par date
+    // locale) ne retrouverait pas les conseils générés → "Impossible de préparer votre conseil".
+    // On n'accepte qu'une date à ±1 jour de la date UTC (fuseaux UTC-12…UTC+14) ; sinon UTC.
+    const utcToday = new Date().toISOString().split("T")[0];
+    const isPlausibleClientDate =
+      typeof clientDate === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(clientDate) &&
+      Math.abs(Date.parse(clientDate + "T00:00:00Z") - Date.parse(utcToday + "T00:00:00Z")) <= 86_400_000;
+    const today = isPlausibleClientDate ? clientDate : utcToday;
+    // Clé de génération : le jour (conseils quotidiens). La quasi-totalité du reste de la
+    // fonction (quota de régénérations manuelles, reset des crédits de scan) continue elle de
+    // raisonner par semaine calendaire via regenWeekStart — les deux cycles sont indépendants.
+    const regenWeekStart = getMonday(today);
 
-    console.log(`[generate-weekly-advice] user=${user_id} week=${weekStart} force=${!!force}`);
+    console.log(`[generate-weekly-advice] user=${user_id} date=${today} force=${!!force}`);
 
-    // ── 1. Deja des conseils hebdo pour cette semaine ? ────────────────────
-    const { data: existingWeek } = await supabase
+    // ── 1. Deja des conseils pour aujourd'hui ? ─────────────────────────────
+    const { data: existingToday } = await supabase
       .from("weekly_advice_log")
       .select("id")
       .eq("user_id", user_id)
-      .eq("week_start", weekStart)
+      .eq("week_start", today)
       .limit(1);
 
-    if (existingWeek && existingWeek.length > 0 && !force) {
+    if (existingToday && existingToday.length > 0 && !force) {
       console.log(`[generate-weekly-advice] user=${user_id} → cached`);
       const { data: current } = await supabase
         .from("weekly_advice_log")
         .select("*")
         .eq("user_id", user_id)
-        .eq("week_start", weekStart)
+        .eq("week_start", today)
         .order("priority", { ascending: true });
       return new Response(JSON.stringify({ cached: true, conseils: current }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ── 1bis. Plafond de régénérations MANUELLES pour la semaine ────────────
+    // ── 1bis. Plafond de régénérations MANUELLES pour la semaine calendaire ──
     const { data: regenProfile } = await supabase
       .from("profiles")
-      .select("weekly_advice_regen_count, weekly_advice_regen_week")
+      .select("weekly_advice_regen_count, weekly_advice_regen_week, last_weekly_advice_at")
       .eq("id", user_id)
       .single();
 
     const manualRegensUsedThisWeek =
-      regenProfile?.weekly_advice_regen_week === weekStart
+      regenProfile?.weekly_advice_regen_week === regenWeekStart
         ? (regenProfile?.weekly_advice_regen_count ?? 0)
         : 0;
 
     if (
-      existingWeek && existingWeek.length > 0 && force &&
+      existingToday && existingToday.length > 0 && force &&
       manualRegensUsedThisWeek >= MAX_MANUAL_REGENS_PER_WEEK
     ) {
       console.log(`[generate-weekly-advice] user=${user_id} → rate-limited (${manualRegensUsedThisWeek}/${MAX_MANUAL_REGENS_PER_WEEK})`);
@@ -125,14 +138,10 @@ serve(async (req) => {
       );
     }
 
-    // Si force : supprimer les anciens conseils de la semaine avant de regenerer
-    if (force) {
-      await supabase
-        .from("weekly_advice_log")
-        .delete()
-        .eq("user_id", user_id)
-        .eq("week_start", weekStart);
-    }
+    // Si force : les anciens conseils du jour ne sont supprimés qu'au moment d'insérer les
+    // nouveaux (étape 9bis), pas ici. Les supprimer avant l'appel Claude (~20 s) laissait une
+    // fenêtre sans conseils pendant laquelle le Dashboard / WeeklyPlan déclenchaient leur
+    // auto-génération (force:false) → un 2e appel Claude facturé pour rien.
 
     // ── 2. Profil ──────────────────────────────────────────────────────────
     const { data: profile, error: profileError } = await supabase
@@ -221,7 +230,7 @@ serve(async (req) => {
 - Pigmentation : ${skinAnalysis.pigmentation?.uniformite ?? "non renseignee"}, type ${skinAnalysis.pigmentation?.type ?? "non renseigne"}
 - Rides : periorbital ${skinAnalysis.rides?.periorbital}/5, front ${skinAnalysis.rides?.front}/5
 - Phototype : ${skinAnalysis.fitzpatrick ?? "non renseigne"} — Glogau : ${skinAnalysis.glogau ?? "non renseigne"}${skinAnalysis.points_attention?.length ? `\n- Points d'attention : ${skinAnalysis.points_attention.join(", ")}` : ""}`
-      : "- Aucune analyse de peau disponible cette semaine (mode degrade : base-toi sur le profil declare)";
+      : "- Aucune analyse de peau disponible (mode degrade : base-toi sur le profil declare)";
 
     const productsBlock = cosmetics.length > 0
       ? cosmetics.map((p) => {
@@ -231,7 +240,7 @@ serve(async (req) => {
       : "- Aucun produit enregistre";
 
     const prompt = `Tu es l'assistant skincare expert d'une application premium francaise.
-Nous sommes en debut de semaine. Genere le PLAN DE LA SEMAINE : 2 a 3 conseils PILIERS structurants qui vont guider l'utilisatrice pendant les 7 prochains jours.
+Genere les CONSEILS DU JOUR : 2 a 3 conseils cibles sur les besoins de la peau de l'utilisatrice aujourd'hui.
 
 ## PROFIL
 - Age : ${profile.age ?? "non renseigne"}
@@ -251,19 +260,19 @@ ${lifestyleBlock}
 ${productsBlock}
 
 ## TON OBJECTIF
-Genere 2 a 3 conseils PILIERS pour la semaine qui :
-1. Definissent les PRIORITES de la semaine selon l'etat de peau observe
+Genere 2 a 3 conseils du jour qui :
+1. Definissent les PRIORITES du jour selon l'etat de peau observe et le contexte d'aujourd'hui
 2. Evaluent, parmi les produits possedes listes ci-dessus, lesquels sont reellement adaptes a son type de peau, ses problemes et ses objectifs — possede un produit ne veut pas dire qu'il lui convient
 3. S'appuient sur les ingredients actifs des produits pertinents (cite les actifs precis : niacinamide, retinol, acide hyaluronique, etc.) et signalent clairement si un produit possede ne convient pas ou est a utiliser avec prudence, plutot que de l'ignorer silencieusement
-4. Tiennent compte de la phase du cycle ET du mode de vie ci-dessus (stress, sommeil, alimentation...) quand un facteur du jour est pertinent pour la priorite de la semaine
-5. Sont structurants (une direction pour la semaine, pas un geste ponctuel)
+4. Tiennent compte de la phase du cycle ET du mode de vie ci-dessus (stress, sommeil, alimentation...) en priorite quand un facteur du jour (check-in) est renseigne
+5. Sont concrets pour aujourd'hui (un geste ou une attention du jour, pas forcement une direction de plusieurs semaines)
 6. Restent actionnables et experts
 
 ## REGLES
 - STRICTEMENT 2 ou 3 conseils, jamais plus, jamais moins — priorise et regroupe plutot que d'en ajouter un quatrieme
 - JAMAIS de conseils de base (pas "buvez de l'eau", pas "demaquillez-vous")
 - Ces femmes sont expertes — va au-dela des fondamentaux
-- Cite les ACTIFS des produits possedes quand c'est pertinent pour son profil — ne cite pas un produit juste parce qu'elle le possede s'il n'apporte rien a ses priorites de la semaine
+- Cite les ACTIFS des produits possedes quand c'est pertinent pour son profil — ne cite pas un produit juste parce qu'elle le possede s'il n'apporte rien a ses priorites du jour
 - Bienveillant, jamais condescendant ni alarmiste
 - Ne recommande jamais de marques a acheter
 - N'invente et ne deduis JAMAIS une information non fournie explicitement ci-dessus — notamment la frequence, l'anciennete ou la regularite d'utilisation d'un produit (ex. ne dis jamais qu'un produit est utilise "quotidiennement" ou "depuis longtemps" si ce n'est pas indique dans la liste des produits)
@@ -273,8 +282,8 @@ Genere 2 a 3 conseils PILIERS pour la semaine qui :
 En plus de la priorite, classe chaque conseil par type (nature du conseil, different de la priorite) :
 - "observation" : constat sur l'etat de la peau, sans action urgente
 - "astuce" : conseil actionnable positif, une astuce experte a appliquer
-- "alerte" : point de vigilance a surveiller cette semaine (peut evoluer, pas grave dans l'immediat)
-- "warning" : point qui necessite une vraie attention/action cette semaine (le plus prioritaire)
+- "alerte" : point de vigilance a surveiller dans les prochains jours (peut evoluer, pas grave dans l'immediat)
+- "warning" : point qui necessite une vraie attention/action aujourd'hui (le plus prioritaire)
 Varie les types entre les conseils plutot que de tout mettre dans la meme categorie.
 
 ## FORMAT DE SORTIE
@@ -284,9 +293,9 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
     {
       "priorite": "haute" | "moyenne" | "basse",
       "type": "observation" | "astuce" | "alerte" | "warning",
-      "titre": "Priorite de la semaine, phrase courte",
+      "titre": "Priorite du jour, phrase courte",
       "corps": "Explication du pourquoi, lien avec l'etat de peau et les actifs disponibles",
-      "action": "La direction concrete a suivre cette semaine"
+      "action": "Le geste concret a faire aujourd'hui"
     }
   ]
 }`;
@@ -343,7 +352,7 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
         priorite: string; type?: string; titre: string; corps: string; action: string;
       }) => ({
         user_id,
-        week_start: weekStart,
+        week_start: today,
         advice_title: c.titre,
         advice_text: c.corps,
         advice_tip: c.action,
@@ -357,17 +366,28 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
       .slice(0, MAX_ADVICE_COUNT);
 
     // ── 9bis. Re-verification anti-course juste avant l'ecriture ────────────
-    // Le check "existingWeek" de l'etape 1 a un trou : deux appels concurrents pour le
+    // Le check "existingToday" de l'etape 1 a un trou : deux appels concurrents pour le
     // meme utilisateur (ex. un appel en fire-and-forget en fin d'onboarding + le premier
     // chargement du Dashboard juste apres la redirection) peuvent tous les deux le passer
     // avant que l'un des deux ait ecrit quoi que ce soit, doublant le nombre de conseils
-    // inseres pour la semaine. On reverifie donc juste avant d'ecrire, au plus pres de
+    // inseres pour aujourd'hui. On reverifie donc juste avant d'ecrire, au plus pres de
     // l'insertion, pour reduire la fenetre de course a la duree d'une lecture DB.
-    const { data: raceCheck } = await supabase
+    // En force, on remplace volontairement les conseils existants : suppression au plus
+    // près de l'insertion pour que les anciens restent visibles pendant la génération
+    // (et soient conservés si l'appel Claude échoue).
+    if (force) {
+      await supabase
+        .from("weekly_advice_log")
+        .delete()
+        .eq("user_id", user_id)
+        .eq("week_start", today);
+    }
+
+    const { data: raceCheck } = force ? { data: null } : await supabase
       .from("weekly_advice_log")
       .select("id, advice_title, advice_text, advice_tip, priority, advice_group, based_on_photo")
       .eq("user_id", user_id)
-      .eq("week_start", weekStart)
+      .eq("week_start", today)
       .order("priority", { ascending: true });
 
     if (raceCheck && raceCheck.length > 0) {
@@ -385,34 +405,44 @@ Reponds UNIQUEMENT en JSON valide, sans texte autour :
     if (insertError) throw new Error(`Insert weekly_advice_log: ${insertError.message}`);
     console.log(`[generate-weekly-advice] user=${user_id} → ${rows.length} conseils insérés`);
 
-    // ── 10. Reset des crédits de scan hebdo + compteur de régénérations MANUELLES ──
-    // Indexé sur CETTE génération individuelle (pas un cron calendaire global) :
-    // chaque exécution réussie de generate-weekly-advice repart à 5 crédits pour
-    // l'utilisatrice concernée, quelle que soit la date. Les crédits non utilisés
-    // sont perdus (use-it-or-lose-it), pas de rollover. On ne reset pas sur le
-    // chemin "cached" plus haut, puisqu'aucune génération n'a alors eu lieu.
-    // Le compteur de régénérations, lui, n'avance QUE sur un force:true — la génération
-    // automatique de début de semaine reste gratuite et illimitée (une seule par semaine
-    // de toute façon, grâce au cache existingWeek).
+    // ── 10. Compteur de régénérations MANUELLES + reset HEBDO des crédits de scan ──
+    // Le compteur de régénérations n'avance QUE sur un force:true — la génération
+    // automatique du jour reste gratuite et illimitée (une seule par jour de toute façon,
+    // grâce au cache existingToday).
     const manualRegensUsedNow = force ? manualRegensUsedThisWeek + 1 : manualRegensUsedThisWeek;
+
+    // Les crédits de scan restent un quota HEBDOMADAIRE même si les conseils sont désormais
+    // générés chaque jour : on ne les remet à 5 que lors de la toute première génération
+    // (auto ou manuelle) de la semaine calendaire en cours, jamais à chaque jour. On le
+    // détecte en comparant la semaine de last_weekly_advice_at à regenWeekStart — si elles
+    // diffèrent (ou qu'aucune génération n'a encore eu lieu), c'est une nouvelle semaine.
+    const lastAdviceWeek = regenProfile?.last_weekly_advice_at
+      ? getMonday(regenProfile.last_weekly_advice_at.split("T")[0])
+      : null;
+    const shouldResetScanCredits = lastAdviceWeek !== regenWeekStart;
+
+    const profileUpdate: Record<string, unknown> = {
+      weekly_advice_regen_count: manualRegensUsedNow,
+      weekly_advice_regen_week: regenWeekStart,
+    };
+    if (shouldResetScanCredits) {
+      profileUpdate.scan_credits_remaining = 5;
+      profileUpdate.last_weekly_advice_at = new Date().toISOString();
+    }
+
     const { error: creditResetError } = await supabase
       .from("profiles")
-      .update({
-        scan_credits_remaining: 5,
-        last_weekly_advice_at: new Date().toISOString(),
-        weekly_advice_regen_count: manualRegensUsedNow,
-        weekly_advice_regen_week: weekStart,
-      })
+      .update(profileUpdate)
       .eq("id", user_id);
     if (creditResetError) {
-      console.warn("[generate-weekly-advice] scan credits reset warning:", creditResetError.message);
+      console.warn("[generate-weekly-advice] profile update warning:", creditResetError.message);
     }
 
     const { data: inserted } = await supabase
       .from("weekly_advice_log")
       .select("id, advice_title, advice_text, advice_tip, priority, advice_group, based_on_photo")
       .eq("user_id", user_id)
-      .eq("week_start", weekStart)
+      .eq("week_start", today)
       .order("priority", { ascending: true });
 
     return new Response(

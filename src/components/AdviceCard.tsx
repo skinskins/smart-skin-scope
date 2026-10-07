@@ -13,9 +13,9 @@ export type Conseil = {
 
 export const GROUP_ORDER: Record<string, number> = { warning: 0, alerte: 1, astuce: 2, observation: 3 };
 
-// weekly_advice_log n'a pas de colonne advice_group (contrairement à daily_advice_log) —
-// on dérive le badge visuel de sa priorité ("1" haute | "2" moyenne | "3" basse), pour que
-// les 3-4 piliers de la semaine restent visuellement distincts plutôt que tous identiques.
+// Repli historique pour les lignes de weekly_advice_log générées avant l'ajout de la
+// colonne advice_group — on dérive alors le badge visuel de la priorité ("1" haute |
+// "2" moyenne | "3" basse) pour que les conseils du jour restent visuellement distincts.
 const PILIER_GROUP_BY_PRIORITY: Record<string, string> = {
   "1": "pilier-haute",
   "2": "pilier-moyenne",

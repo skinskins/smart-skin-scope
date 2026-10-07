@@ -228,7 +228,7 @@ const SuiviJour = () => {
         setSkinScansRemaining(analysisData.skin_scans_remaining);
       }
 
-      // Régénérer les conseils de la semaine à partir de la nouvelle analyse
+      // Régénérer les conseils du jour à partir de la nouvelle analyse
       if (analysisData?.analysis) {
         setSkinAnalysis(analysisData.analysis);
 
@@ -247,8 +247,11 @@ const SuiviJour = () => {
           await (supabase as any).from("profiles").update(profUpdate).eq("id", userId);
         }
 
+        // Date LOCALE (pas UTC) : c'est la clé avec laquelle le Dashboard relit les conseils.
+        const now = new Date();
+        const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
         supabase.functions.invoke("generate-weekly-advice", {
-          body: { user_id: userId },
+          body: { user_id: userId, date: localDate },
         }).catch((e) => console.warn("generate-weekly-advice:", e));
       }
     } catch (e) {

@@ -473,11 +473,11 @@ const Signup = () => {
                     console.error("[DEBUG] skin_photos upsert error:", skinPhotoError);
                 }
             }
-            // La génération des conseils de la semaine est laissée au premier chargement du
+            // La génération des conseils du jour est laissée au premier chargement du
             // Dashboard (fetchAdvice) plutôt que déclenchée ici en fire-and-forget : les deux
             // appels en parallèle (celui-ci + celui du Dashboard juste après la redirection)
             // passaient chacun le check "déjà généré ?" avant que l'autre ait inséré ses lignes,
-            // doublant le nombre de conseils insérés pour la même semaine.
+            // doublant le nombre de conseils insérés pour le même jour.
             localStorage.setItem("nacre_show_beta_welcome", "1");
             setLoading(false);
             navigate("/dashboard");

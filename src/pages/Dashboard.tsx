@@ -3,6 +3,7 @@ import { Sparkles, ImageOff, Plus, RefreshCw, Camera, ChevronRight, ChevronLeft,
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ProductTypeIcon } from "@/components/ProductTypeIcon";
 import { supabase } from "@/integrations/supabase/client";
+import { curateDailyRoutine } from "@/utils/routineCuration";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSessionUserId } from "@/hooks/useSessionUserId";
@@ -164,10 +165,7 @@ const fetchDashboardRoutine = async (userId: string, todayISO: string): Promise<
   if (!count) return { routineProducts: [], eveningActiveProducts };
 
   try {
-    const [morningRes, eveningRes] = await Promise.all([
-      supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
-      supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
-    ]);
+    const { morningRes, eveningRes } = await curateDailyRoutine(userId);
     const currentRes = isMorning ? morningRes : eveningRes;
     const ids = (currentRes.data?.routine ?? []).map((p: any) => p.product_id);
     const routineProducts = await hydrateRoutineProductIds(ids);
@@ -180,37 +178,39 @@ const fetchDashboardRoutine = async (userId: string, todayISO: string): Promise<
 
 type WeeklyAdviceResult = Conseil[] | null;
 
-// ── Conseils de la semaine (pilliers) ───────────────────────────────────────
-// Régénérés une fois par semaine (jamais chaque jour) — generate-weekly-advice gère
-// elle-même le cache hebdomadaire côté serveur, donc rappeler sans force ici ne
-// déclenche une vraie génération que si la semaine n'a encore rien produit. Mise en
-// cache react-query par (userId, weekStart) : changer d'onglet et revenir affiche
+// ── Conseils du jour (pilliers) ─────────────────────────────────────────────
+// Régénérés une fois par jour (jamais plus) — generate-weekly-advice gère elle-même
+// le cache quotidien côté serveur, donc rappeler sans force ici ne déclenche une
+// vraie génération que si aujourd'hui n'a encore rien produit. Le plafond de
+// régénérations MANUELLES reste lui hebdomadaire (cf. fetchWeeklyAdviceRegensRemaining
+// ci-dessous, clé par semaine calendaire, indépendante de cette clé quotidienne).
+// Mise en cache react-query par (userId, date) : changer d'onglet et revenir affiche
 // les conseils deja generes instantanement plutot que de repasser par l'etat
 // "Chargement de vos conseils…" a chaque montage.
-const fetchWeeklyAdvice = async (userId: string, weekStart: string): Promise<WeeklyAdviceResult> => {
+const fetchWeeklyAdvice = async (userId: string, date: string): Promise<WeeklyAdviceResult> => {
   const { data: existing } = await (supabase as any)
     .from("weekly_advice_log")
     .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
     .eq("user_id", userId)
-    .eq("week_start", weekStart)
+    .eq("week_start", date)
     .order("priority", { ascending: true });
 
   if (existing && existing.length > 0) {
     return existing.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) }));
   }
 
-  // Aucun conseil pour cette semaine → générer automatiquement (une seule fois — react-query
+  // Aucun conseil pour aujourd'hui → générer automatiquement (une seule fois — react-query
   // deduplique les appels concurrents sur la meme clé, donc pas besoin de ref de garde ici).
-  const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: {} });
+  const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { date } });
   if (error) {
-    console.error("[dashboard] weekly advice generation failed:", error);
+    console.error("[dashboard] daily advice generation failed:", error);
     return null;
   }
   const { data: fresh } = await (supabase as any)
     .from("weekly_advice_log")
     .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
     .eq("user_id", userId)
-    .eq("week_start", weekStart)
+    .eq("week_start", date)
     .order("priority", { ascending: true });
   if (fresh && fresh.length > 0) {
     return fresh.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) }));
@@ -218,7 +218,8 @@ const fetchWeeklyAdvice = async (userId: string, weekStart: string): Promise<Wee
   return null;
 };
 
-// Lit le compteur de mises à jour manuelles directement en base (identique à WeeklyPlan.tsx).
+// Lit le compteur de mises à jour manuelles directement en base — plafond HEBDOMADAIRE,
+// indépendant de la cadence quotidienne des conseils (identique à WeeklyPlan.tsx).
 const fetchWeeklyAdviceRegensRemaining = async (userId: string, weekStart: string): Promise<number | null> => {
   const { data } = await (supabase as any)
     .from("profiles")
@@ -406,15 +407,17 @@ const Dashboard = () => {
     fetchStreak();
   }, []);
 
-  // ── Conseils de la semaine (pilliers) ───────────────────────────────────────
+  // ── Conseils du jour (pilliers) ─────────────────────────────────────────────
+  const adviceDate = useMemo(() => todayLocalISO(), []);
+  // Plafond de régénérations MANUELLES : reste hebdomadaire, indépendant de adviceDate ci-dessus.
   const weekStart = useMemo(() => getMonday(todayLocalISO()), []);
-  const adviceQueryKey = useMemo(() => ["weekly-advice", userId, weekStart] as const, [userId, weekStart]);
+  const adviceQueryKey = useMemo(() => ["daily-advice", userId, adviceDate] as const, [userId, adviceDate]);
 
   const { data: advicesData, isLoading: adviceQueryLoading, isError: adviceQueryFailed } = useQuery({
     queryKey: adviceQueryKey,
     queryFn: async () => {
-      const result = await fetchWeeklyAdvice(userId as string, weekStart);
-      if (result === null) throw new Error("weekly-advice-generation-failed");
+      const result = await fetchWeeklyAdvice(userId as string, adviceDate);
+      if (result === null) throw new Error("daily-advice-generation-failed");
       return result;
     },
     enabled: !!userId,
@@ -460,13 +463,13 @@ const Dashboard = () => {
     setAdviceUpdating(true);
     setAdviceUpdateError(null);
     try {
-      const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true } });
+      const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true, date: adviceDate } });
       if (error) throw new Error(await extractInvokeErrorMessage(error));
       const { data: fresh } = await (supabase as any)
         .from("weekly_advice_log")
         .select("id, advice_title, advice_text, advice_tip, priority, advice_group")
         .eq("user_id", userId)
-        .eq("week_start", weekStart)
+        .eq("week_start", adviceDate)
         .order("priority", { ascending: true });
       if (fresh && fresh.length > 0) {
         const mapped = fresh.map((c: any) => ({ ...c, advice_group: c.advice_group ?? pilierGroupFromPriority(c.priority) }));
@@ -482,11 +485,10 @@ const Dashboard = () => {
     }
   };
 
-  // Prochaine génération automatique = lundi de la semaine suivante (cache hebdomadaire
-  // côté generate-weekly-advice, cf. §3 des notes de recherche).
+  // Prochaine génération automatique = demain (cache quotidien côté generate-weekly-advice).
   const nextAdviceUpdateLabel = (() => {
-    const next = new Date(weekStart + "T00:00:00");
-    next.setDate(next.getDate() + 7);
+    const next = new Date(adviceDate + "T00:00:00");
+    next.setDate(next.getDate() + 1);
     return next.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   })();
 
@@ -590,7 +592,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-1.5">
               <Sparkles size={12} strokeWidth={2.2} className="text-primary/70" />
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Conseils de la semaine
+                Conseils du jour
               </p>
             </div>
             {advices.length > 0 && (

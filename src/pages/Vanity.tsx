@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Search, Plus, Trash2, Scan, FileUp, RefreshCw } from "lucide-react";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
+import { curateDailyRoutine } from "@/utils/routineCuration";
 import { useProductSearch } from "@/hooks/useProductSearch";
 import { PageHeader } from "@/components/PageHeader";
 import { useRoutineProducts } from "@/hooks/useRoutineProducts";
@@ -272,10 +273,7 @@ const Vanity = () => {
     setAutoCurating(true);
     (async () => {
       try {
-        const [morningRes, eveningRes] = await Promise.all([
-          supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
-          supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
-        ]);
+        const { morningRes, eveningRes } = await curateDailyRoutine(userId);
         if (morningRes.data?.routine) {
           setOptimizedMorning({
             product_ids: morningRes.data.routine.map((p: any) => p.product_id),
@@ -329,16 +327,13 @@ const Vanity = () => {
     setRefreshingRoutine(true);
     setRoutineRefreshError(null);
     try {
-      const { error: adviceError } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true } });
+      const { error: adviceError } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true, date: toLocalISODate(new Date()) } });
       if (adviceError) {
         setRoutineRefreshError(await extractInvokeErrorMessage(adviceError));
         return;
       }
 
-      const [morningRes, eveningRes] = await Promise.all([
-        supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "morning" } }),
-        supabase.functions.invoke("inci-analysis", { body: { user_id: userId, period: "evening" } }),
-      ]);
+      const { morningRes, eveningRes } = await curateDailyRoutine(userId);
       if (morningRes.data?.routine) {
         setOptimizedMorning({
           product_ids: morningRes.data.routine.map((p: any) => p.product_id),
