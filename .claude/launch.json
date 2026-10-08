@@ -5,7 +5,7 @@
       "name": "smart-skin-scope-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "port": 8080
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,9 +13,40 @@ const ResetPassword = () => {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [linkStatus, setLinkStatus] = useState<"checking" | "valid" | "invalid">("checking");
+
+    useEffect(() => {
+        // Expired or already-used links come back with an error in the URL hash
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const searchParams = new URLSearchParams(window.location.search);
+        if (hashParams.get("error") || searchParams.get("error")) {
+            setLinkStatus("invalid");
+            return;
+        }
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === "PASSWORD_RECOVERY" || session) setLinkStatus("valid");
+        });
+
+        // Give the client time to exchange the token from the link before giving up
+        const timeout = setTimeout(async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setLinkStatus(session ? "valid" : "invalid");
+        }, 1500);
+
+        return () => {
+            subscription.unsubscribe();
+            clearTimeout(timeout);
+        };
+    }, []);
 
     const handleResetPassword = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (password.length < 6) {
+            toast.error("Le mot de passe doit contenir au moins 6 caractères.");
+            return;
+        }
 
         if (password !== confirmPassword) {
             toast.error("Les mots de passe ne correspondent pas.");
@@ -35,7 +66,9 @@ const ResetPassword = () => {
             return;
         }
 
-        toast.success("Votre mot de passe a été mis à jour avec succès !");
+        // Sign out the recovery session so /login isn't bypassed by PublicOnlyGuard
+        await supabase.auth.signOut();
+        toast.success("Votre mot de passe a été mis à jour. Vous pouvez vous reconnecter.");
         navigate("/login");
     };
 
@@ -63,6 +96,28 @@ const ResetPassword = () => {
                     <p className="text-muted-foreground text-sm">Définissez un nouveau mot de passe pour sécuriser votre compte.</p>
                 </div>
 
+                {linkStatus === "checking" && (
+                    <div className="flex justify-center py-8">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                )}
+
+                {linkStatus === "invalid" && (
+                    <div className="text-center space-y-6">
+                        <p className="text-sm text-foreground">
+                            Ce lien de réinitialisation est invalide ou a expiré. Demandez-en un nouveau depuis l'écran de connexion.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => navigate("/login")}
+                            className="w-full bg-primary text-primary-foreground py-4 rounded-2xl font-semibold shadow-elevated hover:opacity-90 active:scale-[0.98] transition-all"
+                        >
+                            Retour à la connexion
+                        </button>
+                    </div>
+                )}
+
+                {linkStatus === "valid" && (
                 <form onSubmit={handleResetPassword} className="space-y-6">
                     <div className="space-y-2 relative">
                         <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Nouveau mot de passe</label>
@@ -118,6 +173,7 @@ const ResetPassword = () => {
                         {loading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
                     </button>
                 </form>
+                )}
             </motion.div>
         </div>
     );

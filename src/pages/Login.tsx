@@ -51,9 +51,14 @@ const Login = () => {
             return;
         }
 
+        // In the native shell, origin is capacitor://localhost, which an email link can't open
+        const webOrigin = window.location.protocol.startsWith("http")
+            ? window.location.origin
+            : "https://skin-nacre.vercel.app";
+
         setLoading(true);
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password`,
+            redirectTo: `${webOrigin}/reset-password`,
         });
         setLoading(false);
 
