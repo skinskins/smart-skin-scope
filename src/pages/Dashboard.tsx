@@ -3,6 +3,7 @@ import { Sparkles, ImageOff, Plus, RefreshCw, Camera, ChevronRight, ChevronLeft,
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ProductTypeIcon } from "@/components/ProductTypeIcon";
 import { supabase } from "@/integrations/supabase/client";
+import { generateDailyAdvice } from "@/utils/dailyAdviceGeneration";
 import { curateDailyRoutine } from "@/utils/routineCuration";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -201,7 +202,7 @@ const fetchWeeklyAdvice = async (userId: string, date: string): Promise<WeeklyAd
 
   // Aucun conseil pour aujourd'hui → générer automatiquement (une seule fois — react-query
   // deduplique les appels concurrents sur la meme clé, donc pas besoin de ref de garde ici).
-  const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { date } });
+  const { error } = await generateDailyAdvice(userId, { date });
   if (error) {
     console.error("[dashboard] daily advice generation failed:", error);
     return null;
@@ -463,7 +464,7 @@ const Dashboard = () => {
     setAdviceUpdating(true);
     setAdviceUpdateError(null);
     try {
-      const { error } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true, date: adviceDate } });
+      const { error } = await generateDailyAdvice(userId, { force: true, date: adviceDate });
       if (error) throw new Error(await extractInvokeErrorMessage(error));
       const { data: fresh } = await (supabase as any)
         .from("weekly_advice_log")

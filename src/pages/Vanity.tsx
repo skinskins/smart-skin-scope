@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Search, Plus, Trash2, Scan, FileUp, RefreshCw } from "lucide-react";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { supabase } from "@/integrations/supabase/client";
+import { generateDailyAdvice } from "@/utils/dailyAdviceGeneration";
 import { curateDailyRoutine } from "@/utils/routineCuration";
 import { useProductSearch } from "@/hooks/useProductSearch";
 import { PageHeader } from "@/components/PageHeader";
@@ -327,7 +328,7 @@ const Vanity = () => {
     setRefreshingRoutine(true);
     setRoutineRefreshError(null);
     try {
-      const { error: adviceError } = await supabase.functions.invoke("generate-weekly-advice", { body: { force: true, date: toLocalISODate(new Date()) } });
+      const { error: adviceError } = await generateDailyAdvice(userId, { force: true, date: toLocalISODate(new Date()) });
       if (adviceError) {
         setRoutineRefreshError(await extractInvokeErrorMessage(adviceError));
         return;

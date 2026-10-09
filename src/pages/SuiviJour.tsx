@@ -5,6 +5,7 @@ import { normalizeCarnation } from "@/utils/carnation";
 import { PageHeader } from "@/components/PageHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { generateDailyAdvice } from "@/utils/dailyAdviceGeneration";
 import { useWeatherData } from "@/hooks/useWeatherData";
 import { RoutineCard } from "@/components/RoutineCard";
 import type { RoutineProduct } from "@/hooks/useRoutineProducts";
@@ -250,9 +251,7 @@ const SuiviJour = () => {
         // Date LOCALE (pas UTC) : c'est la clé avec laquelle le Dashboard relit les conseils.
         const now = new Date();
         const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-        supabase.functions.invoke("generate-weekly-advice", {
-          body: { user_id: userId, date: localDate },
-        }).catch((e) => console.warn("generate-weekly-advice:", e));
+        generateDailyAdvice(userId, { date: localDate }).catch((e) => console.warn("generate-weekly-advice:", e));
       }
     } catch (e) {
       console.warn("[PhotoUpload] analyse échouée:", e);
